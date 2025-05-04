@@ -1,2 +1,2 @@
 # aps_qp
-Adaptive planing system when qp_tools from google
+Adaptive planing system when or_tools from google
