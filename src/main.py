@@ -1,7 +1,2 @@
-
-
 def main():
     pass
-
-
-if
