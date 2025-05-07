@@ -10,143 +10,156 @@ def main() -> None:
         , [47] # shaft
     ]
 
-    products = [  # (name, proccess_time, [(reed_idx, qty), (shaft_idx, qty)]).
-        ("87416", 18.8, [(0, 1), (0, 7)] )
-        , ("18305", 20.5, [(1, 1), (0, 6)])
-        , ("18302", 20, [(2, 1), (0, 7)])
+    solver = cp_model.CpSolver()
+
+    products = [  # (name, qty, [(reed_idx, qty), (shaft_idx, qty)]).
+        ("87416", 6, [(0, 1), (0, 7)] )
+        , ("18305", 3, [(1, 1), (0, 6)])
+        , ("18302", 1, [(2, 1), (0, 7)])
     ]
     num_machines = 5
     num_products = len(products)
     num_days = 7
     all_machines = range(num_machines)
-    all_products = range(num_products)
+    all_products = range(num_products+1)
     all_days = range(num_days)
+    clear_idx = num_products
 
 
     # Create the model.
     model = cp_model.CpModel()
 
     shifts = {}
+    machine_product = {}
     for m in all_machines:
-        for p in all_products:
-            for d in all_days:
-                shifts[(m, p, d)] = model.new_bool_var(f"shift_m{m}_p{p}_d{d}")
+        for d in all_days:
+            for p in all_products:
+                shifts[(m, d, p)] = model.new_bool_var(f"shift_m{m}_d{d}_p{p}")
+
 
     # На одной машине один продукт в день
     for d in all_days:
-        for p in all_products:
-            model.add_exactly_one(shifts[(m, p, d)] for m in all_machines)
+        for m in all_machines:
+            model.add_at_most_one(shifts[(m, d, p)] for p in all_products)
+
+    # # На одной машине один продукт в день
+    # for d in all_days:
+    #     for p in all_products:
+    #         model.add_exactly_one(shifts[(m, d, p)] for m in all_machines)
+
+    # Добавляем переход
+    # for m in all_machines:
+    #     for p in range(num_products):
+    #         for d in range(1, num_days):
+    #             item_pred = shifts[(m, d-1, p)]
+    #             item_clear = shifts[(m, d-1, clear_idx)]
+    #             model.add(item_pred == 1)
+    #             #model.add(item_clear == 1)
 
 
+    products_sum = []
+    all_sum = 0
+    for p in range(num_products):
+        all_sum += products[p][1]
+        for m in all_machines:
+            for d in all_days:
+                products_sum.append(shifts[(m, d, p)])
 
 
-    jobs_data = [  # task = (machine_id, processing_time).
-        [(0, 3), (1, 2), (2, 2)],  # Job0
-        [(0, 2), (2, 1), (1, 4)],  # Job1
-        [(1, 4), (2, 3)],  # Job2
-    ]
+    for p in range(num_products):
+        k = products[p][1] / all_sum
+        k = int(k * num_days * num_machines)
+        products_sum_one = []
+        for m in all_machines:
+            for d in all_days:
+                products_sum_one.append(shifts[(m, d, p)])
 
-    machines_count = 1 + max(task[0] for job in jobs_data for task in job)
-    all_machines = range(machines_count)
-    # Computes horizon dynamically as the sum of all durations.
-    horizon = sum(task[1] for job in jobs_data for task in job)
+        if p < num_products:
+            model.add(sum(products_sum_one) >= k - 1)
+            print(f"k({p}) = {k-1}")
 
-    # Create the model.
-    model = cp_model.CpModel()
+        #model.add(sum(products_sum_one) >= k)
+        #     z[p] = model.new_int_var(-100, 100, "z")
+    #     model.add_modulo_equality(x[p], sum(products_sum_one), sum(products_sum))
+    #     model.add_abs_equality(z[p], k - x[p])
+     #model.minimize(sum(z))
 
-    # Named tuple to store information about created variables.
-    task_type = collections.namedtuple("task_type", "start end interval")
-    # Named tuple to manipulate solution information.
-    assigned_task_type = collections.namedtuple(
-        "assigned_task_type", "start job index duration"
-    )
+    # Objective
+    objective_terms = []
 
-    # Creates job intervals and add to the corresponding machine lists.
-    all_tasks = {}
-    machine_to_intervals = collections.defaultdict(list)
+    for m in all_machines:
+        for d in all_days:
+            for p in range(num_products):
+                objective_terms.append(shifts[(m,d,p)])
 
-    for job_id, job in enumerate(jobs_data):
-        for task_id, task in enumerate(job):
-            machine, duration = task
-            suffix = f"_{job_id}_{task_id}"
-            start_var = model.new_int_var(0, horizon, "start" + suffix)
-            end_var = model.new_int_var(0, horizon, "end" + suffix)
-            interval_var = model.new_interval_var(
-                start_var, duration, end_var, "interval" + suffix
-            )
-            all_tasks[job_id, task_id] = task_type(
-                start=start_var, end=end_var, interval=interval_var
-            )
-            machine_to_intervals[machine].append(interval_var)
+    model.maximize(sum(objective_terms))
 
-    # Create and add disjunctive constraints.
-    for machine in all_machines:
-        model.add_no_overlap(machine_to_intervals[machine])
-
-    # Precedences inside a job.
-    for job_id, job in enumerate(jobs_data):
-        for task_id in range(len(job) - 1):
-            model.add(
-                all_tasks[job_id, task_id + 1].start >= all_tasks[job_id, task_id].end
-            )
-
-    # Makespan objective.
-    obj_var = model.new_int_var(0, horizon, "makespan")
-    model.add_max_equality(
-        obj_var,
-        [all_tasks[job_id, len(job) - 1].end for job_id, job in enumerate(jobs_data)],
-    )
-    model.minimize(obj_var)
+    # objective_terms2 = []
+    # for m in all_machines:
+    #     for d in all_days:
+    #         objective_terms2.append(shifts[m,d,clear_idx,])
+    # model.minimize(sum(objective_terms2))
 
     # Creates the solver and solve.
-    solver = cp_model.CpSolver()
+
+
+    # solver.parameters.linearization_level = 0
+    # # Enumerate all solutions.
+    # solver.parameters.enumerate_all_solutions = True
+
+    # class NursesPartialSolutionPrinter(cp_model.CpSolverSolutionCallback):
+    #     """Print intermediate solutions."""
+    #
+    #     def __init__(self, shifts, num_machine, num_days, num_products, limit):
+    #         cp_model.CpSolverSolutionCallback.__init__(self)
+    #         self._shifts = shifts
+    #         self._num_machine = num_machine
+    #         self._num_days = num_days
+    #         self._num_products = num_products
+    #         self._solution_count = 0
+    #         self._solution_limit = limit
+    #
+    #     def on_solution_callback(self):
+    #         self._solution_count += 1
+    #         print(f"Solution {self._solution_count}")
+    #         for d in range(self._num_days):
+    #             print(f"Day {d}")
+    #             for m in range(self._num_machine):
+    #                 is_working = False
+    #                 for p in range(self._num_products):
+    #                     if self.value(self._shifts[(m, d, p)]):
+    #                         is_working = True
+    #                         print(f"  Loom {m} works  {p}")
+    #         if self._solution_count >= self._solution_limit:
+    #             print(f"Stop search after {self._solution_limit} solutions")
+    #             self.stop_search()
+    #
+    #     def solutionCount(self):
+    #         return self._solution_count
+    #
+    # # Display the first five solutions.
+    # solution_limit = 5
+    # solution_printer = NursesPartialSolutionPrinter(
+    #     shifts, num_machines, num_days, num_products + 1, solution_limit
+    # )
     status = solver.solve(model)
-
     if status == cp_model.OPTIMAL or status == cp_model.FEASIBLE:
-        print("Solution:")
-        # Create one list of assigned tasks per machine.
-        assigned_jobs = collections.defaultdict(list)
-        for job_id, job in enumerate(jobs_data):
-            for task_id, task in enumerate(job):
-                machine = task[0]
-                assigned_jobs[machine].append(
-                    assigned_task_type(
-                        start=solver.value(all_tasks[job_id, task_id].start),
-                        job=job_id,
-                        index=task_id,
-                        duration=task[1],
-                    )
-                )
+        for d in range(num_days):
+            print(f"Day {d}")
+            for m in range(num_machines):
+                is_working = False
+                for p in range(num_products):
+                    if solver.value(shifts[(m, d, p)]):
+                        is_working = True
+                        print(f"  Loom {m} works  {p}")
+        for p in range(num_products):
+            p_sum_one = 0
+            for m in all_machines:
+                for d in all_days:
+                    if solver.value(shifts[(m, d, p)]):
+                        p_sum_one += 1
 
-        # Create per machine output lines.
-        output = ""
-        for machine in all_machines:
-            # Sort by starting time.
-            assigned_jobs[machine].sort()
-            sol_line_tasks = "Machine " + str(machine) + ": "
-            sol_line = "           "
-
-            for assigned_task in assigned_jobs[machine]:
-                name = f"job_{assigned_task.job}_task_{assigned_task.index}"
-                # add spaces to output to align columns.
-                sol_line_tasks += f"{name:15}"
-
-                start = assigned_task.start
-                duration = assigned_task.duration
-                sol_tmp = f"[{start},{start + duration}]"
-                # add spaces to output to align columns.
-                sol_line += f"{sol_tmp:15}"
-
-            sol_line += "\n"
-            sol_line_tasks += "\n"
-            output += sol_line_tasks
-            output += sol_line
-
-        # Finally print the solution found.
-        print(f"Optimal Schedule Length: {solver.objective_value}")
-        print(output)
-    else:
-        print("No solution found.")
+            print(f" sum {p} {p_sum_one}")
 
     # Statistics.
     print("\nStatistics")
