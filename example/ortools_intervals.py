@@ -17,7 +17,14 @@ def main() -> None:
         , ("18305", 9, [(1, 1), (0, 6)])
         , ("18302", 4, [(2, 1), (0, 7)])
     ]
-    num_machines = 5
+    machines = [ # (name, product_idx)
+        ("t1", 1)
+        , ("t2", 0)
+        , ("t3", 0)
+        , ("t4", 0)
+        , ("t5", 1)
+    ]
+    num_machines = len(machines)
     num_products = len(products) + 1
     num_days = 7
     all_machines = range(num_machines)
@@ -90,7 +97,7 @@ def main() -> None:
                 # diff = term1_expr - term2_expr
                 max_abs_diff_val = num_machines * num_days * max(proportions_input)  # Оценка максимальной разницы
                 diff_var = model.NewIntVar(-max_abs_diff_val, max_abs_diff_val, f"prop_diff_{p1_idx}_{p2_idx}")
-                model.Add(diff_var == term1_expr - term2_expr)
+                model.Add(diff_var == (term1_expr - term2_expr) * (num_products - i))
 
                 abs_diff_var = model.NewIntVar(0, max_abs_diff_val, f"prop_abs_diff_{p1_idx}_{p2_idx}")
                 model.AddAbsEquality(abs_diff_var, diff_var)
@@ -111,8 +118,11 @@ def main() -> None:
     is_transition_P0_to_nonP0 = {}
 
     for m in range(num_machines):
-        for d in range(1, num_days):
-            prev_prod = jobs[m, d - 1]
+        for d in range(num_days):
+            if d == 0:
+                prev_prod = machines[m][1] + 1
+            else:
+                prev_prod = jobs[m, d - 1]
             curr_prod = jobs[m, d]
 
             # Вспомогательные булевы переменные для текущего перехода
@@ -180,9 +190,13 @@ def main() -> None:
         model.Add(product_count_clear == count)
     #
     # model.minimize(product_count_clear)
-
+    # solver.parameters.log_search_progress = True
     status = solver.solve(model)
     if status == cp_model.OPTIMAL or status == cp_model.FEASIBLE:
+        print(f"Статус решения: {solver.StatusName(status)}")
+        if proportion_objective_terms:
+            print(f"Минимальное значение функции цели (сумма абс. отклонений пропорций): {solver.ObjectiveValue()}")
+
         products_prop_fact = [0 for l in all_products]
         for m in range(num_machines):
             print(f"Loom {m}")
@@ -193,7 +207,8 @@ def main() -> None:
 
         print("\nОбщее количество произведенной продукции:")
         for p in range(num_products):
-            print(f"  Продукт {p}: {solver.Value(product_counts[p])} единиц")
+            diff = 0 if p ==0 else solver.value(proportion_objective_terms[p-1])
+            print(f"  Продукт {p}: {solver.Value(product_counts[p])} единиц, штраф пропорций {diff}")
 
         print("\nИндикаторы перехода с Продукта 0 на другой продукт (1=переход был):")
         for m in range(num_machines):
