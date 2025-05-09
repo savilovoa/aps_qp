@@ -24,6 +24,8 @@ def main() -> None:
         , ("t4", 0)
         , ("t5", 1)
     ]
+    max_daily_prod_zero = 3
+
     num_machines = len(machines)
     num_products = len(products) + 1
     num_days = 7
@@ -62,6 +64,19 @@ def main() -> None:
     for p in range(num_products):
         model.Add(product_counts[p] == sum(
             product_produced_bools[p, m, d] for m in range(num_machines) for d in range(num_days)))
+
+    # Количество нулевого продукта по дням
+    for d in range(num_days):
+        daily_prod_zero_on_machines = []
+        for m in range(num_machines):
+            # Используем уже созданные product_produced_bools для эффективности
+            # product_produced_bools[PRODUCT_ZERO, m, d] истинно, если на машине m в день d производится PRODUCT_ZERO
+            daily_prod_zero_on_machines.append(product_produced_bools[PRODUCT_ZERO, m, d])
+
+        # Сумма этих булевых переменных даст количество PRODUCT_ZERO в день d
+        model.Add(sum(daily_prod_zero_on_machines) <= max_daily_prod_zero)
+
+
 
     # ------------ Мягкое ограничение: Пропорции продукции (для продуктов с индексом > 0) ------------
     # Цель: минимизировать отклонение от заданных пропорций
@@ -173,21 +188,7 @@ def main() -> None:
             #    Эквивалентно OR(b_prev_is_P0.Not(), b_curr_is_P0, is_transition_P0_to_nonP0[var_key])
             model.AddBoolOr([b_prev_is_P0.Not(), b_curr_is_P0, is_transition_P0_to_nonP0[var_key]])
 
-    # количество чисток
-    count = 0
-    product_count_clear = model.NewIntVar(0, num_machines * num_days, f"products_ count")
-    for m in all_machines:
-        for d in all_days:
-            # Создаем булеву переменную для проверки, равен ли jobs[m, d] текущему продукту
-            is_clear = model.NewBoolVar(f"is_clear_{m}_{d}")
-            model.Add(jobs[m, d] == 0).OnlyEnforceIf(is_clear)
-            model.Add(jobs[m, d] != 0).OnlyEnforceIf(is_clear.Not())
 
-                # Добавляем к общему счетчику
-            count += is_clear
-
-        # Приравниваем счетчик к переменной
-        model.Add(product_count_clear == count)
     #
     # model.minimize(product_count_clear)
     # solver.parameters.log_search_progress = True
