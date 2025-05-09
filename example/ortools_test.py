@@ -37,25 +37,66 @@ def main() -> None:
                 shifts[(m, d, p)] = model.new_bool_var(f"shift_m{m}_d{d}_p{p}")
 
 
+
     # На одной машине один продукт в день
     for d in all_days:
         for m in all_machines:
             model.add_at_most_one(shifts[(m, d, p)] for p in all_products)
+
+    # segment_active = [model.new_bool_var("first_day"), model.new_bool_var("second_days")]
+    # model.add_at_most_one(segment_active)  # enforce one segment to be active
+    # for m in all_machines:
+    #     for p in all_products:
+    #         model.add(shifts[(m, 0, p)] == 1).only_enforce_if(segment_active[0])
+    #
+    # for d in range(1, num_days):
+    #     for m in all_machines:
+    #         for p in all_products:
+    #             model.add(shifts[(m, d, p)] == 1).only_enforce_if(segment_active[1])
+    #
+
 
     # # На одной машине один продукт в день
     # for d in all_days:
     #     for p in all_products:
     #         model.add_exactly_one(shifts[(m, d, p)] for m in all_machines)
 
+    pred_p = {}
+    same_zero_or = {}
     # Добавляем переход
-    # for m in all_machines:
-    #     for p in range(num_products):
-    #         for d in range(1, num_days):
-    #             item_pred = shifts[(m, d-1, p)]
-    #             item_clear = shifts[(m, d-1, clear_idx)]
-    #             model.add(item_pred == 1)
-    #             #model.add(item_clear == 1)
+    for m in all_machines:
+        for d in range(1, num_days):
+            for p in range(num_products):
+                # Создаем булевы переменные для каждой части условия
+                same_shift = model.NewBoolVar(f"same_shift_{m}_{d}_{p}")
+                zero_shift = model.NewBoolVar(f"zero_shift_{m}_{d}_{p}")
+                same_zero_or[m,d] = model.NewBoolVar(f"zero_shift_or_{m}_{d}")
 
+                # Связываем переменные с условиями
+                model.Add(shifts[m, d - 1, p] == 1).OnlyEnforceIf(same_shift)
+                model.Add(shifts[m, d - 1, clear_idx] == 1).OnlyEnforceIf(zero_shift)
+
+                # Объединяем условия через ИЛИ
+                model.AddBoolOr([same_shift, zero_shift])
+
+                # Связываем с текущей сменой
+                model.Add(shifts[m, d, p] == 1).only_enforce_if(same_shift)
+
+                # a = model.NewBoolVar("")
+                # model.AddMinEquality(a, [same_shift, zero_shift])
+                # model.Add(a == 1)
+
+                # pred_p[m, d] = model.new_bool_var(f"pred_{m}_d{d}")
+                # #pred_p[m, d] = shifts[(m, d - 1, p)] == 1
+                # pred_p[m, d] = model.AddBoolOr(shifts[(m, d-1, p)], shifts[(m, d-1, clear_idx)])
+                # model.add(shifts[(m, d, p)] == 1).only_enforce_if(pred_p[m, d] == 1)
+                #model.add(item_clear == 1)
+
+    # for m in all_machines:
+    #     for d in range(1, num_days):
+    #         pred_p[m, d] = model.new_bool_var(f"pred_{m}_d{d}")
+    #         pred_p[m, d] = shifts[(m, d-1, clear_idx)] == 0
+    #         model.add(shifts[(m, d, clear_idx)] == 1).only_enforce_if(pred_p[m, d] == 1)
 
     products_sum = []
     all_sum = 0
@@ -66,6 +107,7 @@ def main() -> None:
                 products_sum.append(shifts[(m, d, p)])
 
 
+    s_p = {}
     for p in range(num_products):
         k = products[p][1] / all_sum
         k = int(k * num_days * num_machines)
@@ -86,7 +128,6 @@ def main() -> None:
 
     # Objective
     objective_terms = []
-
     for m in all_machines:
         for d in all_days:
             for p in range(num_products):
@@ -142,6 +183,7 @@ def main() -> None:
     # solution_printer = NursesPartialSolutionPrinter(
     #     shifts, num_machines, num_days, num_products + 1, solution_limit
     # )
+    solver.parameters.log_search_progress = True
     status = solver.solve(model)
     if status == cp_model.OPTIMAL or status == cp_model.FEASIBLE:
         for d in range(num_days):
