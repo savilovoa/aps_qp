@@ -1,0 +1,16 @@
+# Test from Postman
+
+localhost:7100/api/loom/plan
+
+body:
+{"machines":[{"idx":0, "name": "1", "product_idx": 1}
+    , {"idx":1, "name": "2", "product_idx": 1}
+    , {"idx":2, "name": "3", "product_idx": 1}
+    , {"idx":3, "name": "4", "product_idx": 2}
+    , {"idx":4, "name": "5", "product_idx": 2}],
+
+    "products": [{"idx": 0, "name": "clear", "qty": 0, "resource": []}
+    , {"idx": 1, "name": "87416", "qty": 21, "resource": []}
+    , {"idx": 2, "name": "18305", "qty": 9, "resource": []}
+    , {"idx": 3, "name": "18302", "qty": 4, "resource": []}
+    ], "remains": [],   "max_daily_prod_zero": 3, "count_days": 7}
