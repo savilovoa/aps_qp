@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     PORT: int
     SERVER_NAME: str = Field(default="0.0.0.0")
     BASE_DIR: str = Field(default=getcwd())
+    LOOM_MAX_TIME: int = Field(default=600)
 
 
 settings = Settings()

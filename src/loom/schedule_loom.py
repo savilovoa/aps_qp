@@ -230,8 +230,6 @@ def schedule_loom_calc(DataIn: DataLoomIn) -> LoomPlansOut:
                 model.AddBoolOr([b_prev_is_P0.Not(), b_curr_is_P0, is_transition_P0_to_nonP0[var_key]])
 
         # solver.parameters.log_search_progress = True
-
-        logger.debug(f"{num_machines} {num_products} {num_days}")
         status = solver.solve(model)
         diff_all = 0
         schedule = []
