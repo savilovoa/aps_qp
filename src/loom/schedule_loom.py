@@ -1,7 +1,7 @@
 from ortools.sat.python import cp_model
 from .model_loom import DataLoomIn, LoomPlansOut, Machine, Product, ProductPlan, LoomPlan, DayZero
 import traceback as tr
-from ..config import logger
+from ..config import logger, settings
 
 def MachinesModelToArray(machines: list[Machine]) -> list[(str, int)]:
     result = []
@@ -230,6 +230,7 @@ def schedule_loom_calc(DataIn: DataLoomIn) -> LoomPlansOut:
                 model.AddBoolOr([b_prev_is_P0.Not(), b_curr_is_P0, is_transition_P0_to_nonP0[var_key]])
 
         # solver.parameters.log_search_progress = True
+        solver.parameters.max_time_in_seconds = settings.LOOM_MAX_TIME
         status = solver.solve(model)
         diff_all = 0
         schedule = []
