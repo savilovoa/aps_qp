@@ -1,7 +1,7 @@
 import plotly.graph_objects as go
 import colorsys
 import random
-
+import json
 
 def view_schedule(machines: list, products: list, days: list, schedules: list):
     # --- 1. Подготовка сетки расписания ---
@@ -9,8 +9,8 @@ def view_schedule(machines: list, products: list, days: list, schedules: list):
     # Инициализируем None для пустых ячеек
     schedule_grid = [[None for _ in days] for _ in machines]
 
-    for item in schedule:
-        schedule_grid[item['machine_id']][item['day_id']] = item['product_id']
+    for item in schedules:
+        schedule_grid[item['machine_idx']][item['day_idx']] = item['product_idx']
 
     # --- 2. Генерация уникальных цветов для продуктов ---
     product_colors = {}
@@ -36,7 +36,7 @@ def view_schedule(machines: list, products: list, days: list, schedules: list):
     cell_height = 1
 
     for machine_idx, machine_row in enumerate(schedule_grid):
-        for day_idx, product_id in enumerate(machine_row):
+        for day_idx, product_idx in enumerate(machine_row):
             # Координаты центра ячейки
             # X-координата соответствует day_idx
             # Y-координата должна быть инвертирована, чтобы Станок 1 был сверху
@@ -46,13 +46,13 @@ def view_schedule(machines: list, products: list, days: list, schedules: list):
             fill_color = empty_cell_color
             text_to_display = ""
 
-            if product_id is not None:
-                fill_color = product_colors[product_id]
+            if product_idx is not None:
+                fill_color = product_colors[product_idx]
                 # Проверяем, был ли тот же продукт на этой машине в предыдущий день
-                if day_idx > 0 and schedule_grid[machine_idx][day_idx - 1] == product_id:
+                if day_idx > 0 and schedule_grid[machine_idx][day_idx - 1] == product_idx:
                     text_to_display = ""  # Скрываем текст, если продукт продолжается
                 else:
-                    text_to_display = products[product_id]  # Показываем название продукта
+                    text_to_display = products[product_idx]  # Показываем название продукта
 
                 # Добавляем прямоугольник (фон ячейки)
             shapes.append(
@@ -119,24 +119,24 @@ def view_schedule(machines: list, products: list, days: list, schedules: list):
         fig.show()
 
 if __name__ == "__main__":
-    # Исходные данные
+
     machines = ['Станок 1', 'Станок 2', 'Станок 3']  # Массив оборудования
     products = ['Продукт A', 'Продукт B', 'Продукт C']  # Массив продуктов
     days = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт']  # Массив дней
 
     # Пример расписания
     schedule = [
-        {"machine_id": 0, "day_id": 0, "product_id": 1},  # Станок 1, Пн, Продукт B
-        {"machine_id": 0, "day_id": 1, "product_id": 1},  # Станок 1, Вт, Продукт B (продолжение)
-        {"machine_id": 0, "day_id": 2, "product_id": 2},  # Станок 1, Ср, Продукт C
-        {"machine_id": 0, "day_id": 3, "product_id": 2},  # Станок 1, Чт, Продукт C (продолжение)
-        {"machine_id": 0, "day_id": 4, "product_id": 1},  # Станок 1, Пт, Продукт B
+        {"machine_idx": 0, "day_idx": 0, "product_idx": 1},  # Станок 1, Пн, Продукт B
+        {"machine_idx": 0, "day_idx": 1, "product_idx": 1},  # Станок 1, Вт, Продукт B (продолжение)
+        {"machine_idx": 0, "day_idx": 2, "product_idx": 2},  # Станок 1, Ср, Продукт C
+        {"machine_idx": 0, "day_idx": 3, "product_idx": 2},  # Станок 1, Чт, Продукт C (продолжение)
+        {"machine_idx": 0, "day_idx": 4, "product_idx": 1},  # Станок 1, Пт, Продукт B
 
-        {"machine_id": 1, "day_id": 0, "product_id": 0},  # Станок 2, Пн, Продукт A
-        {"machine_id": 1, "day_id": 1, "product_id": 2},  # Станок 2, Вт, Продукт C
-        {"machine_id": 1, "day_id": 2, "product_id": 2},  # Станок 2, Ср, Продукт C (продолжение)
+        {"machine_idx": 1, "day_idx": 0, "product_idx": 0},  # Станок 2, Пн, Продукт A
+        {"machine_idx": 1, "day_idx": 1, "product_idx": 2},  # Станок 2, Вт, Продукт C
+        {"machine_idx": 1, "day_idx": 2, "product_idx": 2},  # Станок 2, Ср, Продукт C (продолжение)
 
-        {"machine_id": 2, "day_id": 2, "product_id": 1},  # Станок 3, Ср, Продукт B
-        {"machine_id": 2, "day_id": 3, "product_id": 1},  # Станок 3, Чт, Продукт B (продолжение)
+        {"machine_idx": 2, "day_idx": 2, "product_idx": 1},  # Станок 3, Ср, Продукт B
+        {"machine_idx": 2, "day_idx": 3, "product_idx": 1},  # Станок 3, Чт, Продукт B (продолжение)
     ]
     view_schedule(machines, products, days, schedule)

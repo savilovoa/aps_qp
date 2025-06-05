@@ -1,0 +1,173 @@
+{
+"machines": [
+{
+"idx": 0,
+"name": "ТС Тойота №131",
+"product_idx": 1
+},
+{
+"idx": 1,
+"name": "ТС Тойота №122",
+"product_idx": 1
+},
+{
+"idx": 2,
+"name": "ТС Тойота №132",
+"product_idx": 2
+},
+{
+"idx": 3,
+"name": "ТС Тойота №102",
+"product_idx": 2
+},
+{
+"idx": 4,
+"name": "ТС Тойота №108",
+"product_idx": 2
+},
+{
+"idx": 5,
+"name": "ТС Тойота №111",
+"product_idx": 2
+},
+{
+"idx": 6,
+"name": "ТС Тойота №114",
+"product_idx": 2
+},
+{
+"idx": 7,
+"name": "ТС Тойота №137",
+"product_idx": 2
+},
+{
+"idx": 8,
+"name": "ТС Тойота №106",
+"product_idx": 3
+},
+{
+"idx": 9,
+"name": "ТС Тойота №123",
+"product_idx": 4
+},
+{
+"idx": 10,
+"name": "ТС Тойота №125",
+"product_idx": 5
+},
+{
+"idx": 11,
+"name": "ТС Тойота №126",
+"product_idx": 6
+},
+{
+"idx": 12,
+"name": "ТС Тойота №129",
+"product_idx": 7
+},
+{
+"idx": 13,
+"name": "ТС Тойота №130",
+"product_idx": 8
+},
+{
+"idx": 14,
+"name": "ТС Тойота №135",
+"product_idx": 9
+},
+{
+"idx": 15,
+"name": "ТС Тойота №141",
+"product_idx": 10
+}
+],
+"products": [
+{
+"idx": 0,
+"name": "",
+"qty": 0,
+"resource": []
+},
+{
+"idx": 1,
+"name": "ст10005амt5",
+"qty": 0,
+"resource": []
+},
+{
+"idx": 2,
+"name": "ст18308t1",
+"qty": 0,
+"resource": []
+},
+{
+"idx": 3,
+"name": "ст18450амt4",
+"qty": 21,
+"resource": []
+},
+{
+"idx": 4,
+"name": "ст16546t8",
+"qty": 0,
+"resource": []
+},
+{
+"idx": 5,
+"name": "стПВ65-026МВДt",
+"qty": 18,
+"resource": []
+},
+{
+"idx": 6,
+"name": "ст81408амt14",
+"qty": 0,
+"resource": []
+},
+{
+"idx": 7,
+"name": "стN04-16951t3",
+"qty": 0,
+"resource": []
+},
+{
+"idx": 8,
+"name": "ст78425t",
+"qty": 20,
+"resource": []
+},
+{
+"idx": 9,
+"name": "ст15404амt2",
+"qty": 20,
+"resource": []
+},
+{
+"idx": 10,
+"name": "ст60412aмt18",
+"qty": 20,
+"resource": []
+},
+{
+"idx": 11,
+"name": "ст18310t1",
+"qty": 84,
+"resource": []
+},
+{
+"idx": 12,
+"name": "ст60411t9",
+"qty": 21,
+"resource": []
+},
+{
+"idx": 13,
+"name": "стХП55-019МВДt1",
+"qty": 27,
+"resource": []
+}
+],
+"remains": [],
+"max_daily_prod_zero": 3,
+"count_days": 21
+}

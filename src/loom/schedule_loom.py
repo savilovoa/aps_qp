@@ -25,12 +25,27 @@ def ProductsModelToArray(products: list[Product]) -> list[(str, int, [(int, int)
     return result
 
 
-def schedule_loom_calc(DataIn: DataLoomIn) -> LoomPlansOut:
+def schedule_loom_calc_model(DataIn: DataLoomIn) -> LoomPlansOut:
+    remains = DataIn.remains
+    products = ProductsModelToArray(DataIn.products)
+    machines = MachinesModelToArray(DataIn.machines)
+    max_daily_prod_zero = DataIn.max_daily_prod_zero
+    count_days = DataIn.count_days
+    result_calc = schedule_loom_calc(remains=remains, products=products, machines=machines,
+                                max_daily_prod_zero=max_daily_prod_zero, count_days=count_days)
+
+    if result_calc.error_str == "":
+        schedule = [LoomPlan(machine_idx=s["machine_idx"], day_idx=s["day_idx"], product_idx=s["product_idx"])
+                    for s in result_calc["schedule"]]
+        result = LoomPlansOut(status=result_calc["status"], status_str=result_calc["status_str"],
+                              schedule=schedule,products=result_calc["products"],
+                              zeros=result_calc["zeros"], objective_value=result_calc["objective_value"],
+                              proportion_diff=result_calc["proportion_diff"])
+    else:
+        result = LoomPlansOut(error_str=result_calc.error_str, schedule=[], products=[], zeros=[])
+
+def schedule_loom_calc(remains: list, products: list, machines: list, max_daily_prod_zero: int, count_days: int) -> LoomPlansOut:
     try:
-        remains = DataIn.remains
-        products = ProductsModelToArray(DataIn.products)
-        machines = MachinesModelToArray(DataIn.machines)
-        max_daily_prod_zero = DataIn.max_daily_prod_zero
 
         #
         #
@@ -48,7 +63,7 @@ def schedule_loom_calc(DataIn: DataLoomIn) -> LoomPlansOut:
         # ]
         # max_daily_prod_zero = 3
 
-        num_days = DataIn.count_days
+        num_days = count_days
         num_machines = len(machines)
         num_products = len(products)
 
@@ -284,7 +299,7 @@ def schedule_loom_calc(DataIn: DataLoomIn) -> LoomPlansOut:
                 logger.info(f"Loom {m}")
                 for d in range(num_days):
                     p = solver.value(jobs[m, d])
-                    schedule.append(LoomPlan(machine_idx=m, day_idx=d, product_idx=p))
+                    schedule.append({"machine_idx": m, "day_idx": d, "product_idx": p})
                     logger.info(f"  Day {d} works  {p}")
 
             logger.info("\nОбщее количество произведенной продукции:")
@@ -319,16 +334,14 @@ def schedule_loom_calc(DataIn: DataLoomIn) -> LoomPlansOut:
         logger.info(f"  - conflicts: {solver.num_conflicts}")
         logger.info(f"  - branches : {solver.num_branches}")
         logger.info(f"  - wall time: {solver.wall_time}s")
-        result = LoomPlansOut(status=int(status), status_str=solver.StatusName(status),
-                              schedule=schedule,
-                              products=products_schedule,
-                              zeros=zeros,
-                              objective_value=int(solver.ObjectiveValue()),
-                              proportion_diff=int(diff_all))
+        result = {"status": int(status), "status_str": solver.StatusName(status), "schedule": schedule,
+                  "products": products_schedule, "zeros": zeros, "objective_value": int(solver.ObjectiveValue()),
+                  "proportion_diff": int(diff_all), "error_str": ""}
+
     except Exception as e:
         error = tr.TracebackException(exc_type=type(e), exc_traceback=e.__traceback__, exc_value=e).stack[-1]
         error_str = '{} in {} row:{} '.format(e, error.lineno, error.line)
         logger.error(error_str)
-        result = LoomPlansOut(error_str=error_str, schedule = [], products = [], zeros=[])
+        result = {"error_str": error_str}
     return result
 
