@@ -1,7 +1,7 @@
 from ortools.sat.python import cp_model
 from .model_loom import DataLoomIn, LoomPlansOut, Machine, Product, ProductPlan, LoomPlan, DayZero
 import traceback as tr
-from ..config import logger
+from ..config import logger, settings
 
 def MachinesModelToArray(machines: list[Machine]) -> list[(str, int)]:
     result = []
@@ -92,15 +92,51 @@ def schedule_loom_calc(DataIn: DataLoomIn) -> LoomPlansOut:
                     product_counts[p] == 0)  # Этот продукт не должен производиться в течение планового периода
 
         # Количество нулевого продукта по дням
+        # И просто количество нулевого продукта
+        prod_zero_total = []
         for d in all_days:
             daily_prod_zero_on_machines = []
             for m in range(num_machines):
                 # Используем уже созданные product_produced_bools для эффективности
                 # product_produced_bools[PRODUCT_ZERO, m, d] истинно, если на машине m в день d производится PRODUCT_ZERO
                 daily_prod_zero_on_machines.append(product_produced_bools[PRODUCT_ZERO, m, d])
+                prod_zero_total.append(product_produced_bools[PRODUCT_ZERO, m, d])
 
             # Сумма этих булевых переменных даст количество PRODUCT_ZERO в день d
             model.Add(sum(daily_prod_zero_on_machines) <= max_daily_prod_zero)
+
+        # # не более 1-го простоя за неделю
+        # for m in range(num_machines):
+        #     prod_zero_on_machine = []
+        #     for d in all_days:
+        #         prod_zero_on_machine.append(product_produced_bools[PRODUCT_ZERO, m, d])
+        #     model.Add(sum(prod_zero_on_machine) <= 2)
+
+        # 6. Ограничение на "прыжки" - задания одного продукта должны быть сгруппированы
+        for m in all_machines:
+            # Переменные для отслеживания групп
+            group_changes = []
+            for d in range(num_days - 1):
+                group_changes.append(model.NewBoolVar(f'group_change_m{m}_d{d}'))
+
+            # Группы меняются, когда продукт изменяется
+            for d in range(num_days - 1):
+                model.Add(jobs[m, d] != jobs[m, d + 1]).OnlyEnforceIf(group_changes[d])
+                model.Add(jobs[m, d] == jobs[m, d + 1]).OnlyEnforceIf(group_changes[d].Not())
+
+            # Ограничение: не более 2 изменений групп (3 группы) на машину
+            model.Add(sum(group_changes) <= 2)
+
+        # Ограничение на "прыжки" между продуктами
+        # for m in range(num_machines):
+        #     for d in range(1, num_days - 1):
+        #         # Нельзя иметь последовательность product A -> product B -> product A
+        #         p_prev = jobs[(m, d - 1)]
+        #         p_curr = jobs[(m, d)]
+        #         p_next = jobs[(m, d + 1)]
+        #         model.add((p_prev == p_next) == 0).only_enforce_if([p_curr != p_prev, p_curr != p_next])
+        #
+
 
         # ------------ Мягкое ограничение: Пропорции продукции (для продуктов с индексом > 0) ------------
         # Цель: минимизировать отклонение от заданных пропорций
@@ -112,7 +148,7 @@ def schedule_loom_calc(DataIn: DataLoomIn) -> LoomPlansOut:
         relevant_product_indices = []
         if num_products > 1:  # Пропорции имеют смысл только если есть хотя бы 2 продукта (один из которых может быть PRODUCT_ZERO)
             for p_idx in range(num_products):
-                if p_idx != PRODUCT_ZERO and proportions_input[p_idx] > 0:
+                if p_idx != PRODUCT_ZERO: # and proportions_input[p_idx] > 0:
                     relevant_product_indices.append(p_idx)
 
         if len(relevant_product_indices) > 1:
@@ -142,8 +178,11 @@ def schedule_loom_calc(DataIn: DataLoomIn) -> LoomPlansOut:
                     model.AddAbsEquality(abs_diff_var, diff_var)
                     proportion_objective_terms.append(abs_diff_var)
 
-        if proportion_objective_terms:
-            model.Minimize(sum(proportion_objective_terms))
+        #if proportion_objective_terms:
+
+        downtime_penalty = 10
+
+        model.Minimize(sum(proportion_objective_terms) + sum(prod_zero_total)*downtime_penalty)
         # Если proportion_objective_terms пуст (например, мало продуктов или нулевые пропорции),
         # то любая допустимая конфигурация будет оптимальной с точки зрения пропорций.
 
@@ -230,6 +269,7 @@ def schedule_loom_calc(DataIn: DataLoomIn) -> LoomPlansOut:
                 model.AddBoolOr([b_prev_is_P0.Not(), b_curr_is_P0, is_transition_P0_to_nonP0[var_key]])
 
         # solver.parameters.log_search_progress = True
+        solver.parameters.max_time_in_seconds = settings.LOOM_MAX_TIME
         status = solver.solve(model)
         diff_all = 0
         schedule = []

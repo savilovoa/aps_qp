@@ -1,0 +1,132 @@
+ortools machines - массив машин, в которых каждая запись это {"name": "Имя", "product_idx": индекс продукции начального состояния}, num_machines - количество машин, num_days - количество дней, products - массив продуктов, в которых каждая запись, это {"name": "Имя", "qty": пропорция}, num_products - количество продуктов, num_schifts - количество смен - их всегда 3. Для упрощения можно сделать дни и смены одним плоским массивом, т.е. 5 дней по 3 смены будет являться массивом дней с индексами от 0 до 14. Первая запись массива продукции, это специальный продукт - простой. Там пропорция не указана. Есть переменная jobs[m, d] = model.new_int_var-  в  котором храниться на какой машине, в какой день, какой продукт вырабатывается. Нужно добавить мягкое ограничение чтобы количество продукции было близко к пропорциям, как пример можно взять массив products = [{"name": "downtime", "qty": 0}, {"name": "p1", "qty": 5} , {"name": "p2", "qty": 3}, {"name": "p3", "qty":2}] - для данного примера пропорции будут [5,3,2]. Если на машине на следующий день планируется вырабатывать другой продукт, то нужно указать простой в 2 смены. . Соответственно в эти смены не вырабатывается никакой продукт. После простоя на машине можно вырабатывать любой продукт. Задача максимизировать выработку продукции близкой к пропорциям, причем количество простоев должно быть минимальным.  Добавить условие, чтобы не было на одной машине прыжков: к примеру если вначале 3 дня выработка продукта 1, затем 4 дня продукта 3, а потом еще 2 дня опять продукт 1. В таком случае нужно вначале 5 дней продукт 1, а 4 дня продукт 3. Т.к. у машин есть начальное состояние, то целесообразно начинать работу именно с того продукта, который указан в качестве начального, иначе нужно начинать с простоя.
+
+from ortools.sat.python import cp_model
+
+def schedule_production(machines, num_machines, num_days, products, num_products, num_shifts=3):
+    model = cp_model.CpModel()
+    
+    total_shifts = num_days * num_shifts
+    num_shifts_per_day = num_shifts
+    
+    # Создаем переменные для заданий: jobs[machine][shift] = product
+    jobs = {}
+    for m in range(num_machines):
+        shifts = []
+        for d in range(total_shifts):
+            shifts.append(model.NewIntVar(0, num_products - 1, f'job_m{m}_d{d}'))
+        jobs[m] = shifts
+    
+    # Переменные для отслеживания смены продукта (для простоев)
+    change = {}
+    for m in range(num_machines):
+        changes = []
+        for d in range(total_shifts - 1):
+            changes.append(model.NewBoolVar(f'change_m{m}_d{d}'))
+        change[m] = changes
+    
+    # Переменные для подсчета количества каждого продукта
+    product_counts = [model.NewIntVar(0, total_shifts * num_machines, f'product_{p}_count') 
+                     for p in range(num_products)]
+    
+    # 1. Ограничение: если продукт меняется, требуется 2 смены простоя
+    for m in range(num_machines):
+        for d in range(total_shifts - 1):
+            # Если текущий продукт не равен следующему, то change = True
+            model.Add(jobs[m][d] != jobs[m][d+1]).OnlyEnforceIf(change[m][d])
+            model.Add(jobs[m][d] == jobs[m][d+1]).OnlyEnforceIf(change[m][d].Not())
+            
+            # Если продукт изменился, следующие 2 смены должны быть простой (product 0)
+            if d < total_shifts - 2:
+                model.Add(jobs[m][d+1] == 0).OnlyEnforceIf(change[m][d])
+                model.Add(jobs[m][d+2] == 0).OnlyEnforceIf(change[m][d])
+    
+    # 2. Начальное состояние машин
+    for m in range(num_machines):
+        initial_product = machines[m]['product_idx']
+        # Если первая смена не начинается с начального продукта, то первые 2 смены должны быть простой
+        model.Add(jobs[m][0] == initial_product).OnlyEnforceIf(model.NewBoolVar(f'start_correct_m{m}'))
+        model.Add(jobs[m][0] != initial_product).OnlyEnforceIf(model.NewBoolVar(f'start_incorrect_m{m}'))
+        
+        model.Add(jobs[m][0] == 0).OnlyEnforceIf(model.NewBoolVar(f'start_downtime1_m{m}'))
+        model.Add(jobs[m][1] == 0).OnlyEnforceIf(model.NewBoolVar(f'start_downtime2_m{m}'))
+    
+    # 3. Подсчет количества каждого продукта
+    for p in range(num_products):
+        model.Add(product_counts[p] == sum(
+            [sum([jobs[m][d] == p for d in range(total_shifts)]) for m in range(num_machines)]))
+    
+    # 4. Минимизация простоев
+    downtime = product_counts[0]
+    
+    # 5. Пропорции продукции (исключая простой)
+    total_prod = sum(p['qty'] for p in products[1:])
+    if total_prod == 0:
+        total_prod = 1  # избегаем деления на ноль
+    
+    # Разницы между фактическим количеством и целевым (в пропорциях)
+    deviations = []
+    for p in range(1, num_products):
+        target = (products[p]['qty'] / total_prod) * (total_shifts * num_machines - downtime)
+        deviation = model.NewIntVar(0, total_shifts * num_machines, f'deviation_p{p}')
+        model.AddAbsEquality(deviation, product_counts[p] - target)
+        deviations.append(deviation)
+    
+    # 6. Ограничение на "прыжки" - задания одного продукта должны быть сгруппированы
+    for m in range(num_machines):
+        # Переменные для отслеживания групп
+        group_changes = []
+        for d in range(total_shifts - 1):
+            group_changes.append(model.NewBoolVar(f'group_change_m{m}_d{d}'))
+        
+        # Группы меняются, когда продукт изменяется
+        for d in range(total_shifts - 1):
+            model.Add(jobs[m][d] != jobs[m][d+1]).OnlyEnforceIf(group_changes[d])
+            model.Add(jobs[m][d] == jobs[m][d+1]).OnlyEnforceIf(group_changes[d].Not())
+        
+        # Ограничение: не более 2 изменений групп (3 группы) на машину
+        model.Add(sum(group_changes) <= 2)
+    
+    # Целевая функция: минимизировать отклонения от пропорций и простои
+    total_deviation = sum(deviations)
+    model.Minimize(total_deviation * 10 + downtime * 5)
+    
+    # Решение
+    solver = cp_model.CpSolver()
+    status = solver.Solve(model)
+    
+    # Вывод результатов
+    if status == cp_model.OPTIMAL or status == cp_model.FEASIBLE:
+        print("Решение найдено!")
+        print(f"Общее количество простоев: {solver.Value(downtime)}")
+        
+        # Вывод по продуктам
+        for p in range(num_products):
+            print(f"{products[p]['name']}: {solver.Value(product_counts[p])} смен")
+        
+        # Вывод расписания по машинам
+        for m in range(num_machines):
+            print(f"\nМашина {machines[m]['name']}:")
+            for d in range(total_shifts):
+                if d % num_shifts_per_day == 0:
+                    print(f"\nДень {d // num_shifts_per_day + 1}:", end=" ")
+                product_idx = solver.Value(jobs[m][d])
+                print(products[product_idx]['name'][:3], end=" ")
+    else:
+        print("Решение не найдено")
+
+# Пример использования
+machines = [
+    {"name": "Машина 1", "product_idx": 1},
+    {"name": "Машина 2", "product_idx": 2},
+    {"name": "Машина 3", "product_idx": 3}
+]
+
+products = [
+    {"name": "downtime", "qty": 0},
+    {"name": "p1", "qty": 5},
+    {"name": "p2", "qty": 3},
+    {"name": "p3", "qty": 2}
+]
+
+schedule_production(machines=machines, num_machines=3, num_days=7, 
+                   products=products, num_products=4, num_shifts=3)
