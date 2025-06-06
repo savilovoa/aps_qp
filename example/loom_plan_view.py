@@ -1,9 +1,7 @@
 import plotly.graph_objects as go
 import colorsys
-import random
-import json
 
-def view_schedule(machines: list, products: list, days: list, schedules: list):
+def view_schedule(machines: list, products: list, days: list, schedules: list, title_text: str = ""):
     # --- 1. Подготовка сетки расписания ---
     # Создаем 2D-массив, где grid[machine_id][day_id] будет хранить product_id
     # Инициализируем None для пустых ячеек
@@ -79,44 +77,48 @@ def view_schedule(machines: list, products: list, days: list, schedules: list):
                     )
                 )
 
-        # --- 4. Настройка макета Plotly ---
-        fig = go.Figure()
+    # --- 4. Настройка макета Plotly ---
+    fig = go.Figure()
 
-        # Добавляем пустой scatter trace, чтобы оси отображались корректно
-        fig.add_trace(go.Scatter(x=[], y=[], mode='markers', hoverinfo='none'))
+    # Добавляем пустой scatter trace, чтобы оси отображались корректно
+    fig.add_trace(go.Scatter(x=[], y=[], mode='markers', hoverinfo='none'))
 
-        fig.update_layout(
-            title='Расписание производства',
-            xaxis=dict(
-                title='Дни недели',
-                tickvals=[i for i in range(len(days))],
-                ticktext=days,
-                side='top',  # Дни сверху
-                range=[-0.5, len(days) - 0.5],  # Центрируем ячейки вокруг тиков
-                showgrid=False,  # Скрываем сетку
-                zeroline=False,
-                fixedrange=True  # Запрещаем зум по X
-            ),
-            yaxis=dict(
-                title='Оборудование',
-                tickvals=[len(machines) - 1 - i for i in range(len(machines))],  # Инвертируем tickvals для машин
-                ticktext=machines,
-                range=[-0.5, len(machines) - 0.5],  # Центрируем ячейки вокруг тиков
-                showgrid=False,  # Скрываем сетку
-                zeroline=False,
-                autorange='reversed',  # Также можно использовать для инверсии Y-оси
-                fixedrange=True  # Запрещаем зум по Y
-            ),
-            shapes=shapes,  # Добавляем все прямоугольники
-            annotations=annotations,  # Добавляем все текстовые аннотации
-            plot_bgcolor='white',  # Цвет фона графика
-            hovermode=False,  # Отключаем всплывающие подсказки по умолчанию
-            height=400 + len(machines) * 50,  # Динамическая высота
-            width=600 + len(days) * 50,  # Динамическая ширина
-            margin=dict(l=100, r=50, t=100, b=50)  # Отступы
-        )
+    fig.update_layout(
+        title=f"Расписание производства: {title_text}",
+        xaxis=dict(
+            title='Дни недели',
+            tickvals=[i for i in range(len(days))],
+            ticktext=days,
+            side='top',  # Дни сверху
+            range=[-0.5, len(days) - 0.5],  # Центрируем ячейки вокруг тиков
+            showgrid=False,  # Скрываем сетку
+            zeroline=False,
+            fixedrange=True  # Запрещаем зум по X
+        ),
+        yaxis=dict(
+            title='Оборудование',
+            tickvals=[len(machines) - 1 - i for i in range(len(machines))],  # Инвертируем tickvals для машин
+            ticktext=machines,
+            range=[-0.5, len(machines) - 0.5],  # Центрируем ячейки вокруг тиков
+            showgrid=False,  # Скрываем сетку
+            zeroline=False,
+            autorange='reversed',  # Также можно использовать для инверсии Y-оси
+            fixedrange=True  # Запрещаем зум по Y
+        ),
+        shapes=shapes,  # Добавляем все прямоугольники
+        annotations=annotations,  # Добавляем все текстовые аннотации
+        plot_bgcolor='white',  # Цвет фона графика
+        hovermode=False,  # Отключаем всплывающие подсказки по умолчанию
+        height=400 + len(machines) * 50,  # Динамическая высота
+        width=600 + len(days) * 50,  # Динамическая ширина
+        margin=dict(l=100, r=50, t=100, b=50)  # Отступы
+    )
+    f_name = "example/res.html"
+    with open(f_name, "w", encoding="utf8") as f:
+        f.write(fig.to_html())
+    # webbrowser.open(f_name)
 
-        fig.show()
+    fig.show()
 
 if __name__ == "__main__":
 

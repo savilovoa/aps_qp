@@ -28,7 +28,7 @@ def calc_test_data_from():
 
     data = json.loads(test_in)
     machines = [(d["name"], d["product_idx"]) for d in data["machines"]]
-    products = [(d["idx"], d["name"], d["qty"]) for d in data["products"]]
+    products = [(d["name"], d["qty"], []) for d in data["products"]]
     result = schedule_loom_calc(machines=machines, products=products, remains=[],
                                 max_daily_prod_zero=data["max_daily_prod_zero"],
                                 count_days=data["count_days"])
@@ -37,9 +37,10 @@ def calc_test_data_from():
         return
     days = [str(d) for d in range(data["count_days"])]
     machines = [d["name"] for d in data["machines"]]
-    products = [d["name"] for d in data["machines"]]
+    products = [d["name"] for d in data["products"]]
+    title_text = f"{result['status_str']} оптим. значение {result['objective_value']}"
 
-    view_schedule(machines=machines, products=products, days=days, schedules=result["schedule"])
+    view_schedule(machines=machines, products=products, days=days, schedules=result["schedule"], title_text=title_text)
 
 
 

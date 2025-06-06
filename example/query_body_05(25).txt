@@ -1,0 +1,114 @@
+{
+"machines": [
+{
+"idx": 0,
+"name": "ТС Тойота №134",
+"product_idx": 1
+},
+{
+"idx": 1,
+"name": "ТС Тойота №98",
+"product_idx": 2
+},
+{
+"idx": 2,
+"name": "ТС Тойота №110",
+"product_idx": 3
+},
+{
+"idx": 3,
+"name": "ТС Тойота №118",
+"product_idx": 3
+},
+{
+"idx": 4,
+"name": "ТС Тойота №126",
+"product_idx": 3
+},
+{
+"idx": 5,
+"name": "ТС Тойота №127",
+"product_idx": 1
+},
+{
+"idx": 6,
+"name": "ТС Тойота №136",
+"product_idx": 1
+},
+{
+"idx": 7,
+"name": "ТС Тойота №135",
+"product_idx": 1
+},
+{
+"idx": 8,
+"name": "ТС Тойота №137",
+"product_idx": 4
+}
+],
+"products": [
+{
+"idx": 0,
+"name": "",
+"qty": 0,
+"resource": []
+},
+{
+"idx": 1,
+"name": "ст78425t",
+"qty": 26,
+"resource": []
+},
+{
+"idx": 2,
+"name": "ст18450амt4",
+"qty": 0,
+"resource": []
+},
+{
+"idx": 3,
+"name": "ст60405амt15",
+"qty": 0,
+"resource": []
+},
+{
+"idx": 4,
+"name": "ст60301t7",
+"qty": 13,
+"resource": []
+},
+{
+"idx": 5,
+"name": "ст10005амt5",
+"qty": 9,
+"resource": []
+},
+{
+"idx": 6,
+"name": "ст18310t1",
+"qty": 8,
+"resource": []
+},
+{
+"idx": 7,
+"name": "ст18450амt3",
+"qty": 86,
+"resource": []
+},
+{
+"idx": 8,
+"name": "ст60406амt19",
+"qty": 4,
+"resource": []
+},
+{
+"idx": 9,
+"name": "ст87026t",
+"qty": 10,
+"resource": []
+}
+],
+"remains": [],
+"max_daily_prod_zero": 3,
+"count_days": 15
+}
