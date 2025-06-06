@@ -34,7 +34,7 @@ def schedule_loom_calc_model(DataIn: DataLoomIn) -> LoomPlansOut:
     result_calc = schedule_loom_calc(remains=remains, products=products, machines=machines,
                                 max_daily_prod_zero=max_daily_prod_zero, count_days=count_days)
 
-    if result_calc.error_str == "":
+    if result_calc["error_str"] == "":
         schedule = [LoomPlan(machine_idx=s["machine_idx"], day_idx=s["day_idx"], product_idx=s["product_idx"])
                     for s in result_calc["schedule"]]
         result = LoomPlansOut(status=result_calc["status"], status_str=result_calc["status_str"],
@@ -42,7 +42,9 @@ def schedule_loom_calc_model(DataIn: DataLoomIn) -> LoomPlansOut:
                               zeros=result_calc["zeros"], objective_value=result_calc["objective_value"],
                               proportion_diff=result_calc["proportion_diff"])
     else:
-        result = LoomPlansOut(error_str=result_calc.error_str, schedule=[], products=[], zeros=[])
+        result = LoomPlansOut(error_str=result_calc["error_str"], schedule=[], products=[], zeros=[])
+
+    return result
 
 def schedule_loom_calc(remains: list, products: list, machines: list, max_daily_prod_zero: int, count_days: int) -> LoomPlansOut:
     try:
