@@ -188,14 +188,14 @@ def schedule_loom_calc_2() -> None:
             # Ограничение: не более 2 изменений групп (3 группы) на машину
             model.Add(sum(group_changes) <= 2)
 
-        # Ограничение на "прыжки" между продуктами
-        # for m in range(num_machines):
-        #     for d in range(1, num_days - 1):
-        #         # Нельзя иметь последовательность product A -> product B -> product A
-        #         p_prev = jobs[(m, d - 1)]
-        #         p_curr = jobs[(m, d)]
-        #         p_next = jobs[(m, d + 1)]
-        #         model.add((p_prev == p_next) == 0).only_enforce_if([p_curr != p_prev, p_curr != p_next])
+        # Ограничение на "прыжки" между продуктами - кривые, нужно переделать
+        for m in range(num_machines):
+            for d in range(1, num_days - 1):
+                # Нельзя иметь последовательность product A -> product B -> product A
+                p_prev = jobs[(m, d - 1)]
+                p_curr = jobs[(m, d)]
+                p_next = jobs[(m, d + 1)]
+                model.add((p_prev == p_next) == 0).only_enforce_if([p_curr != p_prev, p_curr != p_next])
         #
 
         # ------------ Мягкое ограничение: Пропорции продукции (для продуктов с индексом > 0) ------------
