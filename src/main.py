@@ -29,8 +29,8 @@ def calc_test_data_from():
     data = json.loads(test_in)
     machines = [(d["name"], d["product_idx"], d["id"], d["type"]) for d in data["machines"]]
     products = [(d["name"], d["qty"], d["id"], d["machine_type"]) for d in data["products"]]
-    # cleans = [(d["machine_idx"], d["day_idx"]) for d in data["cleans"]]
-    cleans = []
+    cleans = [(d["machine_idx"], d["day_idx"]) for d in data["cleans"]]
+    #cleans = []
     result = schedule_loom_calc(machines=machines, products=products, remains=[], cleans=cleans,
                                 max_daily_prod_zero=data["max_daily_prod_zero"], count_days=data["count_days"])
     if result["error_str"]:

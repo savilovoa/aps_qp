@@ -49,41 +49,47 @@ def schedule_loom_calc_model(DataIn: DataLoomIn) -> LoomPlansOut:
 
 
 def create_model(remains: list, products: list, machines: list, cleans: list, max_daily_prod_zero: int, count_days: int):
-    # products = [  # (name, qty, [(reed_idx, qty), (shaft_idx, qty)]).
-    #     ("87416", 21, [(0, 1), (0, 7)] )
-    #     , ("18305", 9, [(1, 1), (0, 6)])
-    #     , ("18302", 4, [(2, 1), (0, 7)])
+    # products = [  # (name, qty, id, machine_type).
+    #     ("ZERO", 0, "0", 0)
+    #     ("87416", 21, "1", 1)
+    #     , ("18305", 9, "2", 0)
+    #     , ("18302", 4, "3", 0)
     # ]
-    # machines = [ # (name, product_idx)
-    #     ("t1", 1)
-    #     , ("t2", 1)
-    #     , ("t3", 2)
-    #     , ("t4", 0)
-    #     , ("t5", 1)
+    # machines = [ # (name, product_idx, id, type)
+    #     ("t1", 1, "1", 1)
+    #     , ("t2", 1, "2", 1)
+    #     , ("t3", 2, "3", 0)
+    #     , ("t4", 0, "4", 0)
+    #     , ("t5", 1, "1", 1)
     # ]
-    # max_daily_prod_zero = 3
+    # cleans = [ # (machine_idx, day_idx)
+    #     (1, 2)
+    # ]
+
+    # Создаем множество дней чисток для быстрого доступа O(1)
+    cleans_set = set(cleans)
 
     num_days = count_days
     num_machines = len(machines)
     num_products = len(products)
-
-    cleans_set = set(cleans)
 
     all_machines = range(num_machines)
     all_days = range(num_days)
     all_products = range(num_products)
     products_with_ratio = range(1, num_products)
 
-    proportions_input = [prop for a, prop, id, t in products]
-    initial_products = {idx: product_idx for idx, (_, product_idx, m_id, t) in enumerate(machines)}
+    proportions_input = [prop for a, prop, id, m_type in products]
+    initial_products = {idx: product_idx for idx, (_, product_idx, id, t) in enumerate(machines)}
 
     model = cp_model.CpModel()
 
     jobs = {}
+
     # Список всех рабочих дней (не чисток)
     work_days = []
     # Значение для отображения чистки в итоговом расписании
     CLEANING_DISPLAY_CODE = -2
+
     for m in range(num_machines):
         for d in range(num_days):
             if (m, d) not in cleans_set:
@@ -103,15 +109,26 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
             model.Add(jobs[m, d] == p).OnlyEnforceIf(product_produced_bools[p, m, d])
             model.Add(jobs[m, d] != p).OnlyEnforceIf(product_produced_bools[p, m, d].Not())
 
-        # Общее количество каждого продукта: product_counts[p]
+    # Общее количество каждого продукта: product_counts[p]
     product_counts = [model.NewIntVar(0, num_machines * num_days, f"count_prod_{p}") for p in range(num_products)]
     for p in all_products:
         model.Add(product_counts[p] == sum(
             product_produced_bools[p, m, d] for m, d in work_days))
 
     # Количество нулевого продукта по дням
-    # И просто количество нулевого продукта не более установленного значения
-    model.Add(product_counts[PRODUCT_ZERO] <= max_daily_prod_zero)
+    # И просто количество нулевого продукта
+    prod_zero_total = []
+    for d in all_days:
+        daily_prod_zero_on_machines = []
+        for m in range(num_machines):
+            if (m, d) not in cleans_set:
+                # Используем уже созданные product_produced_bools для эффективности
+                # product_produced_bools[PRODUCT_ZERO, m, d] истинно, если на машине m в день d производится PRODUCT_ZERO
+                daily_prod_zero_on_machines.append(product_produced_bools[PRODUCT_ZERO, m, d])
+                prod_zero_total.append(product_produced_bools[PRODUCT_ZERO, m, d])
+
+        # Сумма этих булевых переменных даст количество PRODUCT_ZERO в день d
+        model.Add(sum(daily_prod_zero_on_machines) <= max_daily_prod_zero)
 
     # Ограничения ПЕРЕХОДА
 
@@ -168,37 +185,31 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
         model.Add(completed_transition[m, 1] == prev_is_zero)
 
     # Логика переходов для дней d ≥ 2
-    # Логика переходов для дней d ≥ 2
     for m in range(num_machines):
         for d in range(2, num_days):
-
-            if (m, d) not in cleans_set and (m, d - 1) not in cleans_set and (m, d - 2) not in cleans_set:
-                pred_idx = d - 1
-                pred_pred_idx = d - 2
-                prev2_is_not_zero[m, d] = model.NewBoolVar(f"prev2_is_not_zero_{m}_{d}")
-                model.Add(jobs[m, pred_pred_idx] != PRODUCT_ZERO).OnlyEnforceIf(prev2_is_not_zero[m, d])
-                model.Add(jobs[m, pred_pred_idx] == PRODUCT_ZERO).OnlyEnforceIf(prev2_is_not_zero[m, d].Not())
-            elif (m, d) in cleans_set:
+            if (m, d) in cleans_set:
                 continue
             elif (m, d - 1) in cleans_set:
                 pred_idx = d - 2
                 pred_pred_idx = d - 3
-                prev2_is_not_zero[m, d] = model.NewBoolVar(f"prev2_is_not_zero_{m}_{d}")
-                model.Add(jobs[m, pred_pred_idx] != PRODUCT_ZERO).OnlyEnforceIf(prev2_is_not_zero[m, d])
-                model.Add(jobs[m, pred_pred_idx] == PRODUCT_ZERO).OnlyEnforceIf(prev2_is_not_zero[m, d].Not())
             elif (m, d - 2) in cleans_set:
                 pred_idx = d - 1
-                prev2_is_not_zero[m, d] = model.NewBoolVar(f"prev2_is_not_zero_{m}_{d}")
-                model.Add(prev2_is_not_zero[m, d] == 1)
-
+                pred_pred_idx = d - 3
+            else:
+                pred_idx = d - 1
+                pred_pred_idx = d - 2
 
             is_not_zero[m, d] = model.NewBoolVar(f"is_not_zero_{m}_{d}")
             model.Add(jobs[m, d] != PRODUCT_ZERO).OnlyEnforceIf(is_not_zero[m, d])
             model.Add(jobs[m, d] == PRODUCT_ZERO).OnlyEnforceIf(is_not_zero[m, d].Not())
 
             prev_is_not_zero[m, d] = model.NewBoolVar(f"prev_is_not_zero_{m}_{d}")
-            model.Add(jobs[m, pred_idx] != PRODUCT_ZERO).OnlyEnforceIf(prev_is_not_zero[m, d])
-            model.Add(jobs[m, pred_idx] == PRODUCT_ZERO).OnlyEnforceIf(prev_is_not_zero[m, d].Not())
+            model.Add(jobs[m, d - pred_idx] != PRODUCT_ZERO).OnlyEnforceIf(prev_is_not_zero[m, d])
+            model.Add(jobs[m, d - pred_idx] == PRODUCT_ZERO).OnlyEnforceIf(prev_is_not_zero[m, d].Not())
+
+            prev2_is_not_zero[m, d] = model.NewBoolVar(f"prev2_is_not_zero_{m}_{d}")
+            model.Add(jobs[m, d - pred_pred_idx] != PRODUCT_ZERO).OnlyEnforceIf(prev2_is_not_zero[m, d])
+            model.Add(jobs[m, d - pred_pred_idx] == PRODUCT_ZERO).OnlyEnforceIf(prev2_is_not_zero[m, d].Not())
 
             # Проверяем, был ли завершен двухдневный переход
             two_day_zero[m, d] = model.NewBoolVar(f"two_day_zero_{m}_{d}")
@@ -215,8 +226,8 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
             # 1) тот же продукт, что и вчера (если вчера не ноль)
             # 2) завершен двухдневный переход
             same_as_prev[m, d] = model.NewBoolVar(f"same_as_prev_{m}_{d}")
-            model.Add(jobs[m, d] == jobs[m, pred_idx]).OnlyEnforceIf(same_as_prev[m, d])
-            model.Add(jobs[m, d] != jobs[m, pred_idx]).OnlyEnforceIf(same_as_prev[m, d].Not())
+            model.Add(jobs[m, d] == jobs[m, d - pred_idx]).OnlyEnforceIf(same_as_prev[m, d])
+            model.Add(jobs[m, d] != jobs[m, d - pred_idx]).OnlyEnforceIf(same_as_prev[m, d].Not())
 
             model.AddBoolOr([
                 is_not_zero[m, d].Not(),  # Текущий день - PRODUCT_ZERO
@@ -226,61 +237,8 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
             # Запрет на 3-й ZERO
             model.add(jobs[m, d] != PRODUCT_ZERO).OnlyEnforceIf(completed_transition[m, d])
             # Запрет на переход в последние 2 дня
-            if d >= count_days - 2:
+            if d >= count_days - pred_pred_idx:
                 model.add(jobs[m, d] != PRODUCT_ZERO)
-
-            # if (m, d) in cleans_set:
-            #     continue
-            # elif (m, d - 1) in cleans_set:
-            #     pred_idx = d - 2
-            #     pred_pred_idx = d - 3
-            # elif (m, d - 2) in cleans_set:
-            #     pred_idx = d - 1
-            #     pred_pred_idx = d - 3
-            # else:
-            #     pred_idx = d - 1
-            #     pred_pred_idx = d - 2
-            #
-            # is_not_zero[m, d] = model.NewBoolVar(f"is_not_zero_{m}_{d}")
-            # model.Add(jobs[m, d] != PRODUCT_ZERO).OnlyEnforceIf(is_not_zero[m, d])
-            # model.Add(jobs[m, d] == PRODUCT_ZERO).OnlyEnforceIf(is_not_zero[m, d].Not())
-            #
-            # prev_is_not_zero[m, d] = model.NewBoolVar(f"prev_is_not_zero_{m}_{d}")
-            # model.Add(jobs[m, d - pred_idx] != PRODUCT_ZERO).OnlyEnforceIf(prev_is_not_zero[m, d])
-            # model.Add(jobs[m, d - pred_idx] == PRODUCT_ZERO).OnlyEnforceIf(prev_is_not_zero[m, d].Not())
-            #
-            # prev2_is_not_zero[m, d] = model.NewBoolVar(f"prev2_is_not_zero_{m}_{d}")
-            # model.Add(jobs[m, d - pred_pred_idx] != PRODUCT_ZERO).OnlyEnforceIf(prev2_is_not_zero[m, d])
-            # model.Add(jobs[m, d - pred_pred_idx] == PRODUCT_ZERO).OnlyEnforceIf(prev2_is_not_zero[m, d].Not())
-            #
-            # # Проверяем, был ли завершен двухдневный переход
-            # two_day_zero[m, d] = model.NewBoolVar(f"two_day_zero_{m}_{d}")
-            # model.AddBoolAnd(prev_is_not_zero[m, d].Not(), prev2_is_not_zero[m, d].Not()).OnlyEnforceIf(
-            #     two_day_zero[m, d])
-            # model.AddBoolOr(prev_is_not_zero[m, d], prev2_is_not_zero[m, d]).OnlyEnforceIf(
-            #     two_day_zero[m, d].Not())
-            #
-            # # Устанавливаем completed_transition
-            # model.Add(completed_transition[m, d] == two_day_zero[m, d])
-            #
-            # # Ограничения:
-            # # Если текущий день - не ноль, то либо:
-            # # 1) тот же продукт, что и вчера (если вчера не ноль)
-            # # 2) завершен двухдневный переход
-            # same_as_prev[m, d] = model.NewBoolVar(f"same_as_prev_{m}_{d}")
-            # model.Add(jobs[m, d] == jobs[m, d - pred_idx]).OnlyEnforceIf(same_as_prev[m, d])
-            # model.Add(jobs[m, d] != jobs[m, d - pred_idx]).OnlyEnforceIf(same_as_prev[m, d].Not())
-            #
-            # model.AddBoolOr([
-            #     is_not_zero[m, d].Not(),  # Текущий день - PRODUCT_ZERO
-            #     same_as_prev[m, d],  # Тот же продукт, что вчера
-            #     completed_transition[m, d]  # Завершен двухдневный переход
-            # ])
-            # # Запрет на 3-й ZERO
-            # model.add(jobs[m, d] != PRODUCT_ZERO).OnlyEnforceIf(completed_transition[m, d])
-            # # Запрет на переход в последние 2 дня
-            # if d >= count_days - pred_pred_idx:
-            #     model.add(jobs[m, d] != PRODUCT_ZERO)
 
     # # не более 1-го простоя за неделю
     # for m in range(num_machines):
@@ -290,19 +248,26 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
     #     model.Add(sum(prod_zero_on_machine) <= 2)
 
     # 6. Ограничение на "прыжки" - задания одного продукта должны быть сгруппированы
-    for m in all_machines:
-        # Переменные для отслеживания групп
-        group_changes = []
-        for d in range(num_days - 1):
-            group_changes.append(model.NewBoolVar(f'group_change_m{m}_d{d}'))
-
-        # Группы меняются, когда продукт изменяется
-        for d in range(num_days - 1):
-            model.Add(jobs[m, d] != jobs[m, d + 1]).OnlyEnforceIf(group_changes[d])
-            model.Add(jobs[m, d] == jobs[m, d + 1]).OnlyEnforceIf(group_changes[d].Not())
-
-        # Ограничение: не более 2 изменений групп (3 группы) на машину
-        model.Add(sum(group_changes) <= 2)
+    # for m in all_machines:
+    #     # Переменные для отслеживания групп
+    #     group_changes = []
+    #     for d in range(num_days - 1):
+    #         group_changes.append(model.NewBoolVar(f'group_change_m{m}_d{d}'))
+    #
+    #     # Группы меняются, когда продукт изменяется
+    #     for d in range(num_days - 1):
+    #         if (m, d) in cleans_set:
+    #             model.Add(group_changes[d] == 0)
+    #         elif (m, d + 1) in cleans_set:
+    #             model.Add(jobs[m, d] != jobs[m, d + 2]).OnlyEnforceIf(group_changes[d])
+    #             model.Add(jobs[m, d] == jobs[m, d + 2]).OnlyEnforceIf(group_changes[d].Not())
+    #         else:
+    #             model.Add(jobs[m, d] != jobs[m, d + 1]).OnlyEnforceIf(group_changes[d])
+    #             model.Add(jobs[m, d] == jobs[m, d + 1]).OnlyEnforceIf(group_changes[d].Not())
+    #
+    #
+    #     # Ограничение: не более 2 изменений групп (3 группы) на машину
+    #     model.Add(sum(group_changes) <= 2)
 
     # Ограничение на "прыжки" между продуктами
     # for m in range(num_machines):
@@ -314,15 +279,45 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
     #         model.add((p_prev == p_next) == 0).only_enforce_if([p_curr != p_prev, p_curr != p_next])
     #
 
+    # Ограничение: Совместимость типов машин
+    # for p in range(1, num_products):
+    #     # Если у продукта есть требование к типу машины (тип 1)
+    #     if products[p][3] == 1:
+    #         for m in range(num_machines):
+    #             # И тип машины не соответствует (тип 0)
+    #             if machines[m][3] == 0:
+    #                 for d in range(num_days):
+    #                     # Запрещаем производство этого продукта на этой машине во все дни
+    #                     if (m, d) in work_days:
+    #                         model.add(jobs[(m, d)] != p)
+
     # ------------ Мягкое ограничение: Пропорции продукции (для продуктов с индексом > 0) ------------
     # Цель: минимизировать отклонение от заданных пропорций
     # Пропорции касаются только продуктов p > 0.
-    # Мы хотим, чтобы product_counts[p1] / product_counts[p2] было близко к proportions_input[p1] / proportions_input[p2]
-    # Это эквивалентно product_counts[p1] * proportions_input[p2] ~= product_counts[p2] * proportions_input[p1]
 
+    # ------------------ Целевая функция (мягкое ограничение) ------------------
+    # Цель: минимизировать отклонение от заданных пропорций.
+
+    # Считаем общее количество произведенной продукции (исключая ZERO и дни чистки)
     total_production_days = model.NewIntVar(0, num_days * num_machines, "total_production_days")
+
+    production_days_per_product = []
+    for p in range(num_products):
+        # Bool-переменные для дней, когда продукт p производится и это не день чистки
+        is_produced_on_valid_day = []
+        for m in range(num_machines):
+            for d in range(num_days):
+                if (m, d) not in cleans_set:
+                    is_produced_on_valid_day.append(product_produced_bools[(p, m, d)])
+
+        # Количество дней производства для каждого продукта
+        count = model.NewIntVar(0, num_days * num_machines, f'count_{p}')
+        model.Add(count == sum(is_produced_on_valid_day))
+        production_days_per_product.append(count)
+
     # Суммируем только "полезные" дни производства (продукты > 0)
-    model.Add(total_production_days == sum(product_counts[p] for p in range(1, num_products)))
+    model.Add(total_production_days == sum(production_days_per_product[p]
+                                           for p in range(1, num_products)))
 
     # Общая сумма целевых пропорций
     total_proportions = sum(proportions_input[p] for p in range(1, num_products))
@@ -330,11 +325,11 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
     # Минимизируем сумму абсолютных отклонений от пропорций.
     # Для этого используем трюк с перекрестным умножением, чтобы избежать деления.
     # |actual_count * total_prop - total_count * target_prop_p| -> min
-    deviation = []
+    errors = []
     for p in range(1, num_products):
         # actual_count_p * total_proportions
         term1 = model.NewIntVar(-100000, 100000, f'term1_{p}')
-        model.AddMultiplicationEquality(term1, [product_counts[p], total_proportions])
+        model.AddMultiplicationEquality(term1, [production_days_per_product[p], total_proportions])
 
         # total_production_days * proportions_input[p]
         term2 = model.NewIntVar(-100000, 100000, f'term2_{p}')
@@ -345,29 +340,38 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
         model.Add(diff == term1 - term2)
 
         # abs_error = abs(diff)
-        abs_deviation = model.NewIntVar(0, 100000, f'abs_error_{p}')
-        model.AddAbsEquality(abs_deviation, diff)
-        deviation.append(abs_deviation)
+        abs_error = model.NewIntVar(0, 100000, f'abs_error_{p}')
+        model.AddAbsEquality(abs_error, diff)
+        errors.append(abs_error)
 
-    # if proportion_objective_terms:
+    downtime_penalty = 10
 
-    downtime_penalty = round(0.1 * sum(proportions_input)/num_machines * num_days)
-    if downtime_penalty < 1:
-        downtime_penalty = 1
+    model.Minimize(sum(errors) + sum(prod_zero_total) * downtime_penalty)
 
-    model.Minimize(sum(deviation) + product_counts[PRODUCT_ZERO] * downtime_penalty)
-
-    return model, jobs, product_counts, deviation
+    return model, jobs, product_counts, errors
 
 
-def schedule_loom_calc(remains: list, products: list, machines: list, cleans: list, max_daily_prod_zero: int, count_days: int) -> LoomPlansOut:
+def schedule_loom_calc(remains: list, products: list, machines: list, cleans: list, max_daily_prod_zero: int,
+                       count_days: int) -> LoomPlansOut:
     try:
-
+        # products = [  # (name, qty, id, machine_type).
+        #     ("ZERO", 0, "0", 0)
+        #     ("87416", 21, "1", 1)
+        #     , ("18305", 9, "2", 0)
+        #     , ("18302", 4, "3", 0)
+        # ]
+        # machines = [ # (name, product_idx, id, type)
+        #     ("t1", 1, "1", 1)
+        #     , ("t2", 1, "2", 1)
+        #     , ("t3", 2, "3", 0)
+        #     , ("t4", 0, "4", 0)
+        #     , ("t5", 1, "1", 1)
+        # ]
+        # cleans = [ # (day_idx, machine_idx
+        #   (6, 1)
+        # ]
         #
-        #
-        num_products = len(products)
 
-        # solver.parameters.log_search_progress = True
         solver = cp_model.CpSolver()
         solver.parameters.max_time_in_seconds = 600
         model, jobs, product_counts, proportion_objective_terms = create_model(
@@ -375,17 +379,26 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
             count_days=count_days)
         status = solver.solve(model)
         machines_full = []
+        machines_change = {}
+        products_change = {}
         if status == cp_model.FEASIBLE:
             logger.info(f"Первичная проверка")
             product_del = []
-            for p in range(num_products):
+            products_old = products.copy()
+            machines_old = machines.copy()
+            for p in range(len(products)):
                 qty = solver.Value(product_counts[p])
                 if p > 0 and qty >= count_days:
                     for m in range(len(machines)):
                         if machines[m][1] == p:
                             logger.info(f"Можно убрать индекс {p} на машину {m}")
                             # убираем объем из данных
-                            machines_full.append((m, p))
+                            machines_full.append((machines[m][2], products[p][2]))
+                            for m_change in range(m + 1, len(machines)):
+                                if machines_change.get(m_change - 1):
+                                    pass
+                                else:
+                                    machines_change[m_change - 1] = m_change
                             if products[p][1] - count_days > 0:
                                 logger.info(f"  уменьшаем индекс {p}  и удаляем машину {m}")
                                 products[p] = (products[p][0], products[p][1] - count_days, products[p][2])
@@ -412,21 +425,19 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
                 products.pop(p_old)
                 logger.info(f"  удаляем индекс {p_old}")
 
-
-
-
         num_days = count_days
         num_machines = len(machines)
         num_products = len(products)
         model, jobs, product_counts, proportion_objective_terms = create_model(
-            remains=remains, products=products, machines=machines, cleans=cleans, max_daily_prod_zero=max_daily_prod_zero,
-            count_days=count_days)
+            remains=remains, products=products, machines=machines, cleans=cleans,
+            max_daily_prod_zero=max_daily_prod_zero, count_days=count_days)
         solver.parameters.max_time_in_seconds = settings.LOOM_MAX_TIME
         status = solver.solve(model)
         diff_all = 0
         schedule = []
         zeros = []
         products_schedule = []
+
         if status == cp_model.OPTIMAL or status == cp_model.FEASIBLE:
             logger.info(f"Статус решения: {solver.StatusName(status)}")
             if proportion_objective_terms:
