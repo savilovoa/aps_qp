@@ -118,7 +118,7 @@ def view_schedule(machines: list, products: list, days: list, schedules: list, t
         f.write(fig.to_html())
     # webbrowser.open(f_name)
 
-    fig.show()
+    # fig.show()
 
 if __name__ == "__main__":
 

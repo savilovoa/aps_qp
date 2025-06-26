@@ -52,7 +52,8 @@
 }
 ],
 "remains": [],
-"cleans": [],
+"cleans": [
+],
 "max_daily_prod_zero": 3,
 "count_days": 5
 }
