@@ -17,7 +17,7 @@
 {
 "idx": 2,
 "name": "ТС Тойота №8",
-"product_idx": 1,
+"product_idx": 3,
 "id": "fbc4c372-8087-11ea-80cc-005056aab926",
 "type": 0
 }],
@@ -32,7 +32,7 @@
 {
 "idx": 1,
 "name": "ст87017t3 ",
-"qty": 8,
+"qty": 9,
 "id": "7ec17dc8-f3bd-4384-9738-7538ab3dc315",
 "machine_type": 0
 },
@@ -52,7 +52,7 @@
 }
 ],
 "remains": [],
-"cleans": [],
+"cleans": ["day_idx": 2, "machine_idx": 1],
 "max_daily_prod_zero": 3,
 "count_days": 5
 }

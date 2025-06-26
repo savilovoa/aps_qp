@@ -287,7 +287,9 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
 
     # if proportion_objective_terms:
 
-    downtime_penalty = 10
+    downtime_penalty = round(0.1 * sum(proportions_input)/num_machines * num_days)
+    if downtime_penalty < 1:
+        downtime_penalty = 1
 
     model.Minimize(sum(proportion_objective_terms) + sum(prod_zero_total) * downtime_penalty)
 
