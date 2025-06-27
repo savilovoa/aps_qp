@@ -73,7 +73,7 @@ def view_schedule(machines: list, products: list, days: list, schedules: list, t
                         text=text_to_display,
                         showarrow=False,
                         font=dict(color="black", size=12),
-                        xanchor='center', yanchor='middle'
+                        xanchor='left', yanchor='middle'
                     )
                 )
 
