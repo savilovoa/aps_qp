@@ -83,7 +83,6 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
     # Список всех рабочих дней (не чисток)
     work_days = []
     # Значение для отображения чистки в итоговом расписании
-    CLEANING_DISPLAY_CODE = -2
     for m in range(num_machines):
         for d in range(num_days):
             if (m, d) not in cleans_set:
@@ -169,65 +168,65 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
 
     # Логика переходов для дней d ≥ 2
     # Логика переходов для дней d ≥ 2
-    for m in range(num_machines):
-        for d in range(2, num_days):
-
-            if (m, d) not in cleans_set and (m, d - 1) not in cleans_set and (m, d - 2) not in cleans_set:
-                pred_idx = d - 1
-                pred_pred_idx = d - 2
-                prev2_is_not_zero[m, d] = model.NewBoolVar(f"prev2_is_not_zero_{m}_{d}")
-                model.Add(jobs[m, pred_pred_idx] != PRODUCT_ZERO).OnlyEnforceIf(prev2_is_not_zero[m, d])
-                model.Add(jobs[m, pred_pred_idx] == PRODUCT_ZERO).OnlyEnforceIf(prev2_is_not_zero[m, d].Not())
-            elif (m, d) in cleans_set:
-                continue
-            elif (m, d - 1) in cleans_set:
-                pred_idx = d - 2
-                pred_pred_idx = d - 3
-                prev2_is_not_zero[m, d] = model.NewBoolVar(f"prev2_is_not_zero_{m}_{d}")
-                model.Add(jobs[m, pred_pred_idx] != PRODUCT_ZERO).OnlyEnforceIf(prev2_is_not_zero[m, d])
-                model.Add(jobs[m, pred_pred_idx] == PRODUCT_ZERO).OnlyEnforceIf(prev2_is_not_zero[m, d].Not())
-            elif (m, d - 2) in cleans_set:
-                pred_idx = d - 1
-                prev2_is_not_zero[m, d] = model.NewBoolVar(f"prev2_is_not_zero_{m}_{d}")
-                model.Add(prev2_is_not_zero[m, d] == 1)
-
-
-            is_not_zero[m, d] = model.NewBoolVar(f"is_not_zero_{m}_{d}")
-            model.Add(jobs[m, d] != PRODUCT_ZERO).OnlyEnforceIf(is_not_zero[m, d])
-            model.Add(jobs[m, d] == PRODUCT_ZERO).OnlyEnforceIf(is_not_zero[m, d].Not())
-
-            prev_is_not_zero[m, d] = model.NewBoolVar(f"prev_is_not_zero_{m}_{d}")
-            model.Add(jobs[m, pred_idx] != PRODUCT_ZERO).OnlyEnforceIf(prev_is_not_zero[m, d])
-            model.Add(jobs[m, pred_idx] == PRODUCT_ZERO).OnlyEnforceIf(prev_is_not_zero[m, d].Not())
-
-            # Проверяем, был ли завершен двухдневный переход
-            two_day_zero[m, d] = model.NewBoolVar(f"two_day_zero_{m}_{d}")
-            model.AddBoolAnd(prev_is_not_zero[m, d].Not(), prev2_is_not_zero[m, d].Not()).OnlyEnforceIf(
-                two_day_zero[m, d])
-            model.AddBoolOr(prev_is_not_zero[m, d], prev2_is_not_zero[m, d]).OnlyEnforceIf(
-                two_day_zero[m, d].Not())
-
-            # Устанавливаем completed_transition
-            model.Add(completed_transition[m, d] == two_day_zero[m, d])
-
-            # Ограничения:
-            # Если текущий день - не ноль, то либо:
-            # 1) тот же продукт, что и вчера (если вчера не ноль)
-            # 2) завершен двухдневный переход
-            same_as_prev[m, d] = model.NewBoolVar(f"same_as_prev_{m}_{d}")
-            model.Add(jobs[m, d] == jobs[m, pred_idx]).OnlyEnforceIf(same_as_prev[m, d])
-            model.Add(jobs[m, d] != jobs[m, pred_idx]).OnlyEnforceIf(same_as_prev[m, d].Not())
-
-            model.AddBoolOr([
-                is_not_zero[m, d].Not(),  # Текущий день - PRODUCT_ZERO
-                same_as_prev[m, d],  # Тот же продукт, что вчера
-                completed_transition[m, d]  # Завершен двухдневный переход
-            ])
-            # Запрет на 3-й ZERO
-            model.add(jobs[m, d] != PRODUCT_ZERO).OnlyEnforceIf(completed_transition[m, d])
-            # Запрет на переход в последние 2 дня
-            if d >= count_days - 2:
-                model.add(jobs[m, d] != PRODUCT_ZERO)
+    # for m in range(num_machines):
+    #     for d in range(2, num_days):
+    #
+    #         if (m, d) not in cleans_set and (m, d - 1) not in cleans_set and (m, d - 2) not in cleans_set:
+    #             pred_idx = d - 1
+    #             pred_pred_idx = d - 2
+    #             prev2_is_not_zero[m, d] = model.NewBoolVar(f"prev2_is_not_zero_{m}_{d}")
+    #             model.Add(jobs[m, pred_pred_idx] != PRODUCT_ZERO).OnlyEnforceIf(prev2_is_not_zero[m, d])
+    #             model.Add(jobs[m, pred_pred_idx] == PRODUCT_ZERO).OnlyEnforceIf(prev2_is_not_zero[m, d].Not())
+    #         elif (m, d) in cleans_set:
+    #             continue
+    #         elif (m, d - 1) in cleans_set:
+    #             pred_idx = d - 2
+    #             pred_pred_idx = d - 3
+    #             prev2_is_not_zero[m, d] = model.NewBoolVar(f"prev2_is_not_zero_{m}_{d}")
+    #             model.Add(jobs[m, pred_pred_idx] != PRODUCT_ZERO).OnlyEnforceIf(prev2_is_not_zero[m, d])
+    #             model.Add(jobs[m, pred_pred_idx] == PRODUCT_ZERO).OnlyEnforceIf(prev2_is_not_zero[m, d].Not())
+    #         elif (m, d - 2) in cleans_set:
+    #             pred_idx = d - 1
+    #             prev2_is_not_zero[m, d] = model.NewBoolVar(f"prev2_is_not_zero_{m}_{d}")
+    #             model.Add(prev2_is_not_zero[m, d] == 1)
+    #
+    #
+    #         is_not_zero[m, d] = model.NewBoolVar(f"is_not_zero_{m}_{d}")
+    #         model.Add(jobs[m, d] != PRODUCT_ZERO).OnlyEnforceIf(is_not_zero[m, d])
+    #         model.Add(jobs[m, d] == PRODUCT_ZERO).OnlyEnforceIf(is_not_zero[m, d].Not())
+    #
+    #         prev_is_not_zero[m, d] = model.NewBoolVar(f"prev_is_not_zero_{m}_{d}")
+    #         model.Add(jobs[m, pred_idx] != PRODUCT_ZERO).OnlyEnforceIf(prev_is_not_zero[m, d])
+    #         model.Add(jobs[m, pred_idx] == PRODUCT_ZERO).OnlyEnforceIf(prev_is_not_zero[m, d].Not())
+    #
+    #         # Проверяем, был ли завершен двухдневный переход
+    #         two_day_zero[m, d] = model.NewBoolVar(f"two_day_zero_{m}_{d}")
+    #         model.AddBoolAnd(prev_is_not_zero[m, d].Not(), prev2_is_not_zero[m, d].Not()).OnlyEnforceIf(
+    #             two_day_zero[m, d])
+    #         model.AddBoolOr(prev_is_not_zero[m, d], prev2_is_not_zero[m, d]).OnlyEnforceIf(
+    #             two_day_zero[m, d].Not())
+    #
+    #         # Устанавливаем completed_transition
+    #         model.Add(completed_transition[m, d] == two_day_zero[m, d])
+    #
+    #         # Ограничения:
+    #         # Если текущий день - не ноль, то либо:
+    #         # 1) тот же продукт, что и вчера (если вчера не ноль)
+    #         # 2) завершен двухдневный переход
+    #         same_as_prev[m, d] = model.NewBoolVar(f"same_as_prev_{m}_{d}")
+    #         model.Add(jobs[m, d] == jobs[m, pred_idx]).OnlyEnforceIf(same_as_prev[m, d])
+    #         model.Add(jobs[m, d] != jobs[m, pred_idx]).OnlyEnforceIf(same_as_prev[m, d].Not())
+    #
+    #         model.AddBoolOr([
+    #             is_not_zero[m, d].Not(),  # Текущий день - PRODUCT_ZERO
+    #             same_as_prev[m, d],  # Тот же продукт, что вчера
+    #             completed_transition[m, d]  # Завершен двухдневный переход
+    #         ])
+    #         # Запрет на 3-й ZERO
+    #         model.add(jobs[m, d] != PRODUCT_ZERO).OnlyEnforceIf(completed_transition[m, d])
+    #         # Запрет на переход в последние 2 дня
+    #         if d >= count_days - 2:
+    #             model.add(jobs[m, d] != PRODUCT_ZERO)
 
             # if (m, d) in cleans_set:
             #     continue
@@ -289,20 +288,24 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
     #         prod_zero_on_machine.append(product_produced_bools[PRODUCT_ZERO, m, d])
     #     model.Add(sum(prod_zero_on_machine) <= 2)
 
-    # 6. Ограничение на "прыжки" - задания одного продукта должны быть сгруппированы
-    for m in all_machines:
-        # Переменные для отслеживания групп
-        group_changes = []
-        for d in range(num_days - 1):
-            group_changes.append(model.NewBoolVar(f'group_change_m{m}_d{d}'))
-
-        # Группы меняются, когда продукт изменяется
-        for d in range(num_days - 1):
-            model.Add(jobs[m, d] != jobs[m, d + 1]).OnlyEnforceIf(group_changes[d])
-            model.Add(jobs[m, d] == jobs[m, d + 1]).OnlyEnforceIf(group_changes[d].Not())
-
-        # Ограничение: не более 2 изменений групп (3 группы) на машину
-        model.Add(sum(group_changes) <= 2)
+    # # 6. Ограничение на "прыжки" - задания одного продукта должны быть сгруппированы
+    # for m in all_machines:
+    #     # Переменные для отслеживания групп
+    #     group_changes = []
+    #     for d in range(num_days - 1):
+    #         group_changes.append(model.NewBoolVar(f'group_change_m{m}_d{d}'))
+    #
+    #     # Группы меняются, когда продукт изменяется
+    #     for d in range(num_days - 3):
+    #         if (m, d) in cleans_set:
+    #             continue
+    #         elif (m, d + 1) in cleans_set
+    #
+    #         model.Add(jobs[m, d] != jobs[m, d + 3]).OnlyEnforceIf(group_changes[d])
+    #         model.Add(jobs[m, d] == jobs[m, d + 3]).OnlyEnforceIf(group_changes[d].Not())
+    #
+    #     # Ограничение: не более 2 изменений групп (3 группы) на машину
+    #     model.Add(sum(group_changes) <= 2)
 
     # Ограничение на "прыжки" между продуктами
     # for m in range(num_machines):
@@ -422,6 +425,8 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
             remains=remains, products=products, machines=machines, cleans=cleans, max_daily_prod_zero=max_daily_prod_zero,
             count_days=count_days)
         solver.parameters.max_time_in_seconds = settings.LOOM_MAX_TIME
+        solver.parameters.log_search_progress = True
+        #solver.parameters.trace_search = True
         status = solver.solve(model)
         diff_all = 0
         schedule = []
@@ -435,7 +440,10 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
             for m in range(num_machines):
                 logger.info(f"Loom {m}")
                 for d in range(num_days):
-                    p = solver.value(jobs[m, d])
+                    if not (m, d) in cleans:
+                        p = solver.value(jobs[m, d])
+                    else:
+                         p =None
                     schedule.append({"machine_idx": m, "day_idx": d, "product_idx": p})
                     logger.info(f"  Day {d} works  {p}")
 
