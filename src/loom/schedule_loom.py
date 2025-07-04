@@ -53,6 +53,7 @@ def schedule_loom_calc_model(DataIn: DataLoomIn) -> LoomPlansOut:
         result = LoomPlansOut(status=result_calc["status"], status_str=result_calc["status_str"],
                               schedule=schedule,objective_value=result_calc["objective_value"],
                               proportion_diff=result_calc["proportion_diff"])
+        save_model_to_log(result)
     else:
         result = LoomPlansOut(error_str=result_calc["error_str"], schedule=[], html_full="", html_in_zero="")
 
@@ -122,7 +123,7 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
 
     except Exception as e:
         error = tr.TracebackException(exc_type=type(e), exc_traceback=e.__traceback__, exc_value=e).stack[-1]
-        error_str = '{} in {} row:{} '.format(e, error.lineno, error.line)
+        error_str = '{} in file {} in {} row:{} '.format(e, error.filename, error.lineno, error.line)
         logger.error(error_str)
         result = {"error_str": error_str}
     return result
@@ -783,3 +784,16 @@ def solver_result(solver, status, machines_old, products_old, machines, products
             logger.debug(f"  Day {d} works  {p}")
 
     return schedule, products_schedule, diff_all
+
+
+'''
+    Сохраняем модель в файл для отладок 
+'''
+def save_model_to_log(plan: LoomPlansOut) -> None:
+    try:
+        plan_json = plan.json()
+        # Запись в файл
+        with open(settings.BASE_DIR + "/log/looms_plan_last.json", "w") as f:
+            f.write(plan_json)
+    except Exception as e:
+        logger.error("Ошибка записи файла плана", exc_info=True)

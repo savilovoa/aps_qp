@@ -1,7 +1,7 @@
 # This Python file uses the following encoding: utf-8
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field
-from os import getcwd
+from os import getcwd, path, makedirs
 import logging
 from logging.config import fileConfig
 
@@ -20,9 +20,16 @@ class Settings(BaseSettings):
     SOLVER_ENUMERATE: bool = Field(default=False)
     SOLVER_ENUMERATE_COUNT: int = Field(default=3)
 
-
 settings = Settings()
 
+log_path = settings.BASE_DIR + "/log"
+if not path.exists(log_path):
+    try:
+        makedirs(log_path)
+        print(f"Каталог '{log_path}' успешно создан.")
+    except OSError as e:
+        print(f"Ошибка при создании каталога '{log_path}': {e}")
+        raise
 
 fileConfig(settings.BASE_DIR + r'/logging.ini')
 logger = logging.getLogger(settings.PROJECT_NAME)
