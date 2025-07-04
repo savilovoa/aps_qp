@@ -1,0 +1,207 @@
+import pandas as pd
+import json
+
+# --- Начало: Загрузка и подготовка данных (предоставленный код) ---
+
+# Загружаем JSON из строки, чтобы пример был самодостаточным
+# В реальном коде вы будете использовать:
+# with open("test_in.json", encoding="utf8") as f:
+#     test_in = f.read()
+test_in = """
+{
+"machines": [
+{"idx": 0, "name": "ТС Тойота №138", "product_idx": 1, "id": "9d3ea9fa-b16c-11ec-80e2-005056aa1736", "type": 1},
+{"idx": 1, "name": "ТС Тойота №48", "product_idx": 2, "id": "fbc4c39a-8087-11ea-80cc-005056aab926", "type": 0},
+{"idx": 2, "name": "ТС Тойота №63", "product_idx": 2, "id": "fbc4c3a9-8087-11ea-80cc-005056aab926", "type": 0},
+{"idx": 3, "name": "ТС Тойота №64", "product_idx": 2, "id": "fbc4c3aa-8087-11ea-80cc-005056aab926", "type": 0},
+{"idx": 4, "name": "ТС Тойота №80", "product_idx": 2, "id": "fbc4c3ba-8087-11ea-80cc-005056aab926", "type": 0},
+{"idx": 5, "name": "ТС Тойота №79", "product_idx": 3, "id": "fbc4c3b9-8087-11ea-80cc-005056aab926", "type": 0},
+{"idx": 6, "name": "ТС Тойота №93", "product_idx": 4, "id": "fbc4c3c7-8087-11ea-80cc-005056aab926", "type": 1},
+{"idx": 7, "name": "ТС Тойота №29", "product_idx": 5, "id": "fbc4c387-8087-11ea-80cc-005056aab926", "type": 0},
+{"idx": 8, "name": "ТС Тойота №46", "product_idx": 6, "id": "fbc4c398-8087-11ea-80cc-005056aab926", "type": 0},
+{"idx": 9, "name": "ТС Тойота №62", "product_idx": 6, "id": "fbc4c3a8-8087-11ea-80cc-005056aab926", "type": 0},
+{"idx": 10, "name": "ТС Тойота №78", "product_idx": 6, "id": "fbc4c3b8-8087-11ea-80cc-005056aab926", "type": 1},
+{"idx": 11, "name": "ТС Тойота №101", "product_idx": 10, "id": "692550d7-abfa-11ec-80e0-005056aac628", "type": 1},
+{"idx": 12, "name": "ТС Тойота №57", "product_idx": 11, "id": "fbc4c3a3-8087-11ea-80cc-005056aab926", "type": 0},
+{"idx": 13, "name": "ТС Тойота №28", "product_idx": 12, "id": "fbc4c386-8087-11ea-80cc-005056aab926", "type": 0},
+{"idx": 14, "name": "ТС Тойота №135", "product_idx": 14, "id": "945d9886-b16c-11ec-80e2-005056aa1736", "type": 1},
+{"idx": 15, "name": "ТС Тойота №43", "product_idx": 15, "id": "fbc4c395-8087-11ea-80cc-005056aab926", "type": 0},
+{"idx": 16, "name": "ТС Тойота №122", "product_idx": 16, "id": "c8696e5a-abfa-11ec-80e0-005056aac628", "type": 1},
+{"idx": 17, "name": "ТС Тойота №123", "product_idx": 16, "id": "cf58caa2-abfa-11ec-80e0-005056aac628", "type": 1},
+{"idx": 18, "name": "ТС Тойота №121", "product_idx": 18, "id": "c8696e59-abfa-11ec-80e0-005056aac628", "type": 1},
+{"idx": 19, "name": "ТС Тойота №127", "product_idx": 19, "id": "e8b7876d-abfa-11ec-80e0-005056aac628", "type": 1},
+{"idx": 20, "name": "ТС Тойота №85", "product_idx": 21, "id": "fbc4c3bf-8087-11ea-80cc-005056aab926", "type": 0},
+{"idx": 21, "name": "ТС Тойота №88", "product_idx": 21, "id": "fbc4c3c2-8087-11ea-80cc-005056aab926", "type": 1},
+{"idx": 22, "name": "ТС Тойота №91", "product_idx": 21, "id": "fbc4c3c5-8087-11ea-80cc-005056aab926", "type": 1},
+{"idx": 23, "name": "ТС Тойота №90", "product_idx": 23, "id": "fbc4c3c4-8087-11ea-80cc-005056aab926", "type": 1},
+{"idx": 24, "name": "ТС Тойота №139", "product_idx": 25, "id": "a4477be2-b16c-11ec-80e2-005056aa1736", "type": 1},
+{"idx": 25, "name": "ТС Тойота №87", "product_idx": 27, "id": "fbc4c3c1-8087-11ea-80cc-005056aab926", "type": 1},
+{"idx": 26, "name": "ТС Тойота №141", "product_idx": 28, "id": "ab27292b-b16c-11ec-80e2-005056aa1736", "type": 1},
+{"idx": 27, "name": "ТС Тойота №66", "product_idx": 29, "id": "fbc4c3ac-8087-11ea-80cc-005056aab926", "type": 0},
+{"idx": 28, "name": "ТС Тойота №74", "product_idx": 29, "id": "fbc4c3b4-8087-11ea-80cc-005056aab926", "type": 1},
+{"idx": 29, "name": "ТС Тойота №77", "product_idx": 29, "id": "fbc4c3b7-8087-11ea-80cc-005056aab926", "type": 1},
+{"idx": 30, "name": "ТС Тойота №50", "product_idx": 33, "id": "fbc4c39c-8087-11ea-80cc-005056aab926", "type": 0},
+{"idx": 31, "name": "ТС Тойота №98", "product_idx": 34, "id": "5af9b5d9-abfa-11ec-80e0-005056aac628", "type": 1},
+{"idx": 32, "name": "ТС Тойота №105", "product_idx": 34, "id": "798b581c-abfa-11ec-80e0-005056aac628", "type": 1},
+{"idx": 33, "name": "ТС Тойота №129", "product_idx": 35, "id": "f27d1290-abfa-11ec-80e0-005056aac628", "type": 1}],
+"products": [
+{"idx": 0, "name": "", "qty": 0, "id": "", "machine_type": 0},
+{"idx": 1, "name": " ", "qty": 0, "id": "2443f63f-9617-4899-8233-5e8d71f1228f", "machine_type": 0},
+{"idx": 2, "name": "ст87001t1 ", "qty": 2, "id": "35841c51-b24b-443e-87fa-f806e1f2e8e6", "machine_type": 0},
+{"idx": 3, "name": "ст87024t1 ", "qty": 20, "id": "f3d01f2a-36c8-4b8c-8604-d37fc702c3cd", "machine_type": 0},
+{"idx": 4, "name": "ст87416t1 ", "qty": 0, "id": "1741edda-68fd-46e9-81eb-f3d4a88e1f5c", "machine_type": 0},
+{"idx": 5, "name": "ст60410t3 ", "qty": 20, "id": "e94e5907-0198-4761-acec-b8eb4c3fa481", "machine_type": 0},
+{"idx": 6, "name": "ст78425t П, 0, 5, П2", "qty": 0, "id": "1c677482-3989-4ce6-b71d-55a2bc797728", "machine_type": 0},
+{"idx": 7, "name": "ст16893амt1 ", "qty": 35, "id": "1e3e8b44-1398-4cc6-a917-76a8211c5c75", "machine_type": 0},
+{"idx": 8, "name": "ст87026t ", "qty": 18, "id": "1407b1d4-c79f-44c0-a029-1a7f399d611f", "machine_type": 0},
+{"idx": 9, "name": "ст87027t ", "qty": 0, "id": "bc91deea-fbd3-40e7-afae-36ca77ab9aad", "machine_type": 0},
+{"idx": 10, "name": "ст18316t4 ", "qty": 10, "id": "9679f850-e1b7-430d-aaf4-28c2bb258301", "machine_type": 0},
+{"idx": 11, "name": "стПВ65-026МВДt ", "qty": 0, "id": "fd516cca-8eb3-4b42-908f-f895556714fd", "machine_type": 0},
+{"idx": 12, "name": "ст10417RSt ", "qty": 20, "id": "608f411f-3d94-4f99-a7aa-3e57d28998a2", "machine_type": 0},
+{"idx": 13, "name": "ст2022УИСt4 ", "qty": 0, "id": "c9628a1f-551b-49d2-a478-fd506e9adfb4", "machine_type": 0},
+{"idx": 14, "name": "ст87021t4 ", "qty": 0, "id": "a3c6ab19-12a4-429f-9b3e-4853f342ab13", "machine_type": 0},
+{"idx": 15, "name": "ст81433t8 ", "qty": 20, "id": "8ac7ed86-e845-4b8a-afb5-d2aa7897db86", "machine_type": 0},
+{"idx": 16, "name": "ст18450амt3 ", "qty": 13, "id": "d13e493e-534d-4a16-856d-66093116b944", "machine_type": 1},
+{"idx": 17, "name": "ст18308t1 ", "qty": 1, "id": "041e8f67-7ed9-4c79-a753-8af6957fe83c", "machine_type": 0},
+{"idx": 18, "name": "ст18310t1 ", "qty": 14, "id": "8c622cfe-e975-4569-aa76-a2418972fa8e", "machine_type": 1},
+{"idx": 19, "name": "ст10302амt4 ", "qty": 20, "id": "bbc13a8f-944a-461a-a804-2123982c6f3f", "machine_type": 1},
+{"idx": 20, "name": "ст60405амt19 ", "qty": 12, "id": "fb1fa7c4-59cc-4ef2-b941-d80184735375", "machine_type": 0},
+{"idx": 21, "name": "ст18317t3 ", "qty": 0, "id": "5fbdcb36-1526-4444-956b-015eab9e3e4f", "machine_type": 0},
+{"idx": 22, "name": "ст60411t7 ", "qty": 66, "id": "dbd9992d-eaf9-4b1c-8a87-3368d9d89225", "machine_type": 0},
+{"idx": 23, "name": "ст10427амRSt2 ", "qty": 21, "id": "c67dac6d-4795-4e45-9adb-be294c4998ca", "machine_type": 1},
+{"idx": 24, "name": "стПВ73-045МВДt1 ", "qty": 0, "id": "16a5806d-a1fb-4ace-8277-eb92a45193d4", "machine_type": 0},
+{"idx": 25, "name": "ст60411t9 ", "qty": 0, "id": "2479b66b-a7a2-43d0-b879-55a94bcb3523", "machine_type": 0},
+{"idx": 26, "name": "ст60411t9 П, 0, 26, П2", "qty": 40, "id": "5d210192-9ea5-450e-bf84-e4af174f80e8", "machine_type": 0},
+{"idx": 27, "name": "ст87017t3 ", "qty": 20, "id": "9121a39b-a8f4-4ade-bba2-547263e99080", "machine_type": 0},
+{"idx": 28, "name": "ст10005амt5 ", "qty": 17, "id": "4eb08fb3-1209-4d98-a5bf-79ebda9db01b", "machine_type": 1},
+{"idx": 29, "name": "ст18444t1 ", "qty": 19, "id": "c17874a7-347e-404b-9f4c-ddc460f4fe66", "machine_type": 0},
+{"idx": 30, "name": "ст76004t2 П, 0, 2, П2", "qty": 21, "id": "0933eb45-638b-4643-8946-2f48b2a083fc", "machine_type": 0},
+{"idx": 31, "name": "ст3211t1 ", "qty": 0, "id": "a881b233-c1e4-4935-900c-c5ed25f917ac", "machine_type": 0},
+{"idx": 32, "name": "ст81421t7 ", "qty": 0, "id": "d3b62be7-2e33-4cf6-bd4b-d92cf43a2ec4", "machine_type": 0},
+{"idx": 33, "name": "ст18458t6 ", "qty": 20, "id": "73ee3260-624c-4407-b915-47ab27c074fe", "machine_type": 0},
+{"idx": 34, "name": "ст18450амt4 ", "qty": 0, "id": "9a4e5b9b-1eba-46d4-a935-a5a4e1b2eb56", "machine_type": 0},
+{"idx": 35, "name": "ст11031t ", "qty": 0, "id": "b3c69019-7255-4bcf-bcaf-40e54d43de76", "machine_type": 0}],
+"remains": [],
+"cleans": [{"day_idx": 6, "machine_idx": 32}],
+"max_daily_prod_zero": 3,
+"count_days": 21
+}
+"""
+
+data = json.loads(test_in)
+
+# DataFrame для машин и продуктов
+machines_df = pd.DataFrame(data['machines'])
+products_df = pd.DataFrame(data['products']).set_index('idx') # Устанавливаем 'idx' как индекс для легкого доступа
+
+# --- Шаг 1: Инициализация ---
+count_days = data["count_days"]
+num_machines = len(machines_df)
+
+# schedule_grid будет хранить итоговое расписание. Инициализируем пустым значением (-1).
+schedule_grid = [[-1 for _ in range(count_days)] for _ in range(num_machines)]
+
+# Отслеживаем количество переходов (нулевой продукт) в день
+daily_zero_counts = [0] * count_days
+max_daily_zeros = data['max_daily_prod_zero']
+
+# Предварительно заполняем дни очистки (cleans) - это жесткие ограничения
+# В эти дни машина производит "нулевой продукт" (idx=0)
+for clean in data.get('cleans', []):
+    machine_idx = clean['machine_idx']
+    day_idx = clean['day_idx']
+    if 0 <= machine_idx < num_machines and 0 <= day_idx < count_days:
+        schedule_grid[machine_idx][day_idx] = -2
+        daily_zero_counts[day_idx] += 1
+
+# --- Шаг 2: Сортировка машин и продуктов ---
+
+# Добавляем 'product_qty' к машинам для сортировки
+machines_df['product_qty'] = machines_df['product_idx'].map(products_df['qty']).fillna(0)
+
+# 1. Сортируем машины: сначала тип 1, затем по возрастанию кол-ва начального продукта
+sorted_machines_df = machines_df.sort_values(by=["type", "product_qty"], ascending=[False, True])
+
+# 2. Сортируем продукты: сначала тип 1, затем по убыванию кол-ва.
+# Отфильтровываем продукты, которые не нужно производить (кол-во <= 0)
+products_to_schedule = products_df[products_df['qty'] > 0].sort_values(
+    by=["machine_type", "qty"], ascending=[False, False]
+)
+
+# Разделяем продукты на два списка для удобства
+products_type1 = products_to_schedule[products_to_schedule['machine_type'] == 1].to_dict('records')
+products_type0 = products_to_schedule[products_to_schedule['machine_type'] == 0].to_dict('records')
+
+# --- Основной цикл планирования ---
+
+# Проходим по каждой отсортированной машине
+for _, machine in sorted_machines_df.iterrows():
+    machine_idx = machine['idx']
+    machine_type = machine['type']
+    initial_product_idx = machine['product_idx']
+
+    # 3. Базовое планирование: заполняем всю строку начальным продуктом машины
+    for day in range(count_days):
+        if schedule_grid[machine_idx][day] == -1: # Не перезаписываем дни очистки
+            schedule_grid[machine_idx][day] = initial_product_idx
+
+    # Выбираем, какой продукт будем планировать на этой машине
+    product_to_schedule = None
+    source_list = None
+    if machine_type == 1:
+        if products_type1:
+            source_list = products_type1
+        elif products_type0: # Машина типа 1 может делать продукты типа 0
+            source_list = products_type0
+    else: # machine_type == 0
+        if products_type0:
+            source_list = products_type0
+
+    if source_list:
+        product_to_schedule = source_list[0]
+    else:
+        continue # Нет подходящих продуктов для этой машины, переходим к следующей
+
+    # 4. Поиск места для 2-дневного перехода (нулевой продукт)
+    transition_start_day = -1
+    for day in range(count_days - 1):
+        # Проверяем, свободна ли машина в эти два дня (нет очистки)
+        is_machine_free = (schedule_grid[machine_idx][day] != 0 and
+                           schedule_grid[machine_idx][day+1] != 0)
+        # Проверяем, не превышен ли лимит переходов в эти дни
+        can_add_zeros = (daily_zero_counts[day] < max_daily_zeros and
+                         daily_zero_counts[day+1] < max_daily_zeros)
+
+        if is_machine_free and can_add_zeros:
+            transition_start_day = day
+            break
+
+    # Если нашли место для перехода, планируем его и новый продукт
+    if transition_start_day != -1:
+        # Планируем переход
+        schedule_grid[machine_idx][transition_start_day] = 0
+        schedule_grid[machine_idx][transition_start_day + 1] = 0
+        daily_zero_counts[transition_start_day] += 1
+        daily_zero_counts[transition_start_day + 1] += 1
+
+        # 5. Планируем новый продукт на оставшиеся дни
+        days_scheduled = 0
+        for day in range(transition_start_day + 2, count_days):
+            if schedule_grid[machine_idx][day] != 0 and schedule_grid[machine_idx][day] != -2: # Снова проверяем на очистку
+                schedule_grid[machine_idx][day] = product_to_schedule['idx']
+                days_scheduled += 1
+
+        # 7. Уменьшаем требуемое количество продукта
+        product_to_schedule['qty'] -= days_scheduled
+        
+        # Если продукт полностью запланирован, удаляем его из списка
+        if product_to_schedule['qty'] <= 0:
+            source_list.pop(0)
+
+# --- Вывод результата ---
+final_schedule_df = pd.DataFrame(schedule_grid)
+final_schedule_df.index.name = "machine_idx"
+final_schedule_df.columns.name = "day_idx"
+
+print("--- Итоговое расписание (schedule_grid) ---")
+print(final_schedule_df)

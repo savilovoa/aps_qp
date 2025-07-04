@@ -1,0 +1,156 @@
+from ortools.linear_solver import pywraplp
+
+# Создаем модель
+model = pywraplp.Solver.CreateSolver('SCIP')
+if not model:
+    raise Exception("Solver not created")
+
+# Константы
+PRODUCT_ZERO = 0  # Индекс "особенной" продукции
+num_machines = ...  # Задайте количество машин
+num_days = ...      # Задайте количество дней
+num_products = 4    # Количество продуктов
+target_proportions = [0, 5, 3, 2]  # Целевые пропорции (0 - любой для PRODUCT_ZERO)
+machines = [("machine_1", initial_product_idx), ...]  # Массив (имя_машины, начальный_продукт)
+
+# Маппинг имен машин на индексы
+machine_name_to_index = {name: idx for idx, (name, _) in enumerate(machines)}
+initial_products = {idx: product_idx for idx, (_, product_idx) in enumerate(machines)}
+
+# Переменные
+jobs = {}
+for m in range(num_machines):
+    for d in range(num_days):
+        jobs[m, d] = model.NewIntVar(0, num_products - 1, f"job_{m}_{d}")
+
+product_produced_bools = {}
+for p in range(num_products):
+    for m in range(num_machines):
+        for d in range(num_days):
+            product_produced_bools[p, m, d] = model.NewBoolVar(f"product_produced_{p}_{m}_{d}")
+            model.Add(product_produced_bools[p, m, d] == (jobs[m, d] == p))
+
+# 1. Мягкое ограничение на пропорции продукции
+total_products = {}
+for p in range(1, num_products):  # Пропускаем PRODUCT_ZERO
+    total_products[p] = model.NewIntVar(0, num_machines * num_days, f"total_product_{p}")
+    model.Add(total_products[p] == sum(
+        product_produced_bools[p, m, d] 
+        for m in range(num_machines) 
+        for d in range(num_days)
+    ))
+
+# Минимизация отклонений от пропорций
+deviations = {}
+total_non_zero = model.NewIntVar(0, num_machines * num_days, "total_non_zero")
+model.Add(total_non_zero == sum(total_products[p] for p in range(1, num_products)))
+
+for p in range(1, num_products):
+    # Целевое количество = (total_non_zero * пропорция) / сумма_пропорций
+    target = model.NewIntVar(0, num_machines * num_days, f"target_{p}")
+    sum_proportions = sum(target_proportions[p] for p in range(1, num_products))
+    model.Add(target * sum_proportions == total_non_zero * target_proportions[p])
+    
+    # Отклонение от целевого количества
+    deviations[p] = model.NewIntVar(0, num_machines * num_days, f"deviation_{p}")
+    model.AddAbsEquality(deviations[p], total_products[p] - target)
+
+# Добавляем мягкое ограничение в целевую функцию
+model.Minimize(sum(deviations[p] for p in range(1, num_products)))
+
+# 2. Ограничения на переходы между продуктами
+# Переменные для отслеживания завершения двухдневного перехода
+completed_transition = {}
+for m in range(num_machines):
+    for d in range(num_days):
+        completed_transition[m, d] = model.NewBoolVar(f"completed_transition_{m}_{d}")
+
+# Ограничение для первого дня (d=0)
+for m in range(num_machines):
+    initial_product = initial_products[m]
+    is_initial_product = model.NewBoolVar(f"is_initial_product_{m}_0")
+    is_zero = model.NewBoolVar(f"is_zero_{m}_0")
+    
+    model.Add(jobs[m, 0] == initial_product).OnlyEnforceIf(is_initial_product)
+    model.Add(jobs[m, 0] != initial_product).OnlyEnforceIf(is_initial_product.Not())
+    model.Add(jobs[m, 0] == PRODUCT_ZERO).OnlyEnforceIf(is_zero)
+    model.Add(jobs[m, 0] != PRODUCT_ZERO).OnlyEnforceIf(is_zero.Not())
+    
+    # Первый день: либо начальный продукт, либо PRODUCT_ZERO
+    model.AddBoolOr([is_initial_product, is_zero])
+    
+    # Устанавливаем completed_transition для дня 0
+    model.Add(completed_transition[m, 0] == 0)  # Нет перехода в день 0
+
+# Ограничение для второго дня (d=1)
+for m in range(num_machines):
+    is_not_zero = model.NewBoolVar(f"is_not_zero_{m}_1")
+    model.Add(jobs[m, 1] != PRODUCT_ZERO).OnlyEnforceIf(is_not_zero)
+    model.Add(jobs[m, 1] == PRODUCT_ZERO).OnlyEnforceIf(is_not_zero.Not())
+    
+    same_as_prev = model.NewBoolVar(f"same_as_prev_{m}_1")
+    model.Add(jobs[m, 1] == jobs[m, 0]).OnlyEnforceIf(same_as_prev)
+    model.Add(jobs[m, 1] != jobs[m, 0]).OnlyEnforceIf(same_as_prev.Not())
+    
+    prev_is_zero = model.NewBoolVar(f"prev_is_zero_{m}_1")
+    model.Add(jobs[m, 0] == PRODUCT_ZERO).OnlyEnforceIf(prev_is_zero)
+    model.Add(jobs[m, 0] != PRODUCT_ZERO).OnlyEnforceIf(prev_is_zero.Not())
+    
+    # Если день 0 - PRODUCT_ZERO, день 1 должен быть PRODUCT_ZERO для начала перехода
+    model.Add(jobs[m, 1] == PRODUCT_ZERO).OnlyEnforceIf(prev_is_zero)
+    
+    # Если день 1 - не PRODUCT_ZERO, должен быть таким же, как день 0 (если день 0 не PRODUCT_ZERO)
+    model.AddBoolOr([is_not_zero.Not(), same_as_prev]).OnlyEnforceIf(prev_is_zero.Not())
+    
+    # completed_transition[m, 1] истинно, если день 0 и день 1 - PRODUCT_ZERO
+    model.Add(completed_transition[m, 1] == prev_is_zero)
+
+# Логика переходов для дней d ≥ 2
+for m in range(num_machines):
+    for d in range(2, num_days):
+        is_not_zero = model.NewBoolVar(f"is_not_zero_{m}_{d}")
+        model.Add(jobs[m, d] != PRODUCT_ZERO).OnlyEnforceIf(is_not_zero)
+        model.Add(jobs[m, d] == PRODUCT_ZERO).OnlyEnforceIf(is_not_zero.Not())
+        
+        prev_is_not_zero = model.NewBoolVar(f"prev_is_not_zero_{m}_{d}")
+        model.Add(jobs[m, d-1] != PRODUCT_ZERO).OnlyEnforceIf(prev_is_not_zero)
+        model.Add(jobs[m, d-1] == PRODUCT_ZERO).OnlyEnforceIf(prev_is_not_zero.Not())
+        
+        prev2_is_not_zero = model.NewBoolVar(f"prev2_is_not_zero_{m}_{d}")
+        model.Add(jobs[m, d-2] != PRODUCT_ZERO).OnlyEnforceIf(prev2_is_not_zero)
+        model.Add(jobs[m, d-2] == PRODUCT_ZERO).OnlyEnforceIf(prev2_is_not_zero.Not())
+        
+        # Проверяем, был ли завершен двухдневный переход
+        two_day_zero = model.NewBoolVar(f"two_day_zero_{m}_{d}")
+        model.AddBoolAnd([jobs[m, d-1] == PRODUCT_ZERO, jobs[m, d-2] == PRODUCT_ZERO]).OnlyEnforceIf(two_day_zero)
+        model.AddBoolOr([jobs[m, d-1] != PRODUCT_ZERO, jobs[m, d-2] != PRODUCT_ZERO]).OnlyEnforceIf(two_day_zero.Not())
+        
+        # Устанавливаем completed_transition
+        model.Add(completed_transition[m, d] == two_day_zero)
+        
+        # Ограничения:
+        # Если текущий день - не ноль, то либо:
+        # 1) тот же продукт, что и вчера (если вчера не ноль)
+        # 2) завершен двухдневный переход
+        same_as_prev = model.NewBoolVar(f"same_as_prev_{m}_{d}")
+        model.Add(jobs[m, d] == jobs[m, d-1]).OnlyEnforceIf(same_as_prev)
+        model.Add(jobs[m, d] != jobs[m, d-1]).OnlyEnforceIf(same_as_prev.Not())
+        
+        model.AddBoolOr([
+            is_not_zero.Not(),  # Текущий день - PRODUCT_ZERO
+            same_as_prev,       # Тот же продукт, что вчера
+            completed_transition[m, d]  # Завершен двухдневный переход
+        ])
+
+# Решение модели
+status = model.Solve()
+if status == pywraplp.Solver.OPTIMAL:
+    print("Optimal solution found")
+    for m in range(num_machines):
+        machine_name = machines[m][0]
+        print(f"\nMachine {machine_name}:")
+        for d in range(num_days):
+            product = int(jobs[m, d].solution_value())
+            print(f"  Day {d}: Product {product}")
+else:
+    print("No optimal solution found")

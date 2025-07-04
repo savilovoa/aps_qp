@@ -17,6 +17,8 @@ class Settings(BaseSettings):
     BASE_DIR: str = Field(default=getcwd())
     LOOM_MAX_TIME: int = Field(default=600)
     CALC_TEST_DATA: bool = Field(default=False)
+    SOLVER_ENUMERATE: bool = Field(default=False)
+    SOLVER_ENUMERATE_COUNT: int = Field(default=3)
 
 
 settings = Settings()

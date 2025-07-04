@@ -1,14 +1,18 @@
 from pydantic import BaseModel, Field
+from datetime import date
 
 class Machine(BaseModel):
     idx: int = Field(description="индекс")
     name: str
     product_idx: int = Field(description="индекс продукта на машине")
+    id: str
+    type: int
 
 class Remain(BaseModel):
     idx: int
     name: str
     qty: int  = Field(description="количество остатка на начало")
+
 
 class Resources(BaseModel):
     resource_idx: int = Field(description="индекс остатков")
@@ -18,12 +22,19 @@ class Product(BaseModel):
     idx: int
     name: str
     qty: int = Field(description="количество запланировать")
+    id: str
+    machine_type: int
     resource: list[Resources] = Field(default=[])
+
+class Clean(BaseModel):
+    day_idx: int
+    machine_idx: int
 
 class DataLoomIn(BaseModel):
     machines: list[Machine]
     remains: list[Remain]
     products: list[Product]
+    cleans: list[Clean]
     max_daily_prod_zero: int = Field(description="Максимальное количество перезаправок в день")
     count_days: int = Field(description="Количество дней планирования")
 
@@ -32,26 +43,10 @@ class LoomPlan(BaseModel):
     day_idx: int
     product_idx: int
 
-class ProductPlan(BaseModel):
-    product_idx: int
-    qty: int
-    penalty: int
-
-class DayZero(BaseModel):
-    day_idx: int
-    count_zero: int
-
 class LoomPlansOut(BaseModel):
     status: int = Field(default=0)
     status_str: str = Field(default="")
     error_str: str = Field(default="")
     schedule: list[LoomPlan]
-    products: list[ProductPlan]
-    zeros: list[DayZero]
     objective_value: int = Field(default=0)
     proportion_diff: int = Field(default=0)
-
-
-
-
-

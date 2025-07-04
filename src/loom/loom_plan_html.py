@@ -1,10 +1,9 @@
 import plotly.graph_objects as go
-from datetime import datetime, timedelta
+from datetime import timedelta, date
 import colorsys
 
 
-def view_schedule(machines: list, products: list, days: list, schedules: list, title_text: str = ""):
-    dt_begin_str = "01.07.2025"
+def schedule_to_html(machines: list, products: list, days: list, schedules: list, dt_begin: date, title_text: str = ""):
 
     # --- 1. Подготовка сетки расписания ---
     # Создаем 2D-массив, где grid[machine_id][day_id] будет хранить product_id
@@ -30,7 +29,6 @@ def view_schedule(machines: list, products: list, days: list, schedules: list, t
     empty_cell_color = 'rgb(240, 240, 240)'  # Светло-серый
 
     # Подготовка данных для таблицы
-    dt_begin = datetime.strptime(dt_begin_str, "%d.%m.%Y")
     shifts = ['У', 'В', 'Н']
     x_labels = []
     x_dates = []
@@ -132,63 +130,5 @@ def view_schedule(machines: list, products: list, days: list, schedules: list, t
         width=600 + len(days) * 50,  # Динамическая ширина
         margin=dict(l=100, r=50, t=100, b=50)  # Отступы
     )
-    f_name = "example/res.html"
-    with open(f_name, "w", encoding="utf8") as f:
-        f.write(fig.to_html(full_html=True))
-    #fig.show()
+    return fig.to_html(full_html=True)
 
-if __name__ == "__main__":
-
-    # 1. Исходные данные
-    machines = ['ТС Тойота №1', 'ТС Тойота №2', 'ТС Тойота №3']
-    products = ['', 'ст87017t3 ', 'ст87416t1 ', 'ст2022УИСt4 ']
-    days = list(range(21))  # Теперь это индексы смен
-    schedules = [{'machine_idx': 0, 'day_idx': 0, 'product_idx': 1}, {'machine_idx': 0, 'day_idx': 1, 'product_idx': 1},
-                 {'machine_idx': 0, 'day_idx': 2, 'product_idx': 1}, {'machine_idx': 0, 'day_idx': 3, 'product_idx': 1},
-                 {'machine_idx': 0, 'day_idx': 4, 'product_idx': 1}, {'machine_idx': 0, 'day_idx': 5, 'product_idx': 1},
-                 {'machine_idx': 0, 'day_idx': 6, 'product_idx': 1}, {'machine_idx': 0, 'day_idx': 7, 'product_idx': 1},
-                 {'machine_idx': 0, 'day_idx': 8, 'product_idx': 1}, {'machine_idx': 0, 'day_idx': 9, 'product_idx': 1},
-                 {'machine_idx': 0, 'day_idx': 10, 'product_idx': 1},
-                 {'machine_idx': 0, 'day_idx': 11, 'product_idx': 1},
-                 {'machine_idx': 0, 'day_idx': 12, 'product_idx': 1},
-                 {'machine_idx': 0, 'day_idx': 13, 'product_idx': 1},
-                 {'machine_idx': 0, 'day_idx': 14, 'product_idx': 1},
-                 {'machine_idx': 0, 'day_idx': 15, 'product_idx': 1},
-                 {'machine_idx': 0, 'day_idx': 16, 'product_idx': 1},
-                 {'machine_idx': 0, 'day_idx': 17, 'product_idx': 1},
-                 {'machine_idx': 0, 'day_idx': 18, 'product_idx': 1},
-                 {'machine_idx': 0, 'day_idx': 19, 'product_idx': 1},
-                 {'machine_idx': 0, 'day_idx': 20, 'product_idx': 1},
-                 {'machine_idx': 1, 'day_idx': 0, 'product_idx': 1}, {'machine_idx': 1, 'day_idx': 1, 'product_idx': 1},
-                 {'machine_idx': 1, 'day_idx': 2, 'product_idx': 1}, {'machine_idx': 1, 'day_idx': 3, 'product_idx': 1},
-                 {'machine_idx': 1, 'day_idx': 4, 'product_idx': 1}, {'machine_idx': 1, 'day_idx': 5, 'product_idx': 1},
-                 {'machine_idx': 1, 'day_idx': 6, 'product_idx': 1}, {'machine_idx': 1, 'day_idx': 7, 'product_idx': 1},
-                 {'machine_idx': 1, 'day_idx': 8, 'product_idx': 1}, {'machine_idx': 1, 'day_idx': 9, 'product_idx': 1},
-                 {'machine_idx': 1, 'day_idx': 10, 'product_idx': 1},
-                 {'machine_idx': 1, 'day_idx': 11, 'product_idx': 1},
-                 {'machine_idx': 1, 'day_idx': 12, 'product_idx': 1},
-                 {'machine_idx': 1, 'day_idx': 13, 'product_idx': 1},
-                 {'machine_idx': 1, 'day_idx': 14, 'product_idx': 1},
-                 {'machine_idx': 1, 'day_idx': 15, 'product_idx': 1},
-                 {'machine_idx': 1, 'day_idx': 16, 'product_idx': 1},
-                 {'machine_idx': 1, 'day_idx': 17, 'product_idx': 1},
-                 {'machine_idx': 1, 'day_idx': 18, 'product_idx': 1},
-                 {'machine_idx': 1, 'day_idx': 19, 'product_idx': 1},
-                 {'machine_idx': 1, 'day_idx': 20, 'product_idx': 1},
-                 {'machine_idx': 2, 'day_idx': 0, 'product_idx': 3}, {'machine_idx': 2, 'day_idx': 1, 'product_idx': 3},
-                 {'machine_idx': 2, 'day_idx': 2, 'product_idx': 3}, {'machine_idx': 2, 'day_idx': 3, 'product_idx': 3},
-                 {'machine_idx': 2, 'day_idx': 4, 'product_idx': 0}, {'machine_idx': 2, 'day_idx': 5, 'product_idx': 0},
-                 {'machine_idx': 2, 'day_idx': 6, 'product_idx': 2}, {'machine_idx': 2, 'day_idx': 7, 'product_idx': 2},
-                 {'machine_idx': 2, 'day_idx': 8, 'product_idx': 2}, {'machine_idx': 2, 'day_idx': 9, 'product_idx': 2},
-                 {'machine_idx': 2, 'day_idx': 10, 'product_idx': 2},
-                 {'machine_idx': 2, 'day_idx': 11, 'product_idx': 2},
-                 {'machine_idx': 2, 'day_idx': 12, 'product_idx': 2},
-                 {'machine_idx': 2, 'day_idx': 13, 'product_idx': 2},
-                 {'machine_idx': 2, 'day_idx': 14, 'product_idx': 2},
-                 {'machine_idx': 2, 'day_idx': 15, 'product_idx': 2},
-                 {'machine_idx': 2, 'day_idx': 16, 'product_idx': 2},
-                 {'machine_idx': 2, 'day_idx': 17, 'product_idx': 2},
-                 {'machine_idx': 2, 'day_idx': 18, 'product_idx': 2},
-                 {'machine_idx': 2, 'day_idx': 19, 'product_idx': 2},
-                 {'machine_idx': 2, 'day_idx': 20, 'product_idx': 2}]
-    view_schedule(machines, products, days, schedules)

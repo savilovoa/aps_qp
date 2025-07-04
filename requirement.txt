@@ -1,1 +1,4 @@
-﻿
+﻿ortools
+plotly
+pydantic
+pydantic_settings
