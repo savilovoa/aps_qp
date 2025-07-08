@@ -70,7 +70,7 @@ def schedule_loom_calc_model(DataIn: DataLoomIn) -> LoomPlansOut:
         error = tr.TracebackException(exc_type=type(e), exc_traceback=e.__traceback__, exc_value=e).stack[-1]
         error_str = '{} in file {} in {} row:{} '.format(e, error.filename, error.lineno, error.line)
         logger.error(error_str)
-        result = LoomPlansOut(error_str=result_calc["error_str"])
+        result = LoomPlansOut(error_str=error_str)
     return result
 
 def loom_plans_view(plan_in: LoomPlansViewIn) -> LoomPlansViewOut:
