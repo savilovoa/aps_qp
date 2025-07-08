@@ -65,12 +65,12 @@ def schedule_loom_calc_model(DataIn: DataLoomIn) -> LoomPlansOut:
                                   proportion_diff=result_calc["proportion_diff"], res_html=res_html)
             save_model_to_log(result)
         else:
-            result = LoomPlansOut(error_str=result_calc["error_str"], schedule=[], html_full="", html_in_zero="")
+            result = LoomPlansOut(error_str=result_calc["error_str"])
     except Exception as e:
         error = tr.TracebackException(exc_type=type(e), exc_traceback=e.__traceback__, exc_value=e).stack[-1]
         error_str = '{} in file {} in {} row:{} '.format(e, error.filename, error.lineno, error.line)
         logger.error(error_str)
-        result = {"error_str": error_str}
+        result = LoomPlansOut(error_str=result_calc["error_str"])
     return result
 
 def loom_plans_view(plan_in: LoomPlansViewIn) -> LoomPlansViewOut:

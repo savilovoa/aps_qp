@@ -47,7 +47,7 @@ class LoomPlansOut(BaseModel):
     status: int = Field(default=0)
     status_str: str = Field(default="")
     error_str: str = Field(default="")
-    schedule: list[LoomPlan]
+    schedule: list[LoomPlan] = Field(default=[])
     objective_value: int = Field(default=0)
     proportion_diff: int = Field(default=0)
     res_html: str = Field(default="")
