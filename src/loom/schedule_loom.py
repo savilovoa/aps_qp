@@ -57,9 +57,12 @@ def schedule_loom_calc_model(DataIn: DataLoomIn) -> LoomPlansOut:
         if result_calc["error_str"] == "":
             schedule = [LoomPlan(machine_idx=s["machine_idx"], day_idx=s["day_idx"], product_idx=s["product_idx"])
                         for s in result_calc["schedule"]]
+            res_html = schedule_to_html(machines=machines, products=products, schedules=schedule, days=days,
+                                        dt_begin=DataIn.dt_begin)
+
             result = LoomPlansOut(status=result_calc["status"], status_str=result_calc["status_str"],
                                   schedule=schedule,objective_value=result_calc["objective_value"],
-                                  proportion_diff=result_calc["proportion_diff"])
+                                  proportion_diff=result_calc["proportion_diff"], res_html=res_html)
             save_model_to_log(result)
         else:
             result = LoomPlansOut(error_str=result_calc["error_str"], schedule=[], html_full="", html_in_zero="")

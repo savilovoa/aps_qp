@@ -50,6 +50,7 @@ class LoomPlansOut(BaseModel):
     schedule: list[LoomPlan]
     objective_value: int = Field(default=0)
     proportion_diff: int = Field(default=0)
+    res_html: str = Field(default="")
 
 class LoomPlansViewIn(BaseModel):
     machines: list[Machine]
