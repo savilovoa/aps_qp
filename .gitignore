@@ -1,6 +1,6 @@
 .idea/
-./.env
-./.env.save
+.env
+.env.save
 log/
 **__pycache__/
 /example/res.html
