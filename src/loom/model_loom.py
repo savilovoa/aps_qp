@@ -37,6 +37,7 @@ class DataLoomIn(BaseModel):
     cleans: list[Clean]
     max_daily_prod_zero: int = Field(description="Максимальное количество перезаправок в день")
     count_days: int = Field(description="Количество дней планирования")
+    dt_begin: date
 
 class LoomPlan(BaseModel):
     machine_idx: int
