@@ -1,5 +1,5 @@
 from ortools.sat.python import cp_model
-from .model_loom import DataLoomIn, LoomPlansOut, Machine, Product, Clean, LoomPlan
+from .model_loom import DataLoomIn, LoomPlansOut, Machine, Product, Clean, LoomPlan, LoomPlansViewIn, LoomPlansViewOut
 import traceback as tr
 from ..config import logger, settings
 import pandas as pd
@@ -33,99 +33,124 @@ def CleansModelToArray(cleans: list[Clean]) -> list[(int, int)]:
         result.append((item.day_idx, item.machine_idx))
     return result
 
-def schedule_loom_calc_model(DataIn: DataLoomIn) -> LoomPlansOut:
-    remains = DataIn.remains
-    products = ProductsModelToArray(DataIn.products)
-    machines = MachinesModelToArray(DataIn.machines)
-    cleans = CleansModelToArray(DataIn.cleans)
-
-    max_daily_prod_zero = DataIn.max_daily_prod_zero
-    count_days = DataIn.count_days
-    days = [i for i in range(count_days)]
-    data = DataIn.model_dump()
-
-    result_calc = schedule_loom_calc(remains=remains, products=products, machines=machines, cleans=cleans,
-                                max_daily_prod_zero=max_daily_prod_zero, count_days=count_days, data=data)
-
-    if result_calc["error_str"] == "":
-        schedule = [LoomPlan(machine_idx=s["machine_idx"], day_idx=s["day_idx"], product_idx=s["product_idx"])
-                    for s in result_calc["schedule"]]
-        result = LoomPlansOut(status=result_calc["status"], status_str=result_calc["status_str"],
-                              schedule=schedule,objective_value=result_calc["objective_value"],
-                              proportion_diff=result_calc["proportion_diff"])
-        save_model_to_log(result)
-    else:
-        result = LoomPlansOut(error_str=result_calc["error_str"], schedule=[], html_full="", html_in_zero="")
-
+def ScheduleModelToArray(schedule: list[Clean]) -> dict:
+    result = []
+    for item in cleans:
+        result.append((item.day_idx, item.machine_idx))
     return result
 
-
-def schedule_loom_calc(remains: list, products: list, machines: list, cleans: list, max_daily_prod_zero: int,
-                       count_days: int, data: dict) -> LoomPlansOut:
+def schedule_loom_calc_model(DataIn: DataLoomIn) -> LoomPlansOut:
     try:
-        schedule_init, objective_value, deviation_proportion, count_product_zero = (
-            create_schedule_init(data["machines"], data["products"], data["cleans"], count_days, max_daily_prod_zero))
+        remains = DataIn.remains
+        products = ProductsModelToArray(DataIn.products)
+        machines = MachinesModelToArray(DataIn.machines)
+        cleans = CleansModelToArray(DataIn.cleans)
 
-        machines_old = machines.copy()
-        products_old = products.copy()
+        max_daily_prod_zero = DataIn.max_daily_prod_zero
+        count_days = DataIn.count_days
+        days = [i for i in range(count_days)]
+        data = DataIn.model_dump()
 
-        machines_full = update_data_for_schedule_init(machines, products, cleans, count_days, schedule_init)
+        result_calc = schedule_loom_calc(remains=remains, products=products, machines=machines, cleans=cleans,
+                                    max_daily_prod_zero=max_daily_prod_zero, count_days=count_days, data=data)
 
-        solver = cp_model.CpSolver()
-
-        class NursesPartialSolutionPrinter(cp_model.CpSolverSolutionCallback):
-            """Print intermediate solutions."""
-
-            def __init__(self, limit: int = -1):
-                cp_model.CpSolverSolutionCallback.__init__(self)
-                self._solution_count = 0
-                self._solution_limit = limit
-
-            def on_solution_callback(self):
-                self._solution_count += 1
-                print(f"Solution {self._solution_count}: {self.objective_value}")
-                if self._solution_limit > 0 and self._solution_count > self._solution_limit:
-                    self.stop_search()
-
-            def solutionCount(self):
-                return self._solution_count
-
-        model, jobs, product_counts, proportion_objective_terms = create_model(
-            remains=remains, products=products, machines=machines, cleans=cleans, max_daily_prod_zero=max_daily_prod_zero,
-            count_days=count_days, schedule_init=schedule_init)
-
-        #solver.parameters.log_search_progress = True
-        #solver.parameters.trace_search = True
-
-        if settings.SOLVER_ENUMERATE:
-            sol_printer = NursesPartialSolutionPrinter(settings.SOLVER_ENUMERATE_COUNT)
-            solver.parameters.enumerate_all_solutions = True
-            status = solver.solve(model, sol_printer)
+        if result_calc["error_str"] == "":
+            schedule = [LoomPlan(machine_idx=s["machine_idx"], day_idx=s["day_idx"], product_idx=s["product_idx"])
+                        for s in result_calc["schedule"]]
+            result = LoomPlansOut(status=result_calc["status"], status_str=result_calc["status_str"],
+                                  schedule=schedule,objective_value=result_calc["objective_value"],
+                                  proportion_diff=result_calc["proportion_diff"])
+            save_model_to_log(result)
         else:
-            solver.parameters.max_time_in_seconds = settings.LOOM_MAX_TIME
-            status = solver.solve(model)
-
-        logger.info(f"Статус решения: {solver.StatusName(status)}")
-        if status == cp_model.OPTIMAL or status == cp_model.FEASIBLE:
-            if proportion_objective_terms:
-                logger.info(f"Минимальное значение функции цели (сумма абс. отклонений пропорций): "
-                            f"{solver.ObjectiveValue()}")
-
-            schedule, products_schedule, diff_all = solver_result(solver, status, machines_old, products_old, machines,
-                                                                  products, cleans, count_days, machines_full,
-                                                                  proportion_objective_terms, product_counts, jobs)
-
-
-        logger.info(solver.ResponseStats())  # Основные статистические данные
-        result = {"status": int(status), "status_str": solver.StatusName(status), "schedule": schedule,
-                  "products": products_schedule, "objective_value": int(solver.ObjectiveValue()),
-                  "proportion_diff": int(diff_all), "error_str": ""}
-
+            result = LoomPlansOut(error_str=result_calc["error_str"], schedule=[], html_full="", html_in_zero="")
     except Exception as e:
         error = tr.TracebackException(exc_type=type(e), exc_traceback=e.__traceback__, exc_value=e).stack[-1]
         error_str = '{} in file {} in {} row:{} '.format(e, error.filename, error.lineno, error.line)
         logger.error(error_str)
         result = {"error_str": error_str}
+    return result
+
+def loom_plans_view(plan_in: LoomPlansViewIn) -> LoomPlansViewOut:
+    try:
+
+        products = ProductsModelToArray(plan_in.products)
+        machines = MachinesModelToArray(plan_in.machines)
+        count_days = plan_in.count_days
+        days = [i for i in range(count_days)]
+        schedule =plan_in.schedule.__dict__()
+
+        res_html = schedule_to_html(machines=machines, products=products, schedules=schedule, days=days,
+                                    dt_begin=plan_in.dt_begin)
+        result = LoomPlansViewOut(res_html=res_html)
+    except Exception as e:
+        error = tr.TracebackException(exc_type=type(e), exc_traceback=e.__traceback__, exc_value=e).stack[-1]
+        error_str = '{} in file {} in {} row:{} '.format(e, error.filename, error.lineno, error.line)
+        logger.error(error_str)
+        result = LoomPlansViewOut(res_html="", error_str=error_str)
+    return result
+
+
+
+def schedule_loom_calc(remains: list, products: list, machines: list, cleans: list, max_daily_prod_zero: int,
+                       count_days: int, data: dict) -> LoomPlansOut:
+    schedule_init, objective_value, deviation_proportion, count_product_zero = (
+        create_schedule_init(data["machines"], data["products"], data["cleans"], count_days, max_daily_prod_zero))
+
+    machines_old = machines.copy()
+    products_old = products.copy()
+
+    machines_full = update_data_for_schedule_init(machines, products, cleans, count_days, schedule_init)
+
+    solver = cp_model.CpSolver()
+
+    class NursesPartialSolutionPrinter(cp_model.CpSolverSolutionCallback):
+        """Print intermediate solutions."""
+
+        def __init__(self, limit: int = -1):
+            cp_model.CpSolverSolutionCallback.__init__(self)
+            self._solution_count = 0
+            self._solution_limit = limit
+
+        def on_solution_callback(self):
+            self._solution_count += 1
+            print(f"Solution {self._solution_count}: {self.objective_value}")
+            if self._solution_limit > 0 and self._solution_count > self._solution_limit:
+                self.stop_search()
+
+        def solutionCount(self):
+            return self._solution_count
+
+    model, jobs, product_counts, proportion_objective_terms = create_model(
+        remains=remains, products=products, machines=machines, cleans=cleans, max_daily_prod_zero=max_daily_prod_zero,
+        count_days=count_days, schedule_init=schedule_init)
+
+    #solver.parameters.log_search_progress = True
+    #solver.parameters.trace_search = True
+
+    if settings.SOLVER_ENUMERATE:
+        sol_printer = NursesPartialSolutionPrinter(settings.SOLVER_ENUMERATE_COUNT)
+        solver.parameters.enumerate_all_solutions = True
+        status = solver.solve(model, sol_printer)
+    else:
+        solver.parameters.max_time_in_seconds = settings.LOOM_MAX_TIME
+        status = solver.solve(model)
+
+    logger.info(f"Статус решения: {solver.StatusName(status)}")
+    if status == cp_model.OPTIMAL or status == cp_model.FEASIBLE:
+        if proportion_objective_terms:
+            logger.info(f"Минимальное значение функции цели (сумма абс. отклонений пропорций): "
+                        f"{solver.ObjectiveValue()}")
+
+        schedule, products_schedule, diff_all = solver_result(solver, status, machines_old, products_old, machines,
+                                                              products, cleans, count_days, machines_full,
+                                                              proportion_objective_terms, product_counts, jobs)
+
+
+    logger.info(solver.ResponseStats())  # Основные статистические данные
+    result = {"status": int(status), "status_str": solver.StatusName(status), "schedule": schedule,
+              "products": products_schedule, "objective_value": int(solver.ObjectiveValue()),
+              "proportion_diff": int(diff_all), "error_str": ""}
+
     return result
 
 

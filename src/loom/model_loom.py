@@ -41,7 +41,7 @@ class DataLoomIn(BaseModel):
 class LoomPlan(BaseModel):
     machine_idx: int
     day_idx: int
-    product_idx: int
+    product_idx: int | None
 
 class LoomPlansOut(BaseModel):
     status: int = Field(default=0)
@@ -50,3 +50,14 @@ class LoomPlansOut(BaseModel):
     schedule: list[LoomPlan]
     objective_value: int = Field(default=0)
     proportion_diff: int = Field(default=0)
+
+class LoomPlansViewIn(BaseModel):
+    machines: list[Machine]
+    products: list[Product]
+    count_days: int = Field(description="Количество дней планирования")
+    schedule: list[LoomPlan]
+    dt_begin: date
+
+class LoomPlansViewOut(BaseModel):
+    res_html: str
+    error_str: str = Field(default="")

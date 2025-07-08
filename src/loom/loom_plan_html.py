@@ -2,7 +2,6 @@ import plotly.graph_objects as go
 from datetime import timedelta, date
 import colorsys
 
-
 def schedule_to_html(machines: list, products: list, days: list, schedules: list, dt_begin: date, title_text: str = ""):
 
     # --- 1. Подготовка сетки расписания ---
