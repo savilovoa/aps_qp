@@ -2,3 +2,5 @@
 plotly
 pydantic
 pydantic_settings
+uvicorn
+fastapi
