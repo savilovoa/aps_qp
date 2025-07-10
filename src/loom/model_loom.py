@@ -63,3 +63,6 @@ class LoomPlansViewIn(BaseModel):
 class LoomPlansViewOut(BaseModel):
     res_html: str
     error_str: str = Field(default="")
+
+class LoomPlansViewByIdIn(BaseModel):
+    id: str

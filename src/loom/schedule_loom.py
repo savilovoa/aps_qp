@@ -1,10 +1,12 @@
 from ortools.sat.python import cp_model
+from pydantic import BaseModel
 from .model_loom import DataLoomIn, LoomPlansOut, Machine, Product, Clean, LoomPlan, LoomPlansViewIn, LoomPlansViewOut
 import traceback as tr
 from ..config import logger, settings
 import pandas as pd
 from .loom_plan_html import schedule_to_html
 from datetime import datetime
+from uuid import uuid4
 
 def MachinesModelToArray(machines: list[Machine]) -> list[(str, int)]:
     result = []
@@ -30,17 +32,12 @@ def ProductsModelToArray(products: list[Product]) -> list[(str, int, [(int, int)
 def CleansModelToArray(cleans: list[Clean]) -> list[(int, int)]:
     result = []
     for item in cleans:
-        result.append((item.day_idx, item.machine_idx))
-    return result
-
-def ScheduleModelToArray(schedule: list[Clean]) -> dict:
-    result = []
-    for item in cleans:
-        result.append((item.day_idx, item.machine_idx))
+        result.append((item.machine_idx, item.day_idx))
     return result
 
 def schedule_loom_calc_model(DataIn: DataLoomIn) -> LoomPlansOut:
     try:
+        save_model_to_log(DataIn)
         remains = DataIn.remains
         products = ProductsModelToArray(DataIn.products)
         machines = MachinesModelToArray(DataIn.machines)
@@ -55,14 +52,23 @@ def schedule_loom_calc_model(DataIn: DataLoomIn) -> LoomPlansOut:
                                     max_daily_prod_zero=max_daily_prod_zero, count_days=count_days, data=data)
 
         if result_calc["error_str"] == "":
+            machines_view = [name for (name, product_idx,  id, type) in machines]
+            products_view = [name for (name, qty, id, machine_type) in products]
+            title_text = f"{result_calc['status_str']} оптимизационное значение {result_calc['objective_value']}"
+
+            res_html = schedule_to_html(machines=machines_view, products=products_view, schedules=result_calc["schedule"],
+                                        days=days, dt_begin=DataIn.dt_begin, title_text=title_text)
+            id_html = str(uuid4())
+
+
             schedule = [LoomPlan(machine_idx=s["machine_idx"], day_idx=s["day_idx"], product_idx=s["product_idx"])
                         for s in result_calc["schedule"]]
-            res_html = schedule_to_html(machines=machines, products=products, schedules=schedule, days=days,
-                                        dt_begin=DataIn.dt_begin)
+
 
             result = LoomPlansOut(status=result_calc["status"], status_str=result_calc["status_str"],
                                   schedule=schedule,objective_value=result_calc["objective_value"],
-                                  proportion_diff=result_calc["proportion_diff"], res_html=res_html)
+                                  proportion_diff=result_calc["proportion_diff"], res_html=id_html)
+            save_plan_html(id_html, res_html)
             save_model_to_log(result)
         else:
             result = LoomPlansOut(error_str=result_calc["error_str"])
@@ -99,10 +105,10 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
     schedule_init, objective_value, deviation_proportion, count_product_zero = (
         create_schedule_init(data["machines"], data["products"], data["cleans"], count_days, max_daily_prod_zero))
 
-    machines_old = machines.copy()
-    products_old = products.copy()
+    machines_new = machines.copy()
+    products_new = products.copy()
 
-    machines_full = update_data_for_schedule_init(machines, products, cleans, count_days, schedule_init)
+    machines_full = update_data_for_schedule_init(machines_new, products_new, cleans, count_days, schedule_init)
 
     solver = cp_model.CpSolver()
 
@@ -124,7 +130,7 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
             return self._solution_count
 
     model, jobs, product_counts, proportion_objective_terms = create_model(
-        remains=remains, products=products, machines=machines, cleans=cleans, max_daily_prod_zero=max_daily_prod_zero,
+        remains=remains, products=products_new, machines=machines_new, cleans=cleans, max_daily_prod_zero=max_daily_prod_zero,
         count_days=count_days, schedule_init=schedule_init)
 
     #solver.parameters.log_search_progress = True
@@ -144,8 +150,8 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
             logger.info(f"Минимальное значение функции цели (сумма абс. отклонений пропорций): "
                         f"{solver.ObjectiveValue()}")
 
-        schedule, products_schedule, diff_all = solver_result(solver, status, machines_old, products_old, machines,
-                                                              products, cleans, count_days, machines_full,
+        schedule, products_schedule, diff_all = solver_result(solver, status, machines, products, machines_new,
+                                                              products_new, cleans, count_days, machines_full,
                                                               proportion_objective_terms, product_counts, jobs)
 
 
@@ -170,7 +176,7 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
     #   ("ТС Тойота №2", 1, "fbc4c3a1-8087-11ea-80cc-005056aab926", 0),
     #   ("ТС Тойота №3", 3, "fbc4c372-8087-11ea-80cc-005056aab926", 0),
     # ]
-    # cleans: [ # ("day_idx", "machine_idx")
+    # cleans: [ # ("machine_idx", "day_idx")
     # (3, 1)
     # max_daily_prod_zero = 3
 
@@ -229,7 +235,7 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
         # Сумма этих булевых переменных даст количество PRODUCT_ZERO в день d
         model.Add(sum(daily_prod_zero_on_machines) <= max_daily_prod_zero)
 
-    # ### НОВОЕ: Ограничение по типам машин ###
+    # Ограничение по типам машин ###
     # Продукты с типом 1 могут производиться только на машинах с типом 1.
     # Продукты с типом 0 могут производиться на любых машинах.
     for p in all_products:
@@ -247,8 +253,6 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
                             model.Add(jobs[m, d] != p)
 
     # Ограничения ПЕРЕХОДА
-
-    # 2. Ограничения на переходы между продуктами
     # Переменные для отслеживания завершения двухдневного перехода
     completed_transition = {}
     is_not_zero = {}
@@ -340,6 +344,37 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
 
             # Устанавливаем completed_transition
             model.Add(completed_transition[m, d] == two_day_zero[m, d])
+
+            # ### НАЧАЛО НОВОГО БЛОКА: Ограничение на повышение индекса продукта ###
+            # Это ограничение срабатывает только в день `d`, когда завершился двухдневный переход,
+            # что определяется переменной completed_transition[m, d].
+
+            # 1. Находим индекс рабочего дня перед началом перехода.
+            #    Переход занимал дни `pred_pred_idx` и `pred_idx`. Ищем день до `pred_pred_idx`.
+            day_before_transition_start = pred_pred_idx - 1
+            while day_before_transition_start >= 0 and (m, day_before_transition_start) in cleans:
+                day_before_transition_start -= 1
+
+            # 2. Применяем ограничение, только если такой день существует в расписании.
+            if day_before_transition_start >= 0:
+                # Переменная, указывающая на продукт до начала перехода.
+                product_before = jobs[(m, day_before_transition_start)]
+
+                # 3. Вводим вспомогательную переменную. Она будет истинной, если
+                #    продукт до перехода не был PRODUCT_ZERO. Это нужно, чтобы
+                #    избежать сравнения, если до этого уже был простой.
+                product_before_is_not_zero = model.NewBoolVar(f"prod_before_not_zero_{m}_{d}")
+                model.Add(product_before != PRODUCT_ZERO).OnlyEnforceIf(product_before_is_not_zero)
+                model.Add(product_before == PRODUCT_ZERO).OnlyEnforceIf(product_before_is_not_zero.Not())
+
+                # 4. Устанавливаем само ограничение.
+                #    Оно должно сработать, только если (А) переход завершен И (Б) продукт до перехода не был нулевым.
+                #    Существующее ограничение `model.add(jobs[m, d] != PRODUCT_ZERO).OnlyEnforceIf(completed_transition[m, d])`
+                #    уже гарантирует, что jobs[m, d] не будет нулем, если переход завершен.
+                model.Add(jobs[m, d] > product_before).OnlyEnforceIf(
+                    [completed_transition[m, d], product_before_is_not_zero]
+                )
+            # ### КОНЕЦ НОВОГО БЛОКА ###
 
             # Ограничения:
             # Если текущий день - не ноль, то либо:
@@ -817,11 +852,22 @@ def solver_result(solver, status, machines_old, products_old, machines, products
 '''
     Сохраняем модель в файл для отладок 
 '''
-def save_model_to_log(plan: LoomPlansOut) -> None:
+def save_plan_html(id: str, data: str) -> None:
+    try:
+        # Запись в файл
+        with open(settings.BASE_DIR + f"/data/{id}.html", "w", encoding="utf8") as f:
+            f.write(data)
+    except Exception as e:
+        logger.error("Ошибка записи файла html", exc_info=True)
+
+'''
+    Сохраняем модель в файл для отладок 
+'''
+def save_model_to_log(plan: BaseModel) -> None:
     try:
         plan_json = plan.json()
         # Запись в файл
-        with open(settings.BASE_DIR + "/log/looms_plan_last.json", "w") as f:
+        with open(settings.BASE_DIR + f"/log/{plan.__class__.__name__}.json", "w") as f:
             f.write(plan_json)
     except Exception as e:
         logger.error("Ошибка записи файла плана", exc_info=True)
