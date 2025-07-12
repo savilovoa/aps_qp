@@ -60,7 +60,7 @@ def schedule_to_html(machines: list, products: list, days: list, schedules: list
             fill_color = empty_cell_color
             text_to_display = ""
 
-            if product_idx is not None:
+            if product_idx is not None and product_idx > 0:
                 fill_color = product_colors[product_idx]
                 # Проверяем, был ли тот же продукт на этой машине в предыдущий день
                 if day_idx > 0 and schedule_grid[machine_idx][day_idx - 1] == product_idx:

@@ -51,7 +51,7 @@ def schedule_loom_calc_model(DataIn: DataLoomIn) -> LoomPlansOut:
         result_calc = schedule_loom_calc(remains=remains, products=products, machines=machines, cleans=cleans,
                                     max_daily_prod_zero=max_daily_prod_zero, count_days=count_days, data=data)
 
-        if result_calc["error_str"] == "":
+        if result_calc["error_str"] == "" and result_calc["status"] != cp_model.INFEASIBLE:
             machines_view = [name for (name, product_idx,  id, type) in machines]
             products_view = [name for (name, qty, id, machine_type) in products]
             title_text = f"{result_calc['status_str']} оптимизационное значение {result_calc['objective_value']}"
@@ -71,7 +71,10 @@ def schedule_loom_calc_model(DataIn: DataLoomIn) -> LoomPlansOut:
             save_plan_html(id_html, res_html)
             save_model_to_log(result)
         else:
-            result = LoomPlansOut(error_str=result_calc["error_str"])
+            error_str = result_calc["error_str"]
+            if result_calc["status"] == cp_model.INFEASIBLE:
+                error_str = error_str + " МОДЕЛЬ НЕ МОЖЕТ БЫТЬ РАССЧИТАНА"
+            result = LoomPlansOut(error_str=error_str)
     except Exception as e:
         error = tr.TracebackException(exc_type=type(e), exc_traceback=e.__traceback__, exc_value=e).stack[-1]
         error_str = '{} in file {} in {} row:{} '.format(e, error.filename, error.lineno, error.line)
@@ -99,21 +102,20 @@ def loom_plans_view(plan_in: LoomPlansViewIn) -> LoomPlansViewOut:
     return result
 
 
-
 def schedule_loom_calc(remains: list, products: list, machines: list, cleans: list, max_daily_prod_zero: int,
                        count_days: int, data: dict) -> LoomPlansOut:
 
     schedule_init, objective_value, deviation_proportion, count_product_zero = (
         create_schedule_init(data["machines"], data["products"], data["cleans"], count_days, max_daily_prod_zero))
 
-    schedule = [{"machine_idx": m, "day_idx": d, "product_idx": schedule_init[m][d]}
-                for m in range(len(machines))
-                for d in range(count_days)]
-    result = {"status": 20, "status_str": "INIT", "schedule": schedule,
-              "products": [], "objective_value": objective_value,
-              "proportion_diff": int(deviation_proportion), "error_str": ""}
-
-    return result
+    # schedule = [{"machine_idx": m, "day_idx": d, "product_idx": schedule_init[m][d]}
+    #             for m in range(len(machines))
+    #             for d in range(count_days)]
+    # result = {"status": 20, "status_str": "INIT", "schedule": schedule,
+    #           "products": [], "objective_value": objective_value,
+    #           "proportion_diff": int(deviation_proportion), "error_str": ""}
+    #
+    # return result
 
     machines_new = machines.copy()
     products_new = products.copy()
@@ -163,7 +165,10 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
         schedule, products_schedule, diff_all = solver_result(solver, status, machines, products, machines_new,
                                                               products_new, cleans, count_days, machines_full,
                                                               proportion_objective_terms, product_counts, jobs)
-
+    else:
+        schedule = []
+        products_schedule = []
+        diff_all = 0
 
     logger.info(solver.ResponseStats())  # Основные статистические данные
     result = {"status": int(status), "status_str": solver.StatusName(status), "schedule": schedule,
@@ -420,38 +425,36 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
     # Мы хотим, чтобы product_counts[p1] / product_counts[p2] было близко к proportions_input[p1] / proportions_input[p2]
     # Это эквивалентно product_counts[p1] * proportions_input[p2] ~= product_counts[p2] * proportions_input[p1]
 
+    total_products_count = model.NewIntVar(0, num_machines * num_days, "total_products_count")
+    model.Add(total_products_count == sum(product_counts[p] for p in range(1, len(products))))
+
+    total_input_quantity = sum(proportions_input)
     proportion_objective_terms = []
-    relevant_product_indices = []
-    for p_idx in range(num_products):
-        if p_idx > 0:  # and proportions_input[p_idx] > 0:
-            relevant_product_indices.append(p_idx)
 
-    if len(relevant_product_indices) > 1:
-        for i in range(len(relevant_product_indices)):
-            for j in range(i + 1, len(relevant_product_indices)):
-                p1_idx = relevant_product_indices[i]
-                p2_idx = relevant_product_indices[j]
+    for p in range(1, len(products)):  # Skip p == 0
 
-                # product_counts[p1_idx] * proportions_input[p2_idx]
-                term1_expr = model.NewIntVar(0, num_machines * num_days * max(proportions_input),
-                                             f"term1_{p1_idx}_{p2_idx}")
-                model.AddMultiplicationEquality(term1_expr, [product_counts[p1_idx],
-                                                             model.NewConstant(proportions_input[p2_idx])])
+        # product_counts[p] * total_input_quantity
+        term1_expr = model.NewIntVar(0, num_machines * num_days * total_input_quantity,
+                                     f"term1_{p}")
+        model.AddMultiplicationEquality(term1_expr, [product_counts[p], total_input_quantity])
 
-                # product_counts[p2_idx] * proportions_input[p1_idx]
-                term2_expr = model.NewIntVar(0, num_machines * num_days * max(proportions_input),
-                                             f"term2_{p1_idx}_{p2_idx}")
-                model.AddMultiplicationEquality(term2_expr, [product_counts[p2_idx],
-                                                             model.NewConstant(proportions_input[p1_idx])])
+        # total_products_count * proportions_input[p1_idx]
+        term2_expr = model.NewIntVar(0, cp_model.INT32_MAX, f"term2_{p}")
+        model.AddMultiplicationEquality(term2_expr, [total_products_count,
+                                                     model.NewConstant(proportions_input[p])])
 
-                # diff = term1_expr - term2_expr
-                max_abs_diff_val = num_machines * num_days * max(proportions_input)  # Оценка максимальной разницы
-                diff_var = model.NewIntVar(-max_abs_diff_val, max_abs_diff_val, f"prop_diff_{p1_idx}_{p2_idx}")
-                model.Add(diff_var == (term1_expr - term2_expr) * (num_products - i))
+        # diff = term1_expr - term2_expr
+        diff_var = model.NewIntVar(-cp_model.INT32_MAX, cp_model.INT32_MAX, f"diff_{p}")
+        model.Add(diff_var == (term1_expr - term2_expr))
+        abs_diff_var = model.NewIntVar(0, cp_model.INT32_MAX, f"abs_diff_{p}")
+        model.AddAbsEquality(abs_diff_var, diff_var)
+        proportion_objective_terms.append(abs_diff_var)
 
-                abs_diff_var = model.NewIntVar(0, max_abs_diff_val, f"prop_abs_diff_{p1_idx}_{p2_idx}")
-                model.AddAbsEquality(abs_diff_var, diff_var)
-                proportion_objective_terms.append(abs_diff_var)
+    downtime_penalty = round(0.1 * sum(proportions_input)/len(work_days))
+    if downtime_penalty < 1:
+        downtime_penalty = 1
+
+    model.Minimize(sum(proportion_objective_terms) + product_counts[PRODUCT_ZERO] * downtime_penalty)
 
     # ### НОВОЕ: Добавление начального расписания как подсказки (hint) ###
     if schedule_init:
@@ -463,12 +466,6 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
                     # Игнорируем значения чистки (-2) и другие некорректные
                     if initial_product_idx and initial_product_idx >= 0:
                         model.AddHint(jobs[(m, d)], initial_product_idx)
-
-    downtime_penalty = round(0.1 * sum(proportions_input)/len(work_days))
-    if downtime_penalty < 1:
-        downtime_penalty = 1
-
-    model.Minimize(sum(proportion_objective_terms) + product_counts[PRODUCT_ZERO] * downtime_penalty)
 
     return model, jobs, product_counts, proportion_objective_terms
 
@@ -534,256 +531,266 @@ def create_schedule_init(machines, products, cleans, count_days, max_daily_prod_
     product_quantities = products_df['qty']
     machines_df['product_qty'] = machines_df['product_idx'].map(product_quantities)
 
-    # --- Часть 1: Планирование начальных продуктов ---
-    machines_df['day_remains'] = count_days - machines_df['idx'].map(
-        lambda x: sum(1 for d in schedule[x] if d == -2)
-    )
+    # --- Шаг 5: Добавление колонки 'day_remains' ---
+    machines_df['day_remains'] = count_days
+    for machine_idx in range(num_machines):
+        clean_days = sum(1 for clean in cleans if clean['machine_idx'] == machine_idx)
+        machines_df.at[machine_idx, 'day_remains'] -= clean_days
 
-    for idx, machine in machines_df.iterrows():
-        product_idx = machine['product_idx']
-        qty = machine['product_qty']
-        machine_idx = machine['idx']
-        if qty >= count_days / 2:
-            days_to_plan = min(int(qty), machines_df.at[idx, 'day_remains'])
-            current_day = 0
-            planned_days = 0
-            while planned_days < days_to_plan and current_day < count_days:
-                if schedule[machine_idx][current_day] is None:
-                    schedule[machine_idx][current_day] = product_idx
-                    planned_days += 1
-                    machines_df.at[idx, 'day_remains'] -= 1
-                    products_df.at[product_idx, 'qty'] -= 1
-                current_day += 1
-
-            # Планируем переход (2 дня product_idx = 0)
-            if current_day + 1 < count_days and planned_days > 0:
-                transition_days = 0
-                while transition_days < 2 and current_day < count_days:
-                    if schedule[machine_idx][current_day] is None and can_place_zero(current_day, zeros_per_day,
-                                                                                     max_daily_prod_zero):
-                        schedule[machine_idx][current_day] = 0
-                        zeros_per_day[current_day] = zeros_per_day.get(current_day, 0) + 1
-                        machines_df.at[idx, 'day_remains'] -= 1
-                        transition_days += 1
-                    elif schedule[machine_idx][current_day] is None:
-                        schedule[machine_idx][current_day] = product_idx
-                        products_df.at[product_idx, 'qty'] -= 1
-                        machines_df.at[idx, 'day_remains'] -= 1
-                    current_day += 1
-                if current_day >= count_days - 2 and transition_days < 2:
-                    while current_day < count_days and schedule[machine_idx][current_day] is None:
-                        schedule[machine_idx][current_day] = product_idx
-                        products_df.at[product_idx, 'qty'] -= 1
-                        machines_df.at[idx, 'day_remains'] -= 1
-                        current_day += 1
-
-    # --- Часть 2: Заполнение оставшихся дней ---
-    def sort_machines_and_products(machines_df, products_df):
-        machines_df_sorted = machines_df.sort_values(
-            by=['type', 'product_qty', 'day_remains'], ascending=[False, True, True]
-        ).copy()
-        products_df_sorted = products_df.sort_values(
-            by=['machine_type', 'qty'], ascending=[False, False]
-        ).copy()
-        return machines_df_sorted, products_df_sorted
-
-    while machines_df['day_remains'].sum() > 0:
-        machines_df_sorted, products_df_sorted = sort_machines_and_products(machines_df, products_df)
-
-        # Отдельная ветка для продуктов типа 1
-        for _, product in products_df_sorted[products_df_sorted['machine_type'] == 1].iterrows():
-            product_idx = product['idx']
-            qty = product['qty']
-            if qty <= 0:
-                continue
-            # Проверяем машины с совпадающим начальным продуктом
-            matching_machines = machines_df_sorted[
-                (machines_df_sorted['product_idx'] == product_idx) &
-                (machines_df_sorted['day_remains'] > 0) &
-                (machines_df_sorted['type'] == 1)
-                ]
-            if not matching_machines.empty:
-                machine = matching_machines.iloc[0]
-                machine_idx = machine['idx']
-                current_day = 0
-                while current_day < count_days and schedule[machine_idx][current_day] is not None:
-                    current_day += 1
-                while current_day < count_days and products_df.at[product_idx, 'qty'] > 0 and machines_df.at[
-                    machine_idx, 'day_remains'] > 0:
-                    if schedule[machine_idx][current_day] is None:
-                        schedule[machine_idx][current_day] = product_idx
-                        products_df.at[product_idx, 'qty'] -= 1
-                        machines_df.at[machine_idx, 'day_remains'] -= 1
-                    current_day += 1
-                continue
-
-            # Если нет совпадений, берем первую подходящую машину
-            for _, machine in machines_df_sorted[machines_df_sorted['type'] == 1].iterrows():
-                machine_idx = machine['idx']
-                if machines_df.at[machine_idx, 'day_remains'] == 0:
-                    continue
-                current_day = 0
-                while current_day < count_days and schedule[machine_idx][current_day] is not None:
-                    current_day += 1
-                if current_day < count_days:
-                    if machine['product_idx'] == product_idx:
-                        while current_day < count_days and products_df.at[product_idx, 'qty'] > 0:
-                            if schedule[machine_idx][current_day] is None:
-                                schedule[machine_idx][current_day] = product_idx
-                                products_df.at[product_idx, 'qty'] -= 1
-                                machines_df.at[machine_idx, 'day_remains'] -= 1
-                            current_day += 1
-                    else:
-                        # Планируем начальный продукт машины
-                        initial_product = machine['product_idx']
-                        if products_df.at[initial_product, 'qty'] > 0:
-                            while current_day < count_days and schedule[machine_idx][current_day] is None and \
-                                    products_df.at[initial_product, 'qty'] > 0:
-                                schedule[machine_idx][current_day] = initial_product
-                                products_df.at[initial_product, 'qty'] -= 1
-                                machines_df.at[machine_idx, 'day_remains'] -= 1
-                                current_day += 1
-                        # Планируем переход
-                        transition_days = 0
-                        while transition_days < 2 and current_day < count_days:
-                            if schedule[machine_idx][current_day] is None and can_place_zero(current_day, zeros_per_day,
-                                                                                             max_daily_prod_zero):
-                                schedule[machine_idx][current_day] = 0
-                                zeros_per_day[current_day] += 1
-                                machines_df.at[machine_idx, 'day_remains'] -= 1
-                                transition_days += 1
-                            elif schedule[machine_idx][current_day] is None:
-                                schedule[machine_idx][current_day] = initial_product
-                                products_df.at[initial_product, 'qty'] -= 1
-                                machines_df.at[machine_idx, 'day_remains'] -= 1
-                            current_day += 1
-                        # Планируем новый продукт
-                        while current_day < count_days and products_df.at[product_idx, 'qty'] > 0:
-                            if schedule[machine_idx][current_day] is None:
-                                schedule[machine_idx][current_day] = product_idx
-                                products_df.at[product_idx, 'qty'] -= 1
-                                machines_df.at[machine_idx, 'day_remains'] -= 1
-                            current_day += 1
-                    break
-
-        # Продукты типа 0
-        for _, product in products_df_sorted[products_df_sorted['machine_type'] == 0].iterrows():
-            product_idx = product['idx']
-            qty = product['qty']
-            if qty <= 0:
-                continue
-            matching_machines = machines_df_sorted[
-                (machines_df_sorted['product_idx'] == product_idx) &
-                (machines_df_sorted['day_remains'] > 0)
-                ]
-            if not matching_machines.empty:
-                machine = matching_machines.iloc[0]
-                machine_idx = machine['idx']
-                current_day = 0
-                while current_day < count_days and schedule[machine_idx][current_day] is not None:
-                    current_day += 1
-                while current_day < count_days and products_df.at[product_idx, 'qty'] > 0:
-                    if schedule[machine_idx][current_day] is None:
-                        schedule[machine_idx][current_day] = product_idx
-                        products_df.at[product_idx, 'qty'] -= 1
-                        machines_df.at[machine_idx, 'day_remains'] -= 1
-                    current_day += 1
-                continue
-
-            for _, machine in machines_df_sorted.iterrows():
-                machine_idx = machine['idx']
-                if machines_df.at[machine_idx, 'day_remains'] == 0:
-                    continue
-                current_day = 0
-                while current_day < count_days and schedule[machine_idx][current_day] is not None:
-                    current_day += 1
-                if current_day < count_days:
-                    if machine['product_idx'] == product_idx:
-                        while current_day < count_days and products_df.at[product_idx, 'qty'] > 0:
-                            if schedule[machine_idx][current_day] is None:
-                                schedule[machine_idx][current_day] = product_idx
-                                products_df.at[product_idx, 'qty'] -= 1
-                                machines_df.at[machine_idx, 'day_remains'] -= 1
-                            current_day += 1
-                    else:
-                        initial_product = machine['product_idx']
-                        if products_df.at[initial_product, 'qty'] > 0:
-                            while current_day < count_days and schedule[machine_idx][current_day] is None and \
-                                    products_df.at[initial_product, 'qty'] > 0:
-                                schedule[machine_idx][current_day] = initial_product
-                                products_df.at[initial_product, 'qty'] -= 1
-                                machines_df.at[machine_idx, 'day_remains'] -= 1
-                                current_day += 1
-                        transition_days = 0
-                        while transition_days < 2 and current_day < count_days:
-                            if schedule[machine_idx][current_day] is None and can_place_zero(current_day, zeros_per_day,
-                                                                                             max_daily_prod_zero):
-                                schedule[machine_idx][current_day] = 0
-                                zeros_per_day[current_day] += 1
-                                machines_df.at[machine_idx, 'day_remains'] -= 1
-                                transition_days += 1
-                            elif schedule[machine_idx][current_day] is None:
-                                schedule[machine_idx][current_day] = initial_product
-                                products_df.at[initial_product, 'qty'] -= 1
-                                machines_df.at[machine_idx, 'day_remains'] -= 1
-                            current_day += 1
-                        while current_day < count_days and products_df.at[product_idx, 'qty'] > 0:
-                            if schedule[machine_idx][current_day] is None:
-                                schedule[machine_idx][current_day] = product_idx
-                                products_df.at[product_idx, 'qty'] -= 1
-                                machines_df.at[machine_idx, 'day_remains'] -= 1
-                            current_day += 1
-                    break
-
-    # --- Часть 3: Заполнение оставшихся дней ---
-    machines_df_sorted = machines_df.sort_values(
-        by=['type', 'day_remains'], ascending=[False, False]
-    ).copy()
-    products_df_sorted = products_df.sort_values(
-        by=['qty'], ascending=[False]
-    ).copy()
-
-    for _, machine in machines_df_sorted.iterrows():
-        machine_idx = machine['idx']
-        if machines_df.at[machine_idx, 'day_remains'] == 0:
-            continue
-        current_day = 0
-        while current_day < count_days:
-            if schedule[machine_idx][current_day] is None:
-                initial_product = machine['product_idx']
-                if products_df.at[initial_product, 'qty'] > 0:
-                    schedule[machine_idx][current_day] = initial_product
-                    products_df.at[initial_product, 'qty'] -= 1
+    # --- Первая часть алгоритма ---
+    for machine_idx in range(num_machines):
+        product_idx = machines_df.at[machine_idx, 'product_idx']
+        qty_needed = machines_df.at[machine_idx, 'product_qty']
+        if qty_needed >= count_days / 2:
+            days_to_plan = min(int(qty_needed), machines_df.at[machine_idx, 'day_remains'])
+            day_idx = 0
+            days_planned = 0
+            while days_planned < days_to_plan and day_idx < count_days:
+                if schedule[machine_idx][day_idx] is None:  # Проверяем, что день не занят чисткой
+                    schedule[machine_idx][day_idx] = int(product_idx)
+                    days_planned += 1
                     machines_df.at[machine_idx, 'day_remains'] -= 1
-                    current_day += 1
-                else:
-                    # Планируем переход
-                    transition_days = 0
-                    while transition_days < 2 and current_day < count_days:
-                        if schedule[machine_idx][current_day] is None and can_place_zero(current_day, zeros_per_day,
-                                                                                         max_daily_prod_zero):
-                            schedule[machine_idx][current_day] = 0
-                            zeros_per_day[current_day] += 1
+                    products_df.at[product_idx, 'qty'] -= 1
+                    machines_df.at[machine_idx, 'product_qty'] -= 1
+                day_idx += 1
+
+            # Если осталось менее 3 дней до конца, продолжаем планировать тот же продукт
+            if day_idx >= count_days - 2:
+                while day_idx < count_days:
+                    if schedule[machine_idx][day_idx] is None:
+                        schedule[machine_idx][day_idx] = int(product_idx)
+                        products_df.at[product_idx, 'qty'] -= 1
+                        machines_df.at[machine_idx, 'product_qty'] -= 1
+                        machines_df.at[machine_idx, 'day_remains'] -= 1
+                    day_idx += 1
+
+            # Планируем переход (2 дня с product_idx = 0)
+            if days_planned >= 1 and day_idx + 1 < count_days:
+                zero_days = 0
+                start_day = day_idx
+                while zero_days < 2 and day_idx < count_days:
+                    if schedule[machine_idx][day_idx] is None:
+                        if can_place_zero(day_idx, zeros_per_day, max_daily_prod_zero):
+                            schedule[machine_idx][day_idx] = 0
+                            zeros_per_day[day_idx] = zeros_per_day.get(day_idx, 0) + 1
                             machines_df.at[machine_idx, 'day_remains'] -= 1
-                            transition_days += 1
-                        elif schedule[machine_idx][current_day] is None:
-                            schedule[machine_idx][current_day] = initial_product
+                            zero_days += 1
+                        else:
+                            # Если нельзя поставить переход, продолжаем планировать тот же продукт
+                            schedule[machine_idx][day_idx] = int(product_idx)
+                            products_df.at[product_idx, 'qty'] -= 1
+                            machines_df.at[machine_idx, 'product_qty'] -= 1
                             machines_df.at[machine_idx, 'day_remains'] -= 1
-                        current_day += 1
-                    # Планируем продукт из отсортированного списка
-                    for _, product in products_df_sorted.iterrows():
-                        product_idx = product['idx']
-                        if products_df.at[product_idx, 'qty'] > 0 and (
-                                product['machine_type'] == 0 or machine['type'] == 1):
-                            while current_day < count_days and products_df.at[product_idx, 'qty'] > 0:
-                                if schedule[machine_idx][current_day] is None:
-                                    schedule[machine_idx][current_day] = product_idx
-                                    products_df.at[product_idx, 'qty'] -= 1
-                                    machines_df.at[machine_idx, 'day_remains'] -= 1
-                                current_day += 1
-                            break
+                    day_idx += 1
+                # Если осталось менее 3 дней до конца, продолжаем планировать тот же продукт
+                if day_idx >= count_days - 2:
+                    while day_idx < count_days:
+                        if schedule[machine_idx][day_idx] is None:
+                            schedule[machine_idx][day_idx] = int(product_idx)
+                            products_df.at[product_idx, 'qty'] -= 1
+                            machines_df.at[machine_idx, 'product_qty'] -= 1
+                            machines_df.at[machine_idx, 'day_remains'] -= 1
+                        day_idx += 1
+
+    # --- Вторая часть алгоритма ---
+    def schedule_remaining_days(machine_type_filter=None):
+        # Сортировка машин
+        machines_to_schedule = machines_df[machines_df['day_remains'] > 0].copy()
+        if machine_type_filter is not None:
+            machines_to_schedule = machines_to_schedule[machines_to_schedule['type'] == machine_type_filter]
+        machines_to_schedule = machines_to_schedule.sort_values(
+            by=['type', 'product_qty', 'day_remains'], ascending=[False, True, False]
+        )
+
+        # Сортировка продуктов
+        products_to_schedule = products_df[products_df['qty'] > 0].copy()
+        if machine_type_filter is not None:
+            products_to_schedule = products_to_schedule[products_to_schedule['machine_type'] == machine_type_filter]
+        products_to_schedule = products_to_schedule.sort_values(
+            by=['machine_type', 'qty'], ascending=[False, False]
+        )
+
+        while not machines_to_schedule.empty and not products_to_schedule.empty:
+            product_idx = products_to_schedule.iloc[0]['idx']
+            qty_needed = products_to_schedule.iloc[0]['qty']
+            product_machine_type = products_to_schedule.iloc[0]['machine_type']
+
+            # Проверяем, есть ли машина с совпадающим начальным продуктом
+            matching_machines = machines_to_schedule[machines_to_schedule['product_idx'] == product_idx]
+            if not matching_machines.empty:
+                machine_idx = matching_machines.iloc[0]['original_index']
+                day_remains = matching_machines.iloc[0]['day_remains']
             else:
-                current_day += 1
+                # Выбираем первую машину из отсортированного списка
+                machine_idx = machines_to_schedule.iloc[0]['original_index']
+                day_remains = machines_to_schedule.iloc[0]['day_remains']
+
+
+            machine_type = machines_df[machines_df['original_index'] == machine_idx]['type'].iloc[0]
+            # Проверяем совместимость типов
+            if product_machine_type == 1 and machine_type != 1:
+                products_to_schedule = products_to_schedule.iloc[1:]
+                continue
+
+            # Находим первый свободный день
+            start_day = 0
+            for day in range(count_days):
+                if schedule[machine_idx][day] is not None:
+                    start_day = day + 1
+                else:
+                    break
+
+            # Если начальный продукт совпадает, планируем его до нужного количества
+            if machines_df[machines_df['original_index'] == machine_idx]['product_idx'].iloc[0] == product_idx:
+                days_planned = 0
+                day_idx = start_day
+                for day in range(start_day, count_days):
+                    if schedule[machine_idx][day] is None:
+                        if products_df.at[product_idx, 'qty'] > 0:
+                            schedule[machine_idx][day] = int(product_idx)
+                            products_df.at[product_idx, 'qty'] -= 1
+                            machines_df.at[machine_idx, 'product_qty'] -= 1
+                            machines_df.at[machine_idx, 'day_remains'] -= 1
+                            day_idx += 1
+                        else:
+                            break
+                    else:
+                        day_idx += 1
+
+                # Планируем переход (2 дня с product_idx = 0)
+                zero_days = 0
+                while zero_days < 2 and day_idx < count_days:
+                    if schedule[machine_idx][day_idx] is None:
+                        if can_place_zero(day_idx, zeros_per_day, max_daily_prod_zero):
+                            # Если осталось менее 3 дней до конца, продолжаем планировать тот же продукт
+                            if day_idx >= count_days - 2:
+                                while day_idx < count_days:
+                                    if schedule[machine_idx][day_idx] is None:
+                                        schedule[machine_idx][day_idx] = int(product_idx)
+                                        products_df.at[product_idx, 'qty'] -= 1
+                                        machines_df.at[machine_idx, 'product_qty'] -= 1
+                                        machines_df.at[machine_idx, 'day_remains'] -= 1
+                                    day_idx += 1
+                                machines_to_schedule = machines_to_schedule[
+                                    machines_to_schedule['original_index'] != machine_idx]
+                            else:
+                                schedule[machine_idx][day_idx] = 0
+                                zeros_per_day[day_idx] = zeros_per_day.get(day_idx, 0) + 1
+                                machines_df.at[machine_idx, 'day_remains'] -= 1
+                                zero_days += 1
+                                day_idx += 1
+                                schedule[machine_idx][day_idx] = 0
+                                zeros_per_day[day_idx] = zeros_per_day.get(day_idx, 0) + 1
+                                machines_df.at[machine_idx, 'day_remains'] -= 1
+                                zero_days += 1
+                        else:
+                            # Планируем начальный продукт, если переход невозможен
+                            schedule[machine_idx][day_idx] = int(product_idx)
+                            if products_df.at[initial_product_idx, 'qty'] > 0:
+                                products_df.at[initial_product_idx, 'qty'] -= 1
+                                machines_df.at[machine_idx, 'product_qty'] -= 1
+                            machines_df.at[machine_idx, 'day_remains'] -= 1
+                        day_idx += 1
+                    else:
+                        day_idx += 1
+
+
+            elif day_remains == count_days or day_remains == count_days - 1:
+                # Планируем начальный продукт, если он есть в products_df
+                initial_product_idx = machines_df[machines_df['original_index'] == machine_idx]['product_idx'].iloc[0]
+                initial_qty = products_df[products_df['idx'] == initial_product_idx]['qty']
+                day_idx = start_day
+                if not initial_qty.empty and initial_qty.iloc[0] > 0:
+                    days_planned = 0
+                    while day_idx < count_days and days_planned < initial_qty.iloc[0]:
+                        if schedule[machine_idx][day_idx] is None:
+                            schedule[machine_idx][day_idx] = int(initial_product_idx)
+                            products_df.at[initial_product_idx, 'qty'] -= 1
+                            machines_df.at[machine_idx, 'product_qty'] -= 1
+                            machines_df.at[machine_idx, 'day_remains'] -= 1
+                            days_planned += 1
+                        day_idx += 1
+                # Планируем переход (2 дня с product_idx = 0)
+                zero_days = 0
+                while zero_days < 2 and day_idx < count_days:
+                    if schedule[machine_idx][day_idx] is None:
+                        if can_place_zero(day_idx, zeros_per_day, max_daily_prod_zero):
+                            if day_idx >= count_days - 2:
+                                while day_idx < count_days:
+                                    if schedule[machine_idx][day_idx] is None:
+                                        schedule[machine_idx][day_idx] = int(product_idx)
+                                        products_df.at[product_idx, 'qty'] -= 1
+                                        machines_df.at[machine_idx, 'product_qty'] -= 1
+                                        machines_df.at[machine_idx, 'day_remains'] -= 1
+                                    day_idx += 1
+                                machines_to_schedule = machines_to_schedule[
+                                    machines_to_schedule['original_index'] != machine_idx]
+                            else:
+                                schedule[machine_idx][day_idx] = 0
+                                zeros_per_day[day_idx] = zeros_per_day.get(day_idx, 0) + 1
+                                machines_df.at[machine_idx, 'day_remains'] -= 1
+                                zero_days += 1
+                                day_idx += 1
+                                schedule[machine_idx][day_idx] = 0
+                                zeros_per_day[day_idx] = zeros_per_day.get(day_idx, 0) + 1
+                                machines_df.at[machine_idx, 'day_remains'] -= 1
+                                zero_days += 1
+                                day_idx += 1
+                        else:
+                            schedule[machine_idx][day_idx] = int(initial_product_idx)
+                            products_df.at[initial_product_idx, 'qty'] -= 1
+                            machines_df.at[machine_idx, 'product_qty'] -= 1
+                            machines_df.at[machine_idx, 'day_remains'] -= 1
+                            day_idx += 1
+
+                    else:
+                        day_idx += 1
+                start_day = day_idx
+
+                for day in range(start_day, count_days):
+                    if schedule[machine_idx][day] is None:
+                        schedule[machine_idx][day] = int(product_idx)
+                        products_df.at[product_idx, 'qty'] -= 1
+                        machines_df.at[machine_idx, 'product_qty'] -= 1
+                        machines_df.at[machine_idx, 'day_remains'] -= 1
+                        day_idx += 1
+                    else:
+                        day_idx += 1
+
+                machines_to_schedule = machines_to_schedule[machines_to_schedule['original_index'] != machine_idx]
+
+            else:
+                # Если машина уже частично распределена
+                start_day = count_days - day_remains
+                # Планируем выбранный продукт до конца дней
+                for day in range(start_day, count_days):
+                    if schedule[machine_idx][day] is None:
+                        schedule[machine_idx][day] = int(product_idx)
+                        products_df.at[product_idx, 'qty'] -= 1
+                        machines_df.at[machine_idx, 'product_qty'] -= 1
+                        machines_df.at[machine_idx, 'day_remains'] -= 1
+
+                machines_to_schedule = machines_to_schedule[machines_to_schedule['original_index'] != machine_idx]
+
+
+            # Обновляем qty для продукта
+            products_to_schedule.iloc[0, products_to_schedule.columns.get_loc('qty')] -= min(
+                qty_needed, sum(1 for day in range(count_days) if schedule[machine_idx][day] == product_idx)
+            )
+            # Удаляем продукт, если qty <= 0
+            products_to_schedule = products_to_schedule[products_to_schedule['qty'] > 0]
+            # Пересортировка
+            machines_to_schedule = machines_to_schedule.sort_values(
+                by=['type', 'product_qty', 'day_remains'], ascending=[False, True, False]
+            )
+            products_to_schedule = products_to_schedule.sort_values(
+                by=['machine_type', 'qty'], ascending=[False, False]
+            )
+
+    # Отдельное распределение для продуктов типа 1
+    schedule_remaining_days(machine_type_filter=1)
+    # Распределение для всех продуктов
+    schedule_remaining_days()
 
     # --- Подведение итогов ---
 
@@ -833,7 +840,7 @@ def update_data_for_schedule_init(machines: list, products: list, cleans: list, 
 
     for m in range(num_machines):
         p = schedule_init[m][0]
-        if p == None or p <= 0:
+        if p == None or p <= 0 or products[p][1] > count_days - 4:
             continue
         full_p = True
         for d in range(1, count_days):
