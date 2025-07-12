@@ -960,7 +960,7 @@ def save_model_to_log(plan: BaseModel) -> None:
     try:
         plan_json = plan.json()
         # Запись в файл
-        with open(settings.BASE_DIR + f"/log/{plan.__class__.__name__}.json", "w") as f:
+        with open(settings.BASE_DIR + f"/log/{plan.__class__.__name__}.json", "w", encoding="utf8") as f:
             f.write(plan_json)
     except Exception as e:
         logger.error("Ошибка записи файла плана", exc_info=True)
