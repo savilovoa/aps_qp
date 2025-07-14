@@ -5,7 +5,6 @@ import traceback as tr
 from ..config import logger, settings
 import pandas as pd
 from .loom_plan_html import schedule_to_html
-from datetime import datetime
 from uuid import uuid4
 
 def MachinesModelToArray(machines: list[Machine]) -> list[(str, int)]:
@@ -141,12 +140,13 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
         def solutionCount(self):
             return self._solution_count
 
-    model, jobs, product_counts, proportion_objective_terms = create_model(
+    model, jobs, product_counts, proportion_objective_terms, total_products_count = create_model(
         remains=remains, products=products_new, machines=machines_new, cleans=cleans, max_daily_prod_zero=max_daily_prod_zero,
         count_days=count_days, schedule_init=schedule_init)
 
-    #solver.parameters.log_search_progress = True
-    #solver.parameters.trace_search = True
+
+    # solver.parameters.log_search_progress = True
+    #solver.parameters.debug_crash_on_bad_hint = True
 
     if settings.SOLVER_ENUMERATE:
         sol_printer = NursesPartialSolutionPrinter(settings.SOLVER_ENUMERATE_COUNT)
@@ -164,7 +164,7 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
 
         schedule, products_schedule, diff_all = solver_result(solver, status, machines, products, machines_new,
                                                               products_new, cleans, count_days, machines_full,
-                                                              proportion_objective_terms, product_counts, jobs)
+                                                              proportion_objective_terms, product_counts, jobs, total_products_count)
     else:
         schedule = []
         products_schedule = []
@@ -418,6 +418,50 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
                 prod_zero_on_machine.append(product_produced_bools[PRODUCT_ZERO, m, d])
         model.Add(sum(prod_zero_on_machine) <= 2)
 
+    # ### НОВОЕ: Добавление начального расписания как подсказки (hint) ###
+    if schedule_init:
+        for m in all_machines:
+            for d in all_days:
+                # Подсказку можно добавить только для существующей переменной (т.е. не в день чистки)
+                if (m, d) in work_days:
+                    initial_product_idx = schedule_init[m][d]
+                    # Игнорируем значения чистки (-2) и другие некорректные
+                    if initial_product_idx and initial_product_idx >= 0:
+                        model.AddHint(jobs[(m, d)], initial_product_idx)
+
+                        # 2. Подсказки для вспомогательных переменных
+                        # 'product_produced_bools'
+                        for p in all_products:
+                            hint_value = 1 if p == initial_product_idx else 0
+                            model.AddHint(product_produced_bools[p, m, d], hint_value)
+
+                        # 'is_not_zero'
+                        is_not_zero_hint = 1 if initial_product_idx != PRODUCT_ZERO else 0
+                        model.AddHint(is_not_zero[m, d], is_not_zero_hint)
+
+                        # 'same_as_prev' and 'completed_transition'
+                        if d > 0 and schedule_init[m][d-1] and schedule_init[m][d-1] > 0:
+                            d_prev = d - 1
+                            prev_product_id_hint = schedule_init[m][d_prev]
+
+                            # 'same_as_prev'
+                            same_as_prev_hint = 1 if initial_product_idx == prev_product_id_hint else 0
+                            model.AddHint(same_as_prev[m, d], same_as_prev_hint)
+
+                            if d > 1 and schedule_init[m][d-2] and schedule_init[m][d-2] > 0:
+                                d_prev = d - 1
+                                d_prev2 = d - 2
+                                prev_product_id_hint = schedule_init[m][d_prev]
+                                prev2_product_id_hint = schedule_init[m][d_prev2]
+
+                                # 'completed_transition'
+                                completed_transition_hint = 1 if (
+                                            prev_product_id_hint == PRODUCT_ZERO and prev2_product_id_hint == PRODUCT_ZERO) else 0
+                                model.AddHint(completed_transition[m, d], completed_transition_hint)
+
+
+
+        # ### END: ADDING INITIAL STATE (HINTS) ###
 
     # ------------ Мягкое ограничение: Пропорции продукции (для продуктов с индексом > 0) ------------
     # Цель: минимизировать отклонение от заданных пропорций
@@ -429,9 +473,11 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
     model.Add(total_products_count == sum(product_counts[p] for p in range(1, len(products))))
 
     total_input_quantity = sum(proportions_input)
+    logger.debug(f"total_input_quantity={total_input_quantity}")
     proportion_objective_terms = []
 
     for p in range(1, len(products)):  # Skip p == 0
+        logger.debug(f"proportions_input[{p}]={proportions_input[p]}")
 
         # product_counts[p] * total_input_quantity
         term1_expr = model.NewIntVar(0, num_machines * num_days * total_input_quantity,
@@ -456,18 +502,8 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
 
     model.Minimize(sum(proportion_objective_terms) + product_counts[PRODUCT_ZERO] * downtime_penalty)
 
-    # ### НОВОЕ: Добавление начального расписания как подсказки (hint) ###
-    if schedule_init:
-        for m in all_machines:
-            for d in all_days:
-                # Подсказку можно добавить только для существующей переменной (т.е. не в день чистки)
-                if (m, d) in work_days:
-                    initial_product_idx = schedule_init[m][d]
-                    # Игнорируем значения чистки (-2) и другие некорректные
-                    if initial_product_idx and initial_product_idx >= 0:
-                        model.AddHint(jobs[(m, d)], initial_product_idx)
 
-    return model, jobs, product_counts, proportion_objective_terms
+    return model, jobs, product_counts, proportion_objective_terms, total_products_count
 
 
 def create_schedule_init(machines, products, cleans, count_days, max_daily_prod_zero):
@@ -540,7 +576,8 @@ def create_schedule_init(machines, products, cleans, count_days, max_daily_prod_
     # --- Первая часть алгоритма ---
     for machine_idx in range(num_machines):
         product_idx = machines_df.at[machine_idx, 'product_idx']
-        qty_needed = machines_df.at[machine_idx, 'product_qty']
+        machines_df.at[machine_idx, 'product_qty'] = products_df.at[product_idx, 'qty']
+        qty_needed = products_df.at[product_idx, 'qty']
         if qty_needed >= count_days / 2:
             days_to_plan = min(int(qty_needed), machines_df.at[machine_idx, 'day_remains'])
             day_idx = 0
@@ -591,6 +628,7 @@ def create_schedule_init(machines, products, cleans, count_days, max_daily_prod_
                             machines_df.at[machine_idx, 'product_qty'] -= 1
                             machines_df.at[machine_idx, 'day_remains'] -= 1
                         day_idx += 1
+
 
     # --- Вторая часть алгоритма ---
     def schedule_remaining_days(machine_type_filter=None):
@@ -840,7 +878,7 @@ def update_data_for_schedule_init(machines: list, products: list, cleans: list, 
 
     for m in range(num_machines):
         p = schedule_init[m][0]
-        if p == None or p <= 0 or products[p][1] > count_days - 4:
+        if p == None or p <= 0 or products[p][1] < count_days / 2:
             continue
         full_p = True
         for d in range(1, count_days):
@@ -889,7 +927,7 @@ def update_data_for_schedule_init(machines: list, products: list, cleans: list, 
     return machines_full
 
 def solver_result(solver, status, machines_old, products_old, machines, products, cleans, count_days, machines_full,
-                  proportion_objective_terms, product_counts, jobs):
+                  proportion_objective_terms, product_counts, jobs, total_products_count):
 
     def find_machine_id_old(machine_idx: int):
         for i, machine in enumerate(machines_old):
@@ -924,14 +962,14 @@ def solver_result(solver, status, machines_old, products_old, machines, products
             logger.debug(f"  Day {d} works  {p_old}")
 
     logger.debug("\nОбщее количество произведенной продукции:")
-
+    logger.debug(f"\n{solver.value(total_products_count)}")
     for p in range(num_products):
         diff = 0 if p == 0 else solver.value(proportion_objective_terms[p - 1])
         diff_all += diff
         qty = solver.Value(product_counts[p])
         p_old = find_product_id_old(p)
         products_schedule.append({"product_idx": p_old, "qty": qty, "penalty": diff})
-        logger.debug(f"  Продукт {p_old}: {qty} единиц, штраф пропорций {diff}")
+        logger.debug(f"  Продукт {p_old}({p}): {qty} единиц, штраф пропорций {diff}")
 
     for m, p, id in machines_full:
         logger.debug(f"Loom {m}")
