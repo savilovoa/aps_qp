@@ -25,6 +25,7 @@ class Product(BaseModel):
     id: str
     machine_type: int
     resource: list[Resources] = Field(default=[])
+    qty_minus: int = Field(default=0)
 
 class Clean(BaseModel):
     day_idx: int

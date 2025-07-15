@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     SERVER_NAME: str = Field(default="0.0.0.0")
     BASE_DIR: str = Field(default=getcwd())
     LOOM_MAX_TIME: int = Field(default=600)
+    LOOM_NUM_WORKERS: int = Field(default=1)
     CALC_TEST_DATA: bool = Field(default=False)
     SOLVER_ENUMERATE: bool = Field(default=False)
     SOLVER_ENUMERATE_COUNT: int = Field(default=3)

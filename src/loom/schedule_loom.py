@@ -25,7 +25,7 @@ def ProductsModelToArray(products: list[Product]) -> list[(str, int, [(int, int)
             first = False
             if item.qty > 0:
                 raise "Первый элемент продукции должен быть сменой артикула, т.е. количество плана = 0"
-        result.append((item.name, item.qty, item.id, item.machine_type))
+        result.append((item.name, item.qty, item.id, item.machine_type, item.qty_minus))
     return result
 
 def CleansModelToArray(cleans: list[Clean]) -> list[(int, int)]:
@@ -52,7 +52,7 @@ def schedule_loom_calc_model(DataIn: DataLoomIn) -> LoomPlansOut:
 
         if result_calc["error_str"] == "" and result_calc["status"] != cp_model.INFEASIBLE:
             machines_view = [name for (name, product_idx,  id, type) in machines]
-            products_view = [name for (name, qty, id, machine_type) in products]
+            products_view = [name for (name, qty, id, machine_type, qm) in products]
             title_text = f"{result_calc['status_str']} оптимизационное значение {result_calc['objective_value']}"
 
             res_html = schedule_to_html(machines=machines_view, products=products_view, schedules=result_calc["schedule"],
@@ -119,7 +119,7 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
     machines_new = machines.copy()
     products_new = products.copy()
 
-    machines_full = update_data_for_schedule_init(machines_new, products_new, cleans, count_days, schedule_init)
+    #machines_full = update_data_for_schedule_init(machines_new, products_new, cleans, count_days, schedule_init)
 
     solver = cp_model.CpSolver()
 
@@ -147,6 +147,7 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
 
     # solver.parameters.log_search_progress = True
     #solver.parameters.debug_crash_on_bad_hint = True
+    #solver.parameters.num_search_workers = 4
 
     if settings.SOLVER_ENUMERATE:
         sol_printer = NursesPartialSolutionPrinter(settings.SOLVER_ENUMERATE_COUNT)
@@ -154,6 +155,7 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
         status = solver.solve(model, sol_printer)
     else:
         solver.parameters.max_time_in_seconds = settings.LOOM_MAX_TIME
+        solver.parameters.num_search_workers = settings.LOOM_NUM_WORKERS
         status = solver.solve(model)
 
     logger.info(f"Статус решения: {solver.StatusName(status)}")
@@ -163,7 +165,7 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
                         f"{solver.ObjectiveValue()}")
 
         schedule, products_schedule, diff_all = solver_result(solver, status, machines, products, machines_new,
-                                                              products_new, cleans, count_days, machines_full,
+                                                              products_new, cleans, count_days, [],
                                                               proportion_objective_terms, product_counts, jobs, total_products_count)
     else:
         schedule = []
@@ -180,11 +182,11 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
 
 def create_model(remains: list, products: list, machines: list, cleans: list, max_daily_prod_zero: int, count_days: int,
                  schedule_init: list = None):
-    # products: [ # ("idx, "name", "qty", "id", "machine_type")
+    # products: [ # ("idx, "name", "qty", "id", "machine_type", "qty_minus")
     #     ("", 0, "", 0),
-    #     ("ст87017t3", 42, "7ec17dc8-f3bd-4384-9738-7538ab3dc315", 0),
-    #     ("ст87416t1", 15, "9559e2e8-6e72-41f8-9dba-08aab5463623", 0),
-    #     ("ст2022УИСt4", 4, "cd825c90-aa80-4b95-9f81-2486b871bf94", 0)
+    #     ("ст87017t3", 42, "7ec17dc8-f3bd-4384-9738-7538ab3dc315", 0, 1),
+    #     ("ст87416t1", 15, "9559e2e8-6e72-41f8-9dba-08aab5463623", 0, 1),
+    #     ("ст2022УИСt4", 4, "cd825c90-aa80-4b95-9f81-2486b871bf94", 0, 0)
     # ]
     # machines = [ # (name, product_idx, id, type)
     #   ("ТС Тойота №1", 1, "fbc4c3a0-8087-11ea-80cc-005056aab926", 0),
@@ -203,7 +205,7 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
     all_days = range(num_days)
     all_products = range(num_products)
 
-    proportions_input = [prop for a, prop, id, t in products]
+    proportions_input = [prop for a, prop, id, t, qm in products]
     initial_products = {idx: product_idx for idx, (_, product_idx, m_id, t) in enumerate(machines)}
 
     model = cp_model.CpModel()
@@ -235,6 +237,9 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
     for p in all_products:
         model.Add(product_counts[p] == sum(
             product_produced_bools[p, m, d] for m, d in work_days))
+        # Добавляем условие НЕ МЕНЬШЕ для некоторых продуктов
+        if products[p][4] == 0 and products[p][1] > 0:
+            model.Add(product_counts[p] >= products[p][1])
 
     # Сумма PRODUCT_ZERO в смену d не более max_daily_prod_zero
     # Количество нулевого продукта по дням
