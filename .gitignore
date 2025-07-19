@@ -2,5 +2,6 @@
 .env
 .env.save
 log/
+data/
 **__pycache__/
 /example/res.html
