@@ -7,17 +7,17 @@ import pandas as pd
 from .loom_plan_html import schedule_to_html
 from uuid import uuid4
 
-def MachinesModelToArray(machines: list[Machine]) -> list[(str, int)]:
+def MachinesModelToArray(machines: list[Machine]) -> list[(str, int, str, int, int)]:
     result = []
     idx = 0
     for item in machines:
         if item.idx != idx:
             break
-        result.append((item.name, item.product_idx, item.id, item.type))
+        result.append((item.name, item.product_idx, item.id, item.type, item.remain_day))
         idx += 1
     return result
 
-def ProductsModelToArray(products: list[Product]) -> list[(str, int, [(int, int)])]:
+def ProductsModelToArray(products: list[Product]) -> list[(str, int, str, int, int)]:
     result = []
     first = True
     for item in products:
@@ -188,10 +188,10 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
     #     ("ст87416t1", 15, "9559e2e8-6e72-41f8-9dba-08aab5463623", 0, 1),
     #     ("ст2022УИСt4", 4, "cd825c90-aa80-4b95-9f81-2486b871bf94", 0, 0)
     # ]
-    # machines = [ # (name, product_idx, id, type)
-    #   ("ТС Тойота №1", 1, "fbc4c3a0-8087-11ea-80cc-005056aab926", 0),
-    #   ("ТС Тойота №2", 1, "fbc4c3a1-8087-11ea-80cc-005056aab926", 0),
-    #   ("ТС Тойота №3", 3, "fbc4c372-8087-11ea-80cc-005056aab926", 0),
+    # machines = [ # (name, product_idx, id, type, remain_day)
+    #   ("ТС Тойота №1", 1, "fbc4c3a0-8087-11ea-80cc-005056aab926", 0, 2),
+    #   ("ТС Тойота №2", 1, "fbc4c3a1-8087-11ea-80cc-005056aab926", 0, 5),
+    #   ("ТС Тойота №3", 3, "fbc4c372-8087-11ea-80cc-005056aab926", 0, 4),
     # ]
     # cleans: [ # ("machine_idx", "day_idx")
     # (3, 1)
@@ -206,7 +206,7 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
     all_products = range(num_products)
 
     proportions_input = [prop for a, prop, id, t, qm in products]
-    initial_products = {idx: product_idx for idx, (_, product_idx, m_id, t) in enumerate(machines)}
+    initial_products = {idx: product_idx for idx, (_, product_idx, m_id, t, r_d) in enumerate(machines)}
 
     model = cp_model.CpModel()
 
@@ -255,6 +255,31 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
         # Сумма этих булевых переменных даст количество PRODUCT_ZERO в день d
         model.Add(sum(daily_prod_zero_on_machines) <= max_daily_prod_zero)
 
+    # Ограничение на выработку продукции вначале до количества remain_day в машине
+    # т.е. дорабатываем навой который на машине, а только потом переход
+    last_mandatory_day = {}
+    for m in all_machines:
+        # Get the required product and duration from the machines list.
+        # machines = [ (name, product_idx, id, type, remain_day) ]
+        initial_product_idx = machines[m][1]
+        remain_day = machines[m][4]
+
+        # Apply the constraint only if remain_day is positive.
+        if remain_day > 0 and initial_product_idx != PRODUCT_ZERO:
+            # Find the first 'remain_day' working days for this specific machine.
+            # This correctly skips any cleaning days.
+            machine_work_days = sorted([d for (mach, d) in work_days if mach == m])
+            days_to_constrain = machine_work_days[:remain_day]
+
+            # Add a hard constraint for each of these days.
+            for d in days_to_constrain:
+                model.Add(jobs[m, d] == initial_product_idx)
+
+            # Record the last day of this mandatory run.
+            if days_to_constrain:
+                last_mandatory_day[m] = days_to_constrain[-1]
+
+
     # Ограничение по типам машин ###
     # Продукты с типом 1 могут производиться только на машинах с типом 1.
     # Продукты с типом 0 могут производиться на любых машинах.
@@ -273,147 +298,135 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
                             model.Add(jobs[m, d] != p)
 
     # Ограничения ПЕРЕХОДА
-    # Переменные для отслеживания завершения двухдневного перехода
-    completed_transition = {}
-    is_not_zero = {}
-    same_as_prev = {}
-    prev_is_not_zero = {}
-    prev2_is_not_zero = {}
-    two_day_zero = {}
-    for m in range(num_machines):
-        for d in range(num_days):
-            completed_transition[m, d] = model.NewBoolVar(f"completed_transition_{m}_{d}")
+    # This new logic correctly handles initial mandatory production runs and cleaning days.
 
-    # Ограничение для первого дня (d=0)
-    for m in range(num_machines):
-        initial_product = initial_products[m]
-        is_initial_product = model.NewBoolVar(f"is_initial_product_{m}_0")
-        is_not_zero[m, 0] = model.NewBoolVar(f"is_not_zero_{m}_0")
+    completed_transition = {}  # remains the same
 
-        model.Add(jobs[m, 0] == initial_product).OnlyEnforceIf(is_initial_product)
-        model.Add(jobs[m, 0] != initial_product).OnlyEnforceIf(is_initial_product.Not())
-        model.Add(jobs[m, 0] == PRODUCT_ZERO).OnlyEnforceIf(is_not_zero[m, 0].Not())
-        model.Add(jobs[m, 0] != PRODUCT_ZERO).OnlyEnforceIf(is_not_zero[m, 0])
+    for m in all_machines:
+        # Get all non-cleaning work days for the current machine, sorted by day.
+        machine_work_days = sorted([d for (mach, d) in work_days if mach == m])
 
-        # Первый день: либо начальный продукт, либо PRODUCT_ZERO
-        model.AddBoolOr([is_initial_product, is_not_zero[m, 0].Not()])
+        # Determine the starting point for applying transition logic.
+        # If a mandatory run exists for this machine, transitions can only start after it's done.
+        start_day_for_transitions = last_mandatory_day.get(m, -1) + 1
+        initial_product_idx = machines[m][1]
 
-        # Устанавливаем completed_transition для дня 0
-        model.Add(completed_transition[m, 0] == 0)  # Нет перехода в день 0
-
-    # Ограничение для второго дня (d=1)
-    for m in range(num_machines):
-        is_not_zero[m, 1] = model.NewBoolVar(f"is_not_zero_{m}_1")
-        model.Add(jobs[m, 1] != PRODUCT_ZERO).OnlyEnforceIf(is_not_zero[m, 1])
-        model.Add(jobs[m, 1] == PRODUCT_ZERO).OnlyEnforceIf(is_not_zero[m, 1].Not())
-
-        same_as_prev[m, 1] = model.NewBoolVar(f"same_as_prev_{m}_1")
-        model.Add(jobs[m, 1] == jobs[m, 0]).OnlyEnforceIf(same_as_prev[m, 1])
-        model.Add(jobs[m, 1] != jobs[m, 0]).OnlyEnforceIf(same_as_prev[m, 1].Not())
-
-        prev_is_zero = model.NewBoolVar(f"prev_is_zero_{m}_1")
-        model.Add(jobs[m, 0] == PRODUCT_ZERO).OnlyEnforceIf(prev_is_zero)
-        model.Add(jobs[m, 0] != PRODUCT_ZERO).OnlyEnforceIf(prev_is_zero.Not())
-
-        # Если день 0 - PRODUCT_ZERO, день 1 должен быть PRODUCT_ZERO для начала перехода
-        model.Add(jobs[m, 1] == PRODUCT_ZERO).OnlyEnforceIf(prev_is_zero)
-
-        # Если день 1 - не PRODUCT_ZERO, должен быть таким же, как день 0 (если день 0 не PRODUCT_ZERO)
-        model.AddBoolOr([is_not_zero[m, 1].Not(), same_as_prev[m, 1]]).OnlyEnforceIf(prev_is_zero.Not())
-
-        # completed_transition[m, 1] истинно, если день 0 и день 1 - PRODUCT_ZERO
-        model.Add(completed_transition[m, 1] == prev_is_zero)
-
-    # Логика переходов для дней d ≥ 2
-    for m in range(num_machines):
-        for d in range(2, num_days):
-            if (m, d) not in cleans and (m, d - 1) not in cleans and (m, d - 2) not in cleans:
-                pred_idx = d - 1
-                pred_pred_idx = d - 2
-                prev2_is_not_zero[m, d] = model.NewBoolVar(f"prev2_is_not_zero_{m}_{d}")
-                model.Add(jobs[m, pred_pred_idx] != PRODUCT_ZERO).OnlyEnforceIf(prev2_is_not_zero[m, d])
-                model.Add(jobs[m, pred_pred_idx] == PRODUCT_ZERO).OnlyEnforceIf(prev2_is_not_zero[m, d].Not())
-            elif (m, d) in cleans:
+        # Iterate through the machine's work days using an index `i`
+        for i, d in enumerate(machine_work_days):
+            # Skip applying any transition logic to days that are part of the mandatory initial run.
+            if d < start_day_for_transitions:
+                # For these fixed days, we must still define completed_transition as false.
+                completed_transition[m, d] = model.NewBoolVar(f"completed_transition_{m}_{d}")
+                model.Add(completed_transition[m, d] == 0)
                 continue
-            elif (m, d - 1) in cleans:
-                pred_idx = d - 2
-                pred_pred_idx = d - 3
-                prev2_is_not_zero[m, d] = model.NewBoolVar(f"prev2_is_not_zero_{m}_{d}")
-                model.Add(jobs[m, pred_pred_idx] != PRODUCT_ZERO).OnlyEnforceIf(prev2_is_not_zero[m, d])
-                model.Add(jobs[m, pred_pred_idx] == PRODUCT_ZERO).OnlyEnforceIf(prev2_is_not_zero[m, d].Not())
-            elif (m, d - 2) in cleans:
-                pred_idx = d - 1
-                prev2_is_not_zero[m, d] = model.NewBoolVar(f"prev2_is_not_zero_{m}_{d}")
-                model.Add(prev2_is_not_zero[m, d] == 1)
 
+            # --- Define main variables for the current day `d` ---
+            completed_transition[m, d] = model.NewBoolVar(f"completed_transition_{m}_{d}")
+            is_not_zero = model.NewBoolVar(f"is_not_zero_{m}_{d}")
+            model.Add(jobs[m, d] != PRODUCT_ZERO).OnlyEnforceIf(is_not_zero)
+            model.Add(jobs[m, d] == PRODUCT_ZERO).OnlyEnforceIf(is_not_zero.Not())
 
-            is_not_zero[m, d] = model.NewBoolVar(f"is_not_zero_{m}_{d}")
-            model.Add(jobs[m, d] != PRODUCT_ZERO).OnlyEnforceIf(is_not_zero[m, d])
-            model.Add(jobs[m, d] == PRODUCT_ZERO).OnlyEnforceIf(is_not_zero[m, d].Not())
+            # Find the previous one and two working days, if they exist.
+            prev_work_day = machine_work_days[i - 1] if i > 0 else -1
+            prev_2_work_day = machine_work_days[i - 2] if i > 1 else -1
 
-            prev_is_not_zero[m, d] = model.NewBoolVar(f"prev_is_not_zero_{m}_{d}")
-            model.Add(jobs[m, pred_idx] != PRODUCT_ZERO).OnlyEnforceIf(prev_is_not_zero[m, d])
-            model.Add(jobs[m, pred_idx] == PRODUCT_ZERO).OnlyEnforceIf(prev_is_not_zero[m, d].Not())
+            # --- LOGIC FOR THE FIRST TRANSITIONABLE DAY ---
+            # This replaces the old d=0 and d=1 logic.
+            if prev_work_day == -1:
+                is_same_as_prev = model.NewBoolVar(f"same_as_prev_{m}_{d}")
+                model.Add(jobs[m, d] == initial_product_idx).OnlyEnforceIf(is_same_as_prev)
+                model.Add(jobs[m, d] != initial_product_idx).OnlyEnforceIf(is_same_as_prev.Not())
 
-            # Проверяем, был ли завершен двухдневный переход
-            two_day_zero[m, d] = model.NewBoolVar(f"two_day_zero_{m}_{d}")
-            model.AddBoolAnd(prev_is_not_zero[m, d].Not(), prev2_is_not_zero[m, d].Not()).OnlyEnforceIf(
-                two_day_zero[m, d])
-            model.AddBoolOr(prev_is_not_zero[m, d], prev2_is_not_zero[m, d]).OnlyEnforceIf(
-                two_day_zero[m, d].Not())
+                # On the first day, you can't complete a transition.
+                model.Add(completed_transition[m, d] == 0)
 
-            # Устанавливаем completed_transition
-            model.Add(completed_transition[m, d] == two_day_zero[m, d])
+                # The job must be the same as before, or it must be zero (to start a transition).
+                model.AddBoolOr([is_same_as_prev, is_not_zero.Not()])
+            elif prev_2_work_day == -1:
 
-            # ### НАЧАЛО НОВОГО БЛОКА: Ограничение на повышение индекса продукта ###
-            # Это ограничение срабатывает только в день `d`, когда завершился двухдневный переход,
-            # что определяется переменной completed_transition[m, d].
+                is_same_as_prev = model.NewBoolVar(f"same_as_prev_{m}_{d}")
+                model.Add(jobs[m, d] == jobs[m, prev_work_day]).OnlyEnforceIf(is_same_as_prev)
+                model.Add(jobs[m, d] != jobs[m, prev_work_day]).OnlyEnforceIf(is_same_as_prev.Not())
 
-            # 1. Находим индекс рабочего дня перед началом перехода.
-            #    Переход занимал дни `pred_pred_idx` и `pred_idx`. Ищем день до `pred_pred_idx`.
-            day_before_transition_start = pred_pred_idx - 1
-            while day_before_transition_start >= 0 and (m, day_before_transition_start) in cleans:
-                day_before_transition_start -= 1
+                is_prev_is_zero = model.NewBoolVar(f"prev_is_zero_{m}_{d}")
+                model.Add(jobs[m, prev_work_day] == PRODUCT_ZERO).OnlyEnforceIf(is_prev_is_zero)
+                model.Add(jobs[m, prev_work_day] != PRODUCT_ZERO).OnlyEnforceIf(is_prev_is_zero.Not())
 
-            # 2. Применяем ограничение, только если такой день существует в расписании.
-            if day_before_transition_start >= 0:
-                # Переменная, указывающая на продукт до начала перехода.
-                product_before = jobs[(m, day_before_transition_start)]
+                # Если день 0 - PRODUCT_ZERO, день 1 должен быть PRODUCT_ZERO для начала перехода
+                model.Add(jobs[m, prev_work_day] == PRODUCT_ZERO).OnlyEnforceIf(is_prev_is_zero)
 
-                # 3. Вводим вспомогательную переменную. Она будет истинной, если
-                #    продукт до перехода не был PRODUCT_ZERO. Это нужно, чтобы
-                #    избежать сравнения, если до этого уже был простой.
+                # Если день 1 - не PRODUCT_ZERO, должен быть таким же, как день 0 (если день 0 не PRODUCT_ZERO)
+                model.AddBoolOr([is_not_zero.Not(), is_same_as_prev]).OnlyEnforceIf(is_prev_is_zero.Not())
+
+                # completed_transition[m, 1] истинно, если день 0 и день 1 - PRODUCT_ZERO
+                model.Add(completed_transition[m, d] == is_prev_is_zero)
+
+            elif prev_work_day < start_day_for_transitions:
+                # This is the very first day after the mandatory run (or day 0 if no run).
+                # The product can either be the same as the previous day or PRODUCT_ZERO.
+                product_on_prev_day = jobs[
+                    m, prev_work_day]  # This is a fixed value from the initial run or setup.
+
+                is_same_as_prev = model.NewBoolVar(f"same_as_prev_{m}_{d}")
+                model.Add(jobs[m, d] == product_on_prev_day).OnlyEnforceIf(is_same_as_prev)
+                model.Add(jobs[m, d] != product_on_prev_day).OnlyEnforceIf(is_same_as_prev.Not())
+
+                # On the first day, you can't complete a transition.
+                model.Add(completed_transition[m, d] == 0)
+
+                # The job must be the same as before, or it must be zero (to start a transition).
+                model.AddBoolOr([is_same_as_prev, is_not_zero.Not()])
+
+            # --- LOGIC FOR ALL SUBSEQUENT TRANSITIONABLE DAYS ---
+            else:  # (prev_work_day >= start_day_for_transitions)
+                # This is the general case, equivalent to the old d>=2 logic.
+
+                # Check if the previous two days were PRODUCT_ZERO
+                prev_is_zero = model.NewBoolVar(f"prev_is_zero_{m}_{d}")
+                model.Add(jobs[m, prev_work_day] == PRODUCT_ZERO).OnlyEnforceIf(prev_is_zero)
+                model.Add(jobs[m, prev_work_day] != PRODUCT_ZERO).OnlyEnforceIf(prev_is_zero.Not())
+
+                prev_2_is_zero = model.NewBoolVar(f"prev_2_is_zero_{m}_{d}")
+                model.Add(jobs[m, prev_2_work_day] == PRODUCT_ZERO).OnlyEnforceIf(prev_2_is_zero)
+                model.Add(jobs[m, prev_2_work_day] != PRODUCT_ZERO).OnlyEnforceIf(prev_2_is_zero.Not())
+
+                # A transition is completed if the previous two work days were ZERO.
+                model.AddBoolAnd([prev_is_zero, prev_2_is_zero]).OnlyEnforceIf(completed_transition[m, d])
+                model.Add(completed_transition[m, d] == 0).OnlyEnforceIf(prev_is_zero.Not())
+                model.Add(completed_transition[m, d] == 0).OnlyEnforceIf(prev_2_is_zero.Not())
+                #model.Add(completed_transition[m, d] == 1).OnlyEnforceIf(prev_is_zero)
+
+                # If a transition is completed, the new product must be > product before transition and not zero.
+                day_before_transition_start = machine_work_days[prev_2_work_day - 1] if prev_2_work_day > 0 else - 1
+                if day_before_transition_start >= 0:
+                    product_before = jobs[m, day_before_transition_start]
+                else:
+                    product_before = initial_product_idx
                 product_before_is_not_zero = model.NewBoolVar(f"prod_before_not_zero_{m}_{d}")
                 model.Add(product_before != PRODUCT_ZERO).OnlyEnforceIf(product_before_is_not_zero)
                 model.Add(product_before == PRODUCT_ZERO).OnlyEnforceIf(product_before_is_not_zero.Not())
-
-                # 4. Устанавливаем само ограничение.
-                #    Оно должно сработать, только если (А) переход завершен И (Б) продукт до перехода не был нулевым.
-                #    Существующее ограничение `model.add(jobs[m, d] != PRODUCT_ZERO).OnlyEnforceIf(completed_transition[m, d])`
-                #    уже гарантирует, что jobs[m, d] не будет нулем, если переход завершен.
                 model.Add(jobs[m, d] > product_before).OnlyEnforceIf(
-                    [completed_transition[m, d], product_before_is_not_zero]
-                )
-            # ### КОНЕЦ НОВОГО БЛОКА ###
+                    [completed_transition[m, d], product_before_is_not_zero])
 
-            # Ограничения:
-            # Если текущий день - не ноль, то либо:
-            # 1) тот же продукт, что и вчера (если вчера не ноль)
-            # 2) завершен двухдневный переход
-            same_as_prev[m, d] = model.NewBoolVar(f"same_as_prev_{m}_{d}")
-            model.Add(jobs[m, d] == jobs[m, pred_idx]).OnlyEnforceIf(same_as_prev[m, d])
-            model.Add(jobs[m, d] != jobs[m, pred_idx]).OnlyEnforceIf(same_as_prev[m, d].Not())
+                # General rule: if today is not zero, it must either be the same as yesterday, or a transition was just completed.
+                same_as_prev = model.NewBoolVar(f"same_as_prev_{m}_{d}")
+                model.Add(jobs[m, d] == jobs[m, prev_work_day]).OnlyEnforceIf(same_as_prev)
+                model.Add(jobs[m, d] != jobs[m, prev_work_day]).OnlyEnforceIf(same_as_prev.Not())
 
-            model.AddBoolOr([
-                is_not_zero[m, d].Not(),  # Текущий день - PRODUCT_ZERO
-                same_as_prev[m, d],  # Тот же продукт, что вчера
-                completed_transition[m, d]  # Завершен двухдневный переход
-            ])
-            # Запрет на 3-й ZERO
-            model.add(jobs[m, d] != PRODUCT_ZERO).OnlyEnforceIf(completed_transition[m, d])
-            # Запрет на переход в последние 2 дня
-            if d >= count_days - 2:
-                model.add(jobs[m, d] != PRODUCT_ZERO)
+                model.AddBoolOr([
+                    is_not_zero.Not(),  # Current day is PRODUCT_ZERO
+                    same_as_prev,  # Same product as the previous work day
+                    completed_transition[m, d]  # A two-day transition was completed
+                ])
+
+                # A transition implies the current day is not PRODUCT_ZERO (no 3rd zero day).
+                model.Add(is_not_zero == 1).OnlyEnforceIf(completed_transition[m, d])
+
+
+        # Existing rules for end of schedule can be adapted and placed here, outside the day-loop.
+        for d in range(num_days - 2, num_days):
+            if (m, d) in work_days:
+                model.Add(jobs[m, d] != PRODUCT_ZERO)
 
     # не более 1-го простоя за неделю
     for m in range(num_machines):
@@ -441,8 +454,8 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
                             model.AddHint(product_produced_bools[p, m, d], hint_value)
 
                         # 'is_not_zero'
-                        is_not_zero_hint = 1 if initial_product_idx != PRODUCT_ZERO else 0
-                        model.AddHint(is_not_zero[m, d], is_not_zero_hint)
+                        #is_not_zero_hint = 1 if initial_product_idx != PRODUCT_ZERO else 0
+                        #model.AddHint(is_not_zero[m, d], is_not_zero_hint)
 
                         # 'same_as_prev' and 'completed_transition'
                         if d > 0 and schedule_init[m][d-1] and schedule_init[m][d-1] > 0:
@@ -450,8 +463,8 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
                             prev_product_id_hint = schedule_init[m][d_prev]
 
                             # 'same_as_prev'
-                            same_as_prev_hint = 1 if initial_product_idx == prev_product_id_hint else 0
-                            model.AddHint(same_as_prev[m, d], same_as_prev_hint)
+                            #same_as_prev_hint = 1 if initial_product_idx == prev_product_id_hint else 0
+                            #model.AddHint(same_as_prev[m, d], same_as_prev_hint)
 
                             if d > 1 and schedule_init[m][d-2] and schedule_init[m][d-2] > 0:
                                 d_prev = d - 1

@@ -7,6 +7,7 @@ class Machine(BaseModel):
     product_idx: int = Field(description="индекс продукта на машине")
     id: str
     type: int
+    remain_day: int = Field(default=0)
 
 class Remain(BaseModel):
     idx: int
