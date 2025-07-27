@@ -51,7 +51,7 @@ def schedule_loom_calc_model(DataIn: DataLoomIn) -> LoomPlansOut:
                                     max_daily_prod_zero=max_daily_prod_zero, count_days=count_days, data=data)
 
         if result_calc["error_str"] == "" and result_calc["status"] != cp_model.INFEASIBLE:
-            machines_view = [name for (name, product_idx,  id, type) in machines]
+            machines_view = [name for (name, product_idx,  id, type, remain_day) in machines]
             products_view = [name for (name, qty, id, machine_type, qm) in products]
             title_text = f"{result_calc['status_str']} оптимизационное значение {result_calc['objective_value']}"
 

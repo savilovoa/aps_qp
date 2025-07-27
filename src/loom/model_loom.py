@@ -27,6 +27,7 @@ class Product(BaseModel):
     machine_type: int
     resource: list[Resources] = Field(default=[])
     qty_minus: int = Field(default=0)
+    lday: int = Field(description="количество смен после перехода в основе")
 
 class Clean(BaseModel):
     day_idx: int
