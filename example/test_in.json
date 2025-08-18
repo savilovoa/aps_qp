@@ -6,7 +6,7 @@
 "product_idx": 11,
 "id": "aa2b3544-abfa-11ec-80e0-005056aac628",
 "type": 1,
-"remain_day": 56
+"remain_day": 79
 },
 {
 "idx": 1,
@@ -14,7 +14,7 @@
 "product_idx": 10,
 "id": "b998c049-abfa-11ec-80e0-005056aac628",
 "type": 1,
-"remain_day": 69
+"remain_day": 79
 },
 {
 "idx": 2,
@@ -22,7 +22,7 @@
 "product_idx": 25,
 "id": "fbc4c376-8087-11ea-80cc-005056aab926",
 "type": 0,
-"remain_day": 63
+"remain_day": 75
 },
 {
 "idx": 3,
@@ -30,7 +30,7 @@
 "product_idx": 20,
 "id": "c8696e5a-abfa-11ec-80e0-005056aac628",
 "type": 1,
-"remain_day": 67
+"remain_day": 71
 },
 {
 "idx": 4,
@@ -38,7 +38,7 @@
 "product_idx": 2,
 "id": "e8b7876e-abfa-11ec-80e0-005056aac628",
 "type": 1,
-"remain_day": 63
+"remain_day": 74
 },
 {
 "idx": 5,
@@ -46,7 +46,7 @@
 "product_idx": 3,
 "id": "f27d1290-abfa-11ec-80e0-005056aac628",
 "type": 1,
-"remain_day": 51
+"remain_day": 78
 },
 {
 "idx": 6,
@@ -54,7 +54,7 @@
 "product_idx": 15,
 "id": "fedde8c8-abfa-11ec-80e0-005056aac628",
 "type": 1,
-"remain_day": 59
+"remain_day": 77
 },
 {
 "idx": 7,
@@ -62,7 +62,7 @@
 "product_idx": 20,
 "id": "fedde8c9-abfa-11ec-80e0-005056aac628",
 "type": 1,
-"remain_day": 52
+"remain_day": 72
 },
 {
 "idx": 8,
@@ -70,7 +70,7 @@
 "product_idx": 15,
 "id": "06dd754d-abfb-11ec-80e0-005056aac628",
 "type": 1,
-"remain_day": 53
+"remain_day": 84
 },
 {
 "idx": 9,
@@ -78,7 +78,7 @@
 "product_idx": 15,
 "id": "06dd754e-abfb-11ec-80e0-005056aac628",
 "type": 1,
-"remain_day": 61
+"remain_day": 73
 },
 {
 "idx": 10,
@@ -86,7 +86,7 @@
 "product_idx": 15,
 "id": "a4477be3-b16c-11ec-80e2-005056aa1736",
 "type": 1,
-"remain_day": 54
+"remain_day": 81
 },
 {
 "idx": 11,
@@ -94,7 +94,7 @@
 "product_idx": 15,
 "id": "ab27292b-b16c-11ec-80e2-005056aa1736",
 "type": 1,
-"remain_day": 62
+"remain_day": 75
 },
 {
 "idx": 12,
@@ -102,7 +102,7 @@
 "product_idx": 0,
 "id": "fbc4c37a-8087-11ea-80cc-005056aab926",
 "type": 0,
-"remain_day": 51
+"remain_day": 84
 },
 {
 "idx": 13,
@@ -110,7 +110,7 @@
 "product_idx": 24,
 "id": "fbc4c380-8087-11ea-80cc-005056aab926",
 "type": 0,
-"remain_day": 63
+"remain_day": 81
 },
 {
 "idx": 14,
@@ -118,7 +118,7 @@
 "product_idx": 24,
 "id": "fbc4c382-8087-11ea-80cc-005056aab926",
 "type": 0,
-"remain_day": 68
+"remain_day": 72
 },
 {
 "idx": 15,
@@ -126,7 +126,7 @@
 "product_idx": 14,
 "id": "fbc4c387-8087-11ea-80cc-005056aab926",
 "type": 0,
-"remain_day": 69
+"remain_day": 74
 },
 {
 "idx": 16,
@@ -134,7 +134,7 @@
 "product_idx": 0,
 "id": "fbc4c388-8087-11ea-80cc-005056aab926",
 "type": 0,
-"remain_day": 66
+"remain_day": 71
 },
 {
 "idx": 17,
@@ -142,7 +142,7 @@
 "product_idx": 26,
 "id": "fbc4c389-8087-11ea-80cc-005056aab926",
 "type": 0,
-"remain_day": 62
+"remain_day": 79
 },
 {
 "idx": 18,
@@ -150,7 +150,7 @@
 "product_idx": 25,
 "id": "fbc4c38d-8087-11ea-80cc-005056aab926",
 "type": 0,
-"remain_day": 59
+"remain_day": 74
 },
 {
 "idx": 19,
@@ -158,7 +158,7 @@
 "product_idx": 26,
 "id": "fbc4c398-8087-11ea-80cc-005056aab926",
 "type": 0,
-"remain_day": 64
+"remain_day": 76
 },
 {
 "idx": 20,
@@ -166,7 +166,7 @@
 "product_idx": 1,
 "id": "fbc4c399-8087-11ea-80cc-005056aab926",
 "type": 0,
-"remain_day": 61
+"remain_day": 76
 },
 {
 "idx": 21,
@@ -174,7 +174,7 @@
 "product_idx": 4,
 "id": "fbc4c3a2-8087-11ea-80cc-005056aab926",
 "type": 0,
-"remain_day": 65
+"remain_day": 74
 },
 {
 "idx": 22,
@@ -182,7 +182,7 @@
 "product_idx": 4,
 "id": "fbc4c3a3-8087-11ea-80cc-005056aab926",
 "type": 0,
-"remain_day": 57
+"remain_day": 71
 },
 {
 "idx": 23,
@@ -190,7 +190,7 @@
 "product_idx": 4,
 "id": "fbc4c3a4-8087-11ea-80cc-005056aab926",
 "type": 0,
-"remain_day": 55
+"remain_day": 80
 },
 {
 "idx": 24,
@@ -198,7 +198,7 @@
 "product_idx": 12,
 "id": "fbc4c3a6-8087-11ea-80cc-005056aab926",
 "type": 0,
-"remain_day": 74
+"remain_day": 78
 },
 {
 "idx": 25,
@@ -206,7 +206,7 @@
 "product_idx": 26,
 "id": "fbc4c3a7-8087-11ea-80cc-005056aab926",
 "type": 0,
-"remain_day": 69
+"remain_day": 71
 },
 {
 "idx": 26,
@@ -214,7 +214,7 @@
 "product_idx": 26,
 "id": "fbc4c3a9-8087-11ea-80cc-005056aab926",
 "type": 0,
-"remain_day": 58
+"remain_day": 71
 },
 {
 "idx": 27,
@@ -222,7 +222,7 @@
 "product_idx": 7,
 "id": "fbc4c3ae-8087-11ea-80cc-005056aab926",
 "type": 0,
-"remain_day": 56
+"remain_day": 71
 },
 {
 "idx": 28,
@@ -230,7 +230,7 @@
 "product_idx": 26,
 "id": "fbc4c3b7-8087-11ea-80cc-005056aab926",
 "type": 1,
-"remain_day": 58
+"remain_day": 71
 },
 {
 "idx": 29,
@@ -238,7 +238,7 @@
 "product_idx": 6,
 "id": "fbc4c3b8-8087-11ea-80cc-005056aab926",
 "type": 1,
-"remain_day": 55
+"remain_day": 80
 },
 {
 "idx": 30,
@@ -246,7 +246,7 @@
 "product_idx": 22,
 "id": "fbc4c3bf-8087-11ea-80cc-005056aab926",
 "type": 0,
-"remain_day": 66
+"remain_day": 78
 },
 {
 "idx": 31,
@@ -254,7 +254,7 @@
 "product_idx": 7,
 "id": "fbc4c3c1-8087-11ea-80cc-005056aab926",
 "type": 1,
-"remain_day": 52
+"remain_day": 96
 },
 {
 "idx": 32,
@@ -262,7 +262,7 @@
 "product_idx": 22,
 "id": "fbc4c3c2-8087-11ea-80cc-005056aab926",
 "type": 1,
-"remain_day": 51
+"remain_day": 80
 },
 {
 "idx": 33,
@@ -270,7 +270,7 @@
 "product_idx": 22,
 "id": "fbc4c3c3-8087-11ea-80cc-005056aab926",
 "type": 1,
-"remain_day": 53
+"remain_day": 72
 },
 {
 "idx": 34,
@@ -278,7 +278,7 @@
 "product_idx": 22,
 "id": "fbc4c3c4-8087-11ea-80cc-005056aab926",
 "type": 1,
-"remain_day": 54
+"remain_day": 73
 },
 {
 "idx": 35,
@@ -286,7 +286,7 @@
 "product_idx": 26,
 "id": "fbc4c3c5-8087-11ea-80cc-005056aab926",
 "type": 1,
-"remain_day": 75
+"remain_day": 92
 },
 {
 "idx": 36,
@@ -294,7 +294,7 @@
 "product_idx": 6,
 "id": "fbc4c3c7-8087-11ea-80cc-005056aab926",
 "type": 1,
-"remain_day": 70
+"remain_day": 87
 },
 {
 "idx": 37,
@@ -302,7 +302,7 @@
 "product_idx": 0,
 "id": "fbc4c3c8-8087-11ea-80cc-005056aab926",
 "type": 1,
-"remain_day": 0
+"remain_day": 77
 },
 {
 "idx": 38,
@@ -310,7 +310,7 @@
 "product_idx": 9,
 "id": "5af9b5d9-abfa-11ec-80e0-005056aac628",
 "type": 1,
-"remain_day": 54
+"remain_day": 84
 },
 {
 "idx": 39,
@@ -318,7 +318,7 @@
 "product_idx": 8,
 "id": "6166f3dc-abfa-11ec-80e0-005056aac628",
 "type": 1,
-"remain_day": 61
+"remain_day": 75
 }
 ],
 "products": [
@@ -341,7 +341,7 @@
 "idx": 1,
 "name": "ст2022УИСt4 ",
 "qty": 0,
-"id": "1be33111-e4e3-4a88-bc50-3a97c86c1788",
+"id": "c85bef07-7488-4cff-a5b3-fd9cf090b7cb",
 "machine_type": 0,
 "qty_minus": 0,
 "lday": 1,
@@ -356,7 +356,7 @@
 "idx": 2,
 "name": "ст10005амt5 ",
 "qty": 0,
-"id": "bc93a49b-37d9-4c9d-be21-230065f1c66c",
+"id": "63651bf0-8fec-45d1-b3c7-2d0a9113b971",
 "machine_type": 0,
 "qty_minus": 0,
 "lday": 1,
@@ -371,7 +371,7 @@
 "idx": 3,
 "name": "ст16823амt18 ",
 "qty": 0,
-"id": "b4a46acc-b962-4a41-bb00-b934efceca7a",
+"id": "9ad756cb-6f2a-4a86-8b90-23c3ca5ea042",
 "machine_type": 0,
 "qty_minus": 0,
 "lday": 1,
@@ -386,7 +386,7 @@
 "idx": 4,
 "name": "ст38404t1 ",
 "qty": 22,
-"id": "99d73562-dfe6-4ca9-a9c1-6f929464428c",
+"id": "501972e8-ab2b-4f3a-94de-baa69a48e796",
 "machine_type": 0,
 "qty_minus": false,
 "lday": 20,
@@ -401,10 +401,10 @@
 "idx": 5,
 "name": "стХП55-019МВДt1 ",
 "qty": 29,
-"id": "1e25060d-8cf7-45ac-a5c2-ee3ad8edd87c",
+"id": "6cb5fa14-1bd4-4405-b177-2f251e82f74f",
 "machine_type": 1,
 "qty_minus": false,
-"lday": 16,
+"lday": 14,
 "qty_week": [
 21,
 8,
@@ -416,7 +416,7 @@
 "idx": 6,
 "name": "ст76004t2 П, 0, 2, П2",
 "qty": 28,
-"id": "60587fb9-e6ef-467f-95ce-375bae4a6ed2",
+"id": "bbb2ecf1-fa4e-40e8-aaa2-b4bf7031ad83",
 "machine_type": 0,
 "qty_minus": false,
 "lday": 16,
@@ -431,7 +431,7 @@
 "idx": 7,
 "name": "ст87001t1 ",
 "qty": 70,
-"id": "4e1e7391-7403-403a-a874-bea7b89ce8ab",
+"id": "07366b18-ac65-4a5a-bc2d-ea99f3fedd3e",
 "machine_type": 0,
 "qty_minus": true,
 "lday": 21,
@@ -446,10 +446,10 @@
 "idx": 8,
 "name": "ст18450амt4 ",
 "qty": 74,
-"id": "4261e01a-f856-4ea8-a2ea-14149c04b9aa",
+"id": "d8279c25-342d-424d-82af-73581367be95",
 "machine_type": 1,
 "qty_minus": true,
-"lday": 19,
+"lday": 23,
 "qty_week": [
 21,
 16,
@@ -461,7 +461,7 @@
 "idx": 9,
 "name": "ст18422ахмt6 ",
 "qty": 68,
-"id": "e2d9e471-4c7b-4721-9840-d2fb4d1795e1",
+"id": "17f6d750-bb16-4c9b-ab81-20a11c2a42c7",
 "machine_type": 1,
 "qty_minus": true,
 "lday": 16,
@@ -476,7 +476,7 @@
 "idx": 10,
 "name": "ст18308t1 ",
 "qty": 73,
-"id": "3d76c77a-19eb-406f-b6e4-7af1ad385e44",
+"id": "aad00146-8818-4541-b5f2-99ef37ce8722",
 "machine_type": 0,
 "qty_minus": true,
 "lday": 15,
@@ -491,7 +491,7 @@
 "idx": 11,
 "name": "ст81408амt14 ",
 "qty": 82,
-"id": "870f88a1-0afe-4401-8820-4150ca5e06d2",
+"id": "99e0b59d-572f-47c4-8140-1e72b2372721",
 "machine_type": 1,
 "qty_minus": false,
 "lday": 15,
@@ -506,10 +506,10 @@
 "idx": 12,
 "name": "ст10417RSt ",
 "qty": 80,
-"id": "2804c6ad-5114-4336-bbfb-de02efb211ed",
+"id": "b449a657-9052-4499-aef7-34d128605169",
 "machine_type": 0,
 "qty_minus": true,
-"lday": 15,
+"lday": 10,
 "qty_week": [
 19,
 21,
@@ -521,10 +521,10 @@
 "idx": 13,
 "name": "ст78426t П, 0, 14, П2",
 "qty": 90,
-"id": "1659d7ed-dba8-4338-9799-c70d1e61482e",
+"id": "7595a32f-041d-42c6-82fe-8043d03276e6",
 "machine_type": 0,
 "qty_minus": false,
-"lday": 16,
+"lday": 17,
 "qty_week": [
 0,
 0,
@@ -536,10 +536,10 @@
 "idx": 14,
 "name": "ст60410t3 ",
 "qty": 115,
-"id": "a90464ef-c68e-4cb7-b719-1701448fc325",
+"id": "02a05c07-151d-4121-81ab-7725d6711f07",
 "machine_type": 0,
 "qty_minus": true,
-"lday": 18,
+"lday": 19,
 "qty_week": [
 19,
 21,
@@ -551,10 +551,10 @@
 "idx": 15,
 "name": "ст15406aмRSt2 ",
 "qty": 100,
-"id": "3133eef0-9cd9-483d-9076-fa9c27c59fe0",
-"machine_type": 1,
+"id": "04b1e45d-e81d-457d-972d-6f653ecd2878",
+"machine_type": 0,
 "qty_minus": true,
-"lday": 15,
+"lday": 14,
 "qty_week": [
 45,
 17,
@@ -566,10 +566,10 @@
 "idx": 16,
 "name": "ст87024t1 ",
 "qty": 129,
-"id": "00527e48-467a-4e0e-a71b-43e5396bc32b",
+"id": "7954a729-2d33-4187-b911-c91ed968431c",
 "machine_type": 0,
 "qty_minus": true,
-"lday": 19,
+"lday": 20,
 "qty_week": [
 7,
 42,
@@ -581,7 +581,7 @@
 "idx": 17,
 "name": "ст78425t П, 0, 14, П2",
 "qty": 135,
-"id": "61a3f566-d402-4979-b14d-926a73aff325",
+"id": "da17fda6-7154-418e-8005-0d56d8cd70a8",
 "machine_type": 0,
 "qty_minus": true,
 "lday": 18,
@@ -596,7 +596,7 @@
 "idx": 18,
 "name": "ст87309t ",
 "qty": 143,
-"id": "124122e3-c8ab-4f7c-8bc4-22564e94a731",
+"id": "060edda8-86e8-46b9-bc31-dad4131b81a8",
 "machine_type": 0,
 "qty_minus": false,
 "lday": 16,
@@ -611,10 +611,10 @@
 "idx": 19,
 "name": "ст10421амt3 ",
 "qty": 152,
-"id": "305ec5d8-e46d-48b2-8085-68f0c730e7aa",
+"id": "eba2b515-f2e7-49a5-af7b-065529401032",
 "machine_type": 1,
 "qty_minus": false,
-"lday": 17,
+"lday": 15,
 "qty_week": [
 31,
 42,
@@ -626,10 +626,10 @@
 "idx": 20,
 "name": "ст15404амt2 ",
 "qty": 141,
-"id": "5ea83c90-fd3b-429e-93d5-c78b83c6a0d2",
+"id": "f5960753-9e5b-451b-9739-227fbac3aba2",
 "machine_type": 1,
 "qty_minus": true,
-"lday": 15,
+"lday": 14,
 "qty_week": [
 42,
 37,
@@ -641,10 +641,10 @@
 "idx": 21,
 "name": "ст87416t1 ",
 "qty": 190,
-"id": "2f222f11-1d4a-498d-bf04-d398623f99df",
+"id": "bf7a2775-8892-43ef-bc0a-f25cb914fdd0",
 "machine_type": 0,
 "qty_minus": true,
-"lday": 18,
+"lday": 23,
 "qty_week": [
 8,
 60,
@@ -656,10 +656,10 @@
 "idx": 22,
 "name": "ст15306t4 ",
 "qty": 169,
-"id": "776e5d5c-65c9-4b69-8dc0-eb99d4102557",
+"id": "9578a087-9129-4c87-af6f-4188e94bc69c",
 "machine_type": 0,
 "qty_minus": true,
-"lday": 16,
+"lday": 15,
 "qty_week": [
 58,
 54,
@@ -671,10 +671,10 @@
 "idx": 23,
 "name": "ст87021t4 ",
 "qty": 120,
-"id": "172a4f5f-cb68-4d22-8b26-0a5953196efd",
+"id": "c827b716-8df7-405b-9109-1422efc3cbc4",
 "machine_type": 0,
 "qty_minus": false,
-"lday": 10,
+"lday": 11,
 "qty_week": [
 0,
 0,
@@ -686,7 +686,7 @@
 "idx": 24,
 "name": "ст87315t ",
 "qty": 161,
-"id": "20e0b47c-7b9b-4cd3-be0b-cae4dde39e7a",
+"id": "e64591b9-3ae6-4fe3-be3b-69543c94f030",
 "machine_type": 0,
 "qty_minus": false,
 "lday": 13,
@@ -701,10 +701,10 @@
 "idx": 25,
 "name": "ст87027t ",
 "qty": 184,
-"id": "0eab52f1-d8c5-4df8-abb7-086995ec1f67",
+"id": "cd055eab-ea63-405f-b33a-96b283622974",
 "machine_type": 0,
 "qty_minus": false,
-"lday": 12,
+"lday": 14,
 "qty_week": [
 56,
 84,
@@ -716,10 +716,10 @@
 "idx": 26,
 "name": "ст60411t7 ",
 "qty": 278,
-"id": "35c7b21b-d5b6-4b5e-a70b-945dd9d30c2e",
+"id": "086179eb-6382-4c05-9241-6caf563aa3e8",
 "machine_type": 0,
 "qty_minus": false,
-"lday": 17,
+"lday": 18,
 "qty_week": [
 118,
 124,
