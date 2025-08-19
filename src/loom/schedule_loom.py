@@ -25,7 +25,7 @@ def ProductsModelToArray(products: list[Product]) -> list[(str, int, str, int, i
             first = False
             if item.qty > 0:
                 raise "Первый элемент продукции должен быть сменой артикула, т.е. количество плана = 0"
-        result.append((item.name, item.qty, item.id, item.machine_type, item.qty_minus))
+        result.append((item.name, item.qty, item.id, item.machine_type, item.qty_minus, item.lday, item.qty_week))
     return result
 
 def CleansModelToArray(cleans: list[Clean]) -> list[(int, int)]:
@@ -52,7 +52,7 @@ def schedule_loom_calc_model(DataIn: DataLoomIn) -> LoomPlansOut:
 
         if result_calc["error_str"] == "" and result_calc["status"] != cp_model.INFEASIBLE:
             machines_view = [name for (name, product_idx,  id, type, remain_day) in machines]
-            products_view = [name for (name, qty, id, machine_type, qm) in products]
+            products_view = [name for (name, qty, id, machine_type, qm, lday, qty_week) in products]
             title_text = f"{result_calc['status_str']} оптимизационное значение {result_calc['objective_value']}"
 
             res_html = schedule_to_html(machines=machines_view, products=products_view, schedules=result_calc["schedule"],
@@ -182,7 +182,7 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
 
 def create_model(remains: list, products: list, machines: list, cleans: list, max_daily_prod_zero: int, count_days: int,
                  schedule_init: list = None):
-    # products: [ # ("idx, "name", "qty", "id", "machine_type", "qty_minus")
+    # products: [ # ("idx, "name", "qty", "id", "machine_type", "qty_minus", "lday", "qty_week")
     #     ("", 0, "", 0),
     #     ("ст87017t3", 42, "7ec17dc8-f3bd-4384-9738-7538ab3dc315", 0, 1),
     #     ("ст87416t1", 15, "9559e2e8-6e72-41f8-9dba-08aab5463623", 0, 1),
@@ -205,7 +205,8 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
     all_days = range(num_days)
     all_products = range(num_products)
 
-    proportions_input = [prop for a, prop, id, t, qm in products]
+    proportions_input = [p[1] for p in products]
+    parts = [p[5] for p in products]
     initial_products = []
     days_to_constrain = []
     for idx, (_, product_idx, m_id, t, remain_day) in enumerate(machines):
@@ -292,22 +293,22 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
     # Ограничение для первого дня (d=0)
     for m in range(num_machines):
         initial_product = initial_products[m]
-        is_initial_product = model.NewBoolVar(f"is_initial_product_{m}_0")
-        is_not_zero[m, 0] = model.NewBoolVar(f"is_not_zero_{m}_0")
+        remain = days_to_constrain[m]
 
-        if days_to_constrain[m] > 0:
-            remain_day[m] += 1
-            model.Add(jobs[m, 0] == initial_product)
+        if initial_product == 0:
+            # Если начальный продукт 0, машина может начать с любого продукта, кроме простоя.
+            # Ограничение не задается, решатель выберет сам.
+             if (m, 0) in work_days:
+                model.Add(jobs[m, 0] != PRODUCT_ZERO)
         else:
-            model.Add(jobs[m, 0] == initial_product).OnlyEnforceIf(is_initial_product)
-            model.Add(jobs[m, 0] != initial_product).OnlyEnforceIf(is_initial_product.Not())
-            model.Add(jobs[m, 0] == PRODUCT_ZERO).OnlyEnforceIf(is_not_zero[m, 0].Not())
-            model.Add(jobs[m, 0] != PRODUCT_ZERO).OnlyEnforceIf(is_not_zero[m, 0])
+            # Стандартная логика доработки остатка
+            for d in all_days:
+                if d < remain:
+                    if (m, d) in work_days:
+                        model.Add(jobs[m, d] == initial_product)
+                else:
+                    break
 
-            # Первый день: либо начальный продукт, либо PRODUCT_ZERO
-            model.AddBoolOr([is_initial_product, is_not_zero[m, 0].Not()])
-
-        # Устанавливаем completed_transition для дня 0
         model.Add(completed_transition[m, 0] == 0)  # Нет перехода в день 0
 
     # Ограничение для второго дня (d=1)
@@ -317,7 +318,7 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
         model.Add(jobs[m, 1] != PRODUCT_ZERO).OnlyEnforceIf(is_not_zero[m, 1])
         model.Add(jobs[m, 1] == PRODUCT_ZERO).OnlyEnforceIf(is_not_zero[m, 1].Not())
 
-        if days_to_constrain[m] > remain_day[m]:
+        if days_to_constrain[m] > remain_day[m] and initial_product > 0:
             model.Add(jobs[m, 1] == initial_product)
             remain_day[m] += 1
             # Устанавливаем completed_transition для дня 1
@@ -368,6 +369,8 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
                 model.Add(jobs[m, d] == initial_product)
                 remain_day[m] += 1
 
+
+
             is_not_zero[m, d] = model.NewBoolVar(f"is_not_zero_{m}_{d}")
             model.Add(jobs[m, d] != PRODUCT_ZERO).OnlyEnforceIf(is_not_zero[m, d])
             model.Add(jobs[m, d] == PRODUCT_ZERO).OnlyEnforceIf(is_not_zero[m, d].Not())
@@ -398,26 +401,29 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
 
             # 2. Применяем ограничение, только если такой день существует в расписании.
             if day_before_transition_start >= 0:
-                # Переменная, указывающая на продукт до начала перехода.
                 product_before = jobs[(m, day_before_transition_start)]
             else:
                 product_before = initial_product
 
-            # 3. Вводим вспомогательную переменную. Она будет истинной, если
+                # 3. Вводим вспомогательную переменную. Она будет истинной, если
             #    продукт до перехода не был PRODUCT_ZERO. Это нужно, чтобы
             #    избежать сравнения, если до этого уже был простой.
             product_before_is_not_zero = model.NewBoolVar(f"prod_before_not_zero_{m}_{d}")
             model.Add(product_before != PRODUCT_ZERO).OnlyEnforceIf(product_before_is_not_zero)
             model.Add(product_before == PRODUCT_ZERO).OnlyEnforceIf(product_before_is_not_zero.Not())
 
+            # Не планируем тот же продукт, что был до перехода
+            model.Add(jobs[m, d] != product_before).OnlyEnforceIf(
+                [completed_transition[m, d], product_before_is_not_zero]
+            )
+
             # 4. Устанавливаем само ограничение.
             #    Оно должно сработать, только если (А) переход завершен И (Б) продукт до перехода не был нулевым.
             #    Существующее ограничение `model.add(jobs[m, d] != PRODUCT_ZERO).OnlyEnforceIf(completed_transition[m, d])`
             #    уже гарантирует, что jobs[m, d] не будет нулем, если переход завершен.
-            model.Add(jobs[m, d] > product_before).OnlyEnforceIf(
-                [completed_transition[m, d], product_before_is_not_zero]
-            )
-            # ### КОНЕЦ НОВОГО БЛОКА ###
+            # model.Add(jobs[m, d] > product_before).OnlyEnforceIf(
+            #     [completed_transition[m, d], product_before_is_not_zero]
+            # )
 
             # Ограничения:
             # Если текущий день - не ноль, то либо:
@@ -438,13 +444,14 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
             if d >= count_days - 2:
                 model.add(jobs[m, d] != PRODUCT_ZERO)
 
+
     # не более 1-го простоя за неделю
-    for m in range(num_machines):
-        prod_zero_on_machine = []
-        for d in all_days:
-            if not (m, d) in cleans:
-                prod_zero_on_machine.append(product_produced_bools[PRODUCT_ZERO, m, d])
-        model.Add(sum(prod_zero_on_machine) <= 2)
+    # for m in range(num_machines):
+    #     prod_zero_on_machine = []
+    #     for d in all_days:
+    #         if not (m, d) in cleans:
+    #             prod_zero_on_machine.append(product_produced_bools[PRODUCT_ZERO, m, d])
+    #     model.Add(sum(prod_zero_on_machine) <= 2)
 
     # ### НОВОЕ: Добавление начального расписания как подсказки (hint) ###
     if schedule_init:
@@ -464,8 +471,8 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
                             model.AddHint(product_produced_bools[p, m, d], hint_value)
 
                         # 'is_not_zero'
-                        is_not_zero_hint = 1 if initial_product_idx != PRODUCT_ZERO else 0
-                        model.AddHint(is_not_zero[m, d], is_not_zero_hint)
+                        # is_not_zero_hint = 1 if initial_product_idx != PRODUCT_ZERO else 0
+                        # model.AddHint(is_not_zero[m, d], is_not_zero_hint)
 
                         # 'same_as_prev' and 'completed_transition'
                         if d > 0 and schedule_init[m][d-1] and schedule_init[m][d-1] > 0:
@@ -497,32 +504,89 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
     # Мы хотим, чтобы product_counts[p1] / product_counts[p2] было близко к proportions_input[p1] / proportions_input[p2]
     # Это эквивалентно product_counts[p1] * proportions_input[p2] ~= product_counts[p2] * proportions_input[p1]
 
+    # ### ИЗМЕНЕННЫЙ БЛОК 2: Мягкое ограничение пропорций по 21-дневным периодам ###
+    proportion_objective_terms = []
+    num_weeks = num_days // 21
+
+    # Проходим по каждому 21-дневному периоду
+    for w in range(num_weeks):
+        start_day = w * 21
+        end_day = (w + 1) * 21
+
+        days_in_week = [d for d in range(start_day, end_day)]
+        work_days_in_week = [(m, d) for m, d in work_days if start_day <= d < end_day]
+
+        # Подсчет количества каждого продукта за этот период
+        product_counts_weekly = {}
+        for p in all_products:
+            product_counts_weekly[p] = model.NewIntVar(0, num_machines * 21, f"count_prod_{p}_week_{w}")
+            model.Add(product_counts_weekly[p] == sum(product_produced_bools[p, m, d]
+                                                      for m, d in work_days_in_week))
+
+        # Общее количество всех продуктов (кроме ZERO) за период
+        total_products_count_weekly = model.NewIntVar(0, num_machines * 21, f"total_products_week_{w}")
+        model.Add(total_products_count_weekly == sum(product_counts_weekly[p] for p in range(1, num_products)))
+
+        # Целевые пропорции для текущего периода из `qty_week`
+        proportions_input_weekly = [p[6][w] for p in products]
+        total_input_quantity_weekly = sum(proportions_input_weekly)
+
+        # Если для периода нет целевых значений, пропускаем его
+        if total_input_quantity_weekly == 0:
+            continue
+
+        # Применяем ту же логику пропорций, но для данных текущего периода
+        for p in range(1, num_products):
+            if proportions_input_weekly[p] == 0:
+                continue
+
+            # Добавляем условие НЕ МЕНЬШЕ для некоторых продуктов
+            if products[p][4] == 0 and products[p][1] > 0:
+                model.Add(product_counts_weekly[p] >= proportions_input_weekly[p])
+
+            # term1 = фактическое_кол-во[p] * сумма_целевых_кол-в
+            term1_expr = model.NewIntVar(0, cp_model.INT32_MAX, f"term1_{p}_week_{w}")
+            model.AddMultiplicationEquality(term1_expr, [product_counts_weekly[p], total_input_quantity_weekly])
+
+            # term2 = общее_факт_кол-во * целевое_кол-во[p]
+            term2_expr = model.NewIntVar(0, cp_model.INT32_MAX, f"term2_{p}_week_{w}")
+            model.AddMultiplicationEquality(term2_expr, [total_products_count_weekly,
+                                                         model.NewConstant(proportions_input_weekly[p])])
+
+            # diff = |term1 - term2|
+            diff_var = model.NewIntVar(-cp_model.INT32_MAX, cp_model.INT32_MAX, f"diff_{p}_week_{w}")
+            model.Add(diff_var == term1_expr - term2_expr)
+            abs_diff_var = model.NewIntVar(0, cp_model.INT32_MAX, f"abs_diff_{p}_week_{w}")
+            model.AddAbsEquality(abs_diff_var, diff_var)
+
+            proportion_objective_terms.append(abs_diff_var)
+
     total_products_count = model.NewIntVar(0, num_machines * num_days, "total_products_count")
     model.Add(total_products_count == sum(product_counts[p] for p in range(1, len(products))))
-
-    total_input_quantity = sum(proportions_input)
-    logger.debug(f"total_input_quantity={total_input_quantity}")
-    proportion_objective_terms = []
-
-    for p in range(1, len(products)):  # Skip p == 0
-        logger.debug(f"proportions_input[{p}]={proportions_input[p]}")
-
-        # product_counts[p] * total_input_quantity
-        term1_expr = model.NewIntVar(0, num_machines * num_days * total_input_quantity,
-                                     f"term1_{p}")
-        model.AddMultiplicationEquality(term1_expr, [product_counts[p], total_input_quantity])
-
-        # total_products_count * proportions_input[p1_idx]
-        term2_expr = model.NewIntVar(0, cp_model.INT32_MAX, f"term2_{p}")
-        model.AddMultiplicationEquality(term2_expr, [total_products_count,
-                                                     model.NewConstant(proportions_input[p])])
-
-        # diff = term1_expr - term2_expr
-        diff_var = model.NewIntVar(-cp_model.INT32_MAX, cp_model.INT32_MAX, f"diff_{p}")
-        model.Add(diff_var == (term1_expr - term2_expr))
-        abs_diff_var = model.NewIntVar(0, cp_model.INT32_MAX, f"abs_diff_{p}")
-        model.AddAbsEquality(abs_diff_var, diff_var)
-        proportion_objective_terms.append(abs_diff_var)
+    #
+    # total_input_quantity = sum(proportions_input)
+    # logger.debug(f"total_input_quantity={total_input_quantity}")
+    # proportion_objective_terms = []
+    #
+    # for p in range(1, len(products)):  # Skip p == 0
+    #     logger.debug(f"proportions_input[{p}]={proportions_input[p]}")
+    #
+    #     # product_counts[p] * total_input_quantity
+    #     term1_expr = model.NewIntVar(0, num_machines * num_days * total_input_quantity,
+    #                                  f"term1_{p}")
+    #     model.AddMultiplicationEquality(term1_expr, [product_counts[p], total_input_quantity])
+    #
+    #     # total_products_count * proportions_input[p1_idx]
+    #     term2_expr = model.NewIntVar(0, cp_model.INT32_MAX, f"term2_{p}")
+    #     model.AddMultiplicationEquality(term2_expr, [total_products_count,
+    #                                                  model.NewConstant(proportions_input[p])])
+    #
+    #     # diff = term1_expr - term2_expr
+    #     diff_var = model.NewIntVar(-cp_model.INT32_MAX, cp_model.INT32_MAX, f"diff_{p}")
+    #     model.Add(diff_var == (term1_expr - term2_expr))
+    #     abs_diff_var = model.NewIntVar(0, cp_model.INT32_MAX, f"abs_diff_{p}")
+    #     model.AddAbsEquality(abs_diff_var, diff_var)
+    #     proportion_objective_terms.append(abs_diff_var)
 
     downtime_penalty = round(0.1 * sum(proportions_input)/len(work_days))
     if downtime_penalty < 1:

@@ -31,36 +31,44 @@
 "qty": 0,
 "id": "",
 "machine_type": 0,
-  "qty_minus": 0
+  "qty_minus": 0,
+"lday": 1,
+"qty_week": [0, 0]
 },
 {
 "idx": 1,
 "name": "ст87017t3 ",
-"qty": 4,
+"qty": 6,
 "id": "7ec17dc8-f3bd-4384-9738-7538ab3dc315",
 "machine_type": 0,
-  "qty_minus": 0
+  "qty_minus": 0,
+"lday": 3,
+"qty_week": [3, 3]
 },
 {
 "idx": 2,
 "name": "ст87416t1 ",
-"qty": 15,
+"qty": 30,
 "id": "9559e2e8-6e72-41f8-9dba-08aab5463623",
 "machine_type": 0,
-  "qty_minus": 1
+  "qty_minus": 1,
+"lday": 2,
+"qty_week": [16, 14]
 },
 {
 "idx": 3,
 "name": "ст2022УИСt4 ",
-"qty": 40,
+"qty": 84,
 "id": "cd825c90-aa80-4b95-9f81-2486b871bf94",
 "machine_type": 0,
-  "qty_minus": 1
+  "qty_minus": 1,
+"lday": 4,
+"qty_week": [42, 42]
 }
 ],
 "remains": [],
-"cleans": [{"day_idx": 2, "machine_idx": 1}],
+"cleans": [],
 "max_daily_prod_zero": 3,
-"count_days": 21,
+"count_days": 42,
   "dt_begin": "2025-07-01"
 }
