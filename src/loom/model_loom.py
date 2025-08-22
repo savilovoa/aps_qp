@@ -28,6 +28,7 @@ class Product(BaseModel):
     resource: list[Resources] = Field(default=[])
     qty_minus: int = Field(default=0)
     lday: int = Field(description="количество смен после перехода в основе")
+    qty_week: list[int] = Field(description="объемы по неделям")
 
 class Clean(BaseModel):
     day_idx: int
