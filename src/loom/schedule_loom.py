@@ -140,9 +140,9 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
         def solutionCount(self):
             return self._solution_count
 
-    model, jobs, product_counts, proportion_objective_terms, total_products_count = create_model(
-        remains=remains, products=products_new, machines=machines_new, cleans=cleans, max_daily_prod_zero=max_daily_prod_zero,
-        count_days=count_days, schedule_init=schedule_init)
+    (model, jobs, product_counts, proportion_objective_terms, total_products_count, prev_lday, start_batch,
+     batch_end_complite, days_in_batch, completed_transition, pred_start_batch, same_as_prev) = create_model(remains=remains, products=products_new, machines=machines_new, cleans=cleans,
+                                        max_daily_prod_zero=max_daily_prod_zero, count_days=count_days, schedule_init=schedule_init)
 
 
     # solver.parameters.log_search_progress = True
@@ -160,6 +160,43 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
 
     logger.info(f"Статус решения: {solver.StatusName(status)}")
     if status == cp_model.OPTIMAL or status == cp_model.FEASIBLE:
+        if prev_lday:
+            for m in range(len(machines_new)):
+                s = ""
+                s_bc = ""
+                for d in range(21):
+                    p = solver.value(days_in_batch[m, d])
+                    s = s + str(p) +","
+                    p = solver.value(batch_end_complite[m, d])
+                    s_bc = s_bc + str(p) + ","
+                logger.info(f"days_in_batch {m}:       [{s}]")
+                logger.info(f"batch_end_complite {m}:  [{s_bc}]")
+
+                s = ""
+                s_sb = ""
+                s_ct = ""
+                s_sp =""
+                for d in range(1, 21):
+                    p = solver.value(prev_lday[m, d])
+                    s = s + str(p) +","
+                    p = solver.value(start_batch[m, d])
+                    s_sb = s_sb + str(p) + ","
+                    p = solver.value(completed_transition[m, d])
+                    s_ct = s_ct + str(p) + ","
+                    p = solver.value(same_as_prev[m, d])
+                    s_sp = s_sp + str(p) + ","
+                logger.info(f"same_as_prev {m}:          [{s_sp}]")
+                logger.info(f"completed_transition {m}:  [{s_ct}]")
+                logger.info(f"prev_lday {m}:             [{s}]")
+                logger.info(f"start_batch {m}:           [{s_sb}]")
+
+                s_sb = ""
+                for d in range(2, 21):
+                    p = solver.value(pred_start_batch[m, d])
+                    s_sb = s_sb + str(p) + ","
+                logger.info(f"pred_start_batch {m}:        [{s_sb}]")
+
+
         if proportion_objective_terms:
             logger.info(f"Минимальное значение функции цели (сумма абс. отклонений пропорций): "
                         f"{solver.ObjectiveValue()}")
@@ -230,6 +267,8 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
     # ------------ Подсчет общего количества каждого продукта ------------
     # Вспомогательные булевы переменные: product_produced[p, m, d] истинно, если продукт p производится на машине m в день d
     product_produced_bools = {}
+
+    max_lday = max(ldays) if ldays else 1
     for p in all_products:
         for m, d in work_days:
             product_produced_bools[p, m, d] = model.NewBoolVar(f"product_produced_{p}_{m}_{d}")
@@ -279,90 +318,17 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
 
     # Основная переменная состояния: отслеживает день внутри текущей партии
     days_in_batch = {}
-    max_lday = max(ldays) if ldays else 1
     for m in all_machines:
         for d in all_days:
             days_in_batch[m, d] = model.NewIntVar(0, max_lday, f'days_in_batch_m{m}_d{d}')
 
-    # Определяем поведение переменной состояния (логика с прошлого раза, она корректна)
+    prev_lday = {}
     for m in all_machines:
-        initial_product = initial_products[m]
-        # --- Логика для первого дня (d=0) ---
-        if initial_product > PRODUCT_ZERO:
-            remain = days_to_constrain[m]
-            product_lday = ldays[initial_product]
-            if remain > 0:
-                start_val = product_lday - remain + 1
-                model.Add(days_in_batch[m, 0] == start_val)
-                model.Add(jobs[m, 0] == initial_product)
-            else:
-                is_prod = model.NewBoolVar(f'is_prod_m{m}_d0')
-                model.Add(jobs[m, 0] > PRODUCT_ZERO).OnlyEnforceIf(is_prod)
-                model.Add(jobs[m, 0] == PRODUCT_ZERO).OnlyEnforceIf(is_prod.Not())
-                model.Add(days_in_batch[m, 0] == 1).OnlyEnforceIf(is_prod)
-                model.Add(days_in_batch[m, 0] == 0).OnlyEnforceIf(is_prod.Not())
-        else:
-            is_prod = model.NewBoolVar(f'is_prod_m{m}_d0')
-            model.Add(jobs[m, 0] > PRODUCT_ZERO).OnlyEnforceIf(is_prod)
-            model.Add(jobs[m, 0] == PRODUCT_ZERO).OnlyEnforceIf(is_prod.Not())
-            model.Add(days_in_batch[m, 0] == 1).OnlyEnforceIf(is_prod)
-            model.Add(days_in_batch[m, 0] == 0).OnlyEnforceIf(is_prod.Not())
+        for d in all_days:
+            prev_lday[m, d] = model.NewIntVar(0, max_lday, f'prev_lday_m{m}_d{d}')
+            model.AddElement(jobs[m, d], ldays, prev_lday[m, d])
 
-        # --- Логика для последующих дней (d > 0) ---
-        for d in range(1, num_days):
-            # (Логика обновления days_in_batch[m,d] остается той же, что и в предыдущем ответе)
-            # ...
-            prev_d = d - 1
-            if (m, d) not in work_days:
-                # Найдем последний рабочий день для копирования состояния
-                prev_work_d = d - 1
-                while (m, prev_work_d) not in work_days and prev_work_d > 0:
-                    prev_work_d -= 1
-                model.Add(days_in_batch[m, d] == days_in_batch[m, prev_work_d])
-                continue
-
-            prev_prod = jobs[m, prev_d]
-            prev_lday = model.NewIntVar(1, max_lday, f'prev_lday_m{m}_d{d}')
-            model.AddElement(prev_prod, ldays, prev_lday)
-
-            continue_case = model.NewBoolVar(f'continue_m{m}_d{d}')
-            model.Add(jobs[m, d] == prev_prod).OnlyEnforceIf(continue_case)
-            model.Add(jobs[m, d] != prev_prod).OnlyEnforceIf(continue_case.Not())
-
-            prev_batch_incomplete = model.NewBoolVar(f'prev_inc_m{m}_d{d}')
-            model.Add(days_in_batch[m, prev_d] < prev_lday).OnlyEnforceIf(prev_batch_incomplete)
-            model.Add(days_in_batch[m, prev_d] >= prev_lday).OnlyEnforceIf(prev_batch_incomplete.Not())
-
-            is_prev_prod_zero = model.NewBoolVar(f'is_prev_zero_m{m}_d{d}')
-            model.Add(prev_prod == PRODUCT_ZERO).OnlyEnforceIf(is_prev_prod_zero)
-            model.Add(prev_prod != PRODUCT_ZERO).OnlyEnforceIf(is_prev_prod_zero.Not())
-
-            model.Add(days_in_batch[m, d] == days_in_batch[m, prev_d] + 1).OnlyEnforceIf(
-                [continue_case, prev_batch_incomplete, is_prev_prod_zero.Not()])
-            model.Add(days_in_batch[m, d] == 1).OnlyEnforceIf(
-                [continue_case, prev_batch_incomplete.Not(), is_prev_prod_zero.Not()])
-            model.Add(days_in_batch[m, d] == 1).OnlyEnforceIf(
-                [continue_case.Not(), product_produced_bools[0, m, d].Not()])
-            model.Add(days_in_batch[m, d] == 0).OnlyEnforceIf(product_produced_bools[0, m, d])
-
-    # Главное правило "привратника": запрещаем смену продукта, если партия не закончена.
-    for m in all_machines:
-        for d in range(1, num_days):
-            if (m, d) not in work_days: continue
-            prev_d = d - 1
-
-            prev_prod = jobs[m, prev_d]
-            prev_lday = model.NewIntVar(1, max_lday, f'gate_prev_lday_m{m}_d{d}')
-            model.AddElement(prev_prod, ldays, prev_lday)
-
-            is_working_prev = model.NewBoolVar(f'gate_is_work_prev_m{m}_d{d}')
-            model.Add(prev_prod > PRODUCT_ZERO).OnlyEnforceIf(is_working_prev)
-
-            prev_batch_incomplete = model.NewBoolVar(f'gate_prev_inc_m{m}_d{d}')
-            model.Add(days_in_batch[m, prev_d] < prev_lday).OnlyEnforceIf(prev_batch_incomplete)
-
-            # Если в пред. день работали И партия не была завершена -> ОБЯЗАНЫ продолжить.
-            model.Add(jobs[m, d] == prev_prod).OnlyEnforceIf([is_working_prev, prev_batch_incomplete])
+    batch_end_complite = {}
 
     # Ограничения ПЕРЕХОДА
     # Переменные для отслеживания завершения двухдневного перехода
@@ -372,6 +338,8 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
     prev_is_not_zero = {}
     prev2_is_not_zero = {}
     two_day_zero = {}
+
+    start_batch = {}
     for m in range(num_machines):
         for d in range(num_days):
             completed_transition[m, d] = model.NewBoolVar(f"completed_transition_{m}_{d}")
@@ -382,10 +350,15 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
         initial_product = initial_products[m]
         is_initial_product = model.NewBoolVar(f"is_initial_product_{m}_0")
         is_not_zero[m, 0] = model.NewBoolVar(f"is_not_zero_{m}_0")
+        product_lday = ldays[initial_product]
+        batch_end_complite[m, 0] = model.NewBoolVar(f"batch_end_complite_m{m}_d0")
 
         if days_to_constrain[m] > 0:
             remain_day[m] += 1
             model.Add(jobs[m, 0] == initial_product)
+            # выставляем начальное значение остатка партии
+            start_val = product_lday - days_to_constrain[m] + 1
+            model.Add(days_in_batch[m, 0] == start_val)
         else:
             model.Add(jobs[m, 0] == initial_product).OnlyEnforceIf(is_initial_product)
             model.Add(jobs[m, 0] != initial_product).OnlyEnforceIf(is_initial_product.Not())
@@ -394,67 +367,35 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
 
             # Первый день: либо начальный продукт, либо PRODUCT_ZERO
             model.AddBoolOr([is_initial_product, is_not_zero[m, 0].Not()])
+            # Первый день: либо начало партии, либо 0, если переход
+            model.Add(days_in_batch[m, 0] == 1).OnlyEnforceIf([is_initial_product, is_not_zero[m, 0]])
+            model.Add(days_in_batch[m, 0] == 0).OnlyEnforceIf(is_not_zero[m, 0].Not())
 
         # Устанавливаем completed_transition для дня 0
         model.Add(completed_transition[m, 0] == 0)  # Нет перехода в день 0
 
-    # Ограничение для второго дня (d=1)
+        model.Add(days_in_batch[m, 0] == prev_lday[m, 0]).OnlyEnforceIf(batch_end_complite[m, 0])
+        model.Add(days_in_batch[m, 0] != prev_lday[m, 0]).OnlyEnforceIf(batch_end_complite[m, 0].Not())
+
+    # Логика переходов для дней d ≥ 1
+    pred_start_batch = {}
     for m in range(num_machines):
-        initial_product = initial_products[m]
-        is_not_zero[m, 1] = model.NewBoolVar(f"is_not_zero_{m}_1")
-        model.Add(jobs[m, 1] != PRODUCT_ZERO).OnlyEnforceIf(is_not_zero[m, 1])
-        model.Add(jobs[m, 1] == PRODUCT_ZERO).OnlyEnforceIf(is_not_zero[m, 1].Not())
-
-        if days_to_constrain[m] > remain_day[m]:
-            model.Add(jobs[m, 1] == initial_product)
-            remain_day[m] += 1
-            # Устанавливаем completed_transition для дня 1
-            model.Add(completed_transition[m, 1] == 0)  # Нет перехода в день 1
-        else:
-
-            same_as_prev[m, 1] = model.NewBoolVar(f"same_as_prev_{m}_1")
-            model.Add(jobs[m, 1] == jobs[m, 0]).OnlyEnforceIf(same_as_prev[m, 1])
-            model.Add(jobs[m, 1] != jobs[m, 0]).OnlyEnforceIf(same_as_prev[m, 1].Not())
-
-            prev_is_zero = model.NewBoolVar(f"prev_is_zero_{m}_1")
-            model.Add(jobs[m, 0] == PRODUCT_ZERO).OnlyEnforceIf(prev_is_zero)
-            model.Add(jobs[m, 0] != PRODUCT_ZERO).OnlyEnforceIf(prev_is_zero.Not())
-
-            # Если день 0 - PRODUCT_ZERO, день 1 должен быть PRODUCT_ZERO для начала перехода
-            model.Add(jobs[m, 1] == PRODUCT_ZERO).OnlyEnforceIf(prev_is_zero)
-
-            # Если день 1 - не PRODUCT_ZERO, должен быть таким же, как день 0 (если день 0 не PRODUCT_ZERO)
-            model.AddBoolOr([is_not_zero[m, 1].Not(), same_as_prev[m, 1]]).OnlyEnforceIf(prev_is_zero.Not())
-
-            # completed_transition[m, 1] истинно, если день 0 и день 1 - PRODUCT_ZERO
-            model.Add(completed_transition[m, 1] == prev_is_zero)
-
-    # Логика переходов для дней d ≥ 2
-    for m in range(num_machines):
-        for d in range(2, num_days):
+        for d in range(1, num_days):
             initial_product = initial_products[m]
-            if (m, d) not in cleans and (m, d - 1) not in cleans and (m, d - 2) not in cleans:
+            if (m, d) not in cleans and (m, d - 1) not in cleans:
                 pred_idx = d - 1
-                pred_pred_idx = d - 2
-                prev2_is_not_zero[m, d] = model.NewBoolVar(f"prev2_is_not_zero_{m}_{d}")
-                model.Add(jobs[m, pred_pred_idx] != PRODUCT_ZERO).OnlyEnforceIf(prev2_is_not_zero[m, d])
-                model.Add(jobs[m, pred_pred_idx] == PRODUCT_ZERO).OnlyEnforceIf(prev2_is_not_zero[m, d].Not())
             elif (m, d) in cleans:
                 continue
             elif (m, d - 1) in cleans:
                 pred_idx = d - 2
-                pred_pred_idx = d - 3
-                prev2_is_not_zero[m, d] = model.NewBoolVar(f"prev2_is_not_zero_{m}_{d}")
-                model.Add(jobs[m, pred_pred_idx] != PRODUCT_ZERO).OnlyEnforceIf(prev2_is_not_zero[m, d])
-                model.Add(jobs[m, pred_pred_idx] == PRODUCT_ZERO).OnlyEnforceIf(prev2_is_not_zero[m, d].Not())
-            elif (m, d - 2) in cleans:
-                pred_idx = d - 1
-                prev2_is_not_zero[m, d] = model.NewBoolVar(f"prev2_is_not_zero_{m}_{d}")
-                model.Add(prev2_is_not_zero[m, d] == 1)
 
             if days_to_constrain[m] > remain_day[m]:
                 model.Add(jobs[m, d] == initial_product)
                 remain_day[m] += 1
+
+            same_as_prev[m, d] = model.NewBoolVar(f"same_as_prev_{m}_{d}")
+            model.Add(jobs[m, d] == jobs[m, pred_idx]).OnlyEnforceIf(same_as_prev[m, d])
+            model.Add(jobs[m, d] != jobs[m, pred_idx]).OnlyEnforceIf(same_as_prev[m, d].Not())
 
             is_not_zero[m, d] = model.NewBoolVar(f"is_not_zero_{m}_{d}")
             model.Add(jobs[m, d] != PRODUCT_ZERO).OnlyEnforceIf(is_not_zero[m, d])
@@ -465,22 +406,44 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
             model.Add(jobs[m, pred_idx] == PRODUCT_ZERO).OnlyEnforceIf(prev_is_not_zero[m, d].Not())
 
             # Проверяем, был ли завершен двухдневный переход
-            two_day_zero[m, d] = model.NewBoolVar(f"two_day_zero_{m}_{d}")
-            model.AddBoolAnd(prev_is_not_zero[m, d].Not(), prev2_is_not_zero[m, d].Not()).OnlyEnforceIf(
-                two_day_zero[m, d])
-            model.AddBoolOr(prev_is_not_zero[m, d], prev2_is_not_zero[m, d]).OnlyEnforceIf(
-                two_day_zero[m, d].Not())
+            completed_transition[m, d] = model.NewBoolVar(f"two_day_zero_{m}_{d}")
+            model.AddBoolAnd(prev_is_not_zero[m, d].Not(), is_not_zero[m, d].Not()).OnlyEnforceIf(
+                completed_transition[m, d])
+            model.AddBoolOr(prev_is_not_zero[m, d], is_not_zero[m, d]).OnlyEnforceIf(
+                completed_transition[m, d].Not())
 
-            # Устанавливаем completed_transition
-            model.Add(completed_transition[m, d] == two_day_zero[m, d])
+            # логика расчета количества партии
+
+            model.Add(days_in_batch[m, d] == 0).OnlyEnforceIf(is_not_zero[m, d].Not())
+            model.Add(days_in_batch[m, d] == 1).OnlyEnforceIf([batch_end_complite[m, pred_idx], is_not_zero[m, d]])
+            model.Add(days_in_batch[m, d] == days_in_batch[m, pred_idx] + 1).OnlyEnforceIf([batch_end_complite[m, pred_idx].Not(), is_not_zero[m, d]])
+
+            batch_end_complite[m, d] = model.NewBoolVar(f"batch_end_complite_m{m}_d{d}")
+            model.Add(days_in_batch[m, d] == prev_lday[m ,d]).OnlyEnforceIf(batch_end_complite[m, d])
+            model.Add(days_in_batch[m, d] != prev_lday[m, d]).OnlyEnforceIf(batch_end_complite[m, d].Not())
+
+            pred_start_batch[m, d] = model.NewBoolVar(f"pred_start_batch_m{m}_d{d}")
+            # model.AddBoolAnd([same_as_prev[m, d], batch_end_complite[m, pred_idx]]).OnlyEnforceIf(
+            #     pred_start_batch[m, d])
+            # model.AddBoolOr([same_as_prev[m, d].Not(), batch_end_complite[m, pred_idx].Not()]).OnlyEnforceIf(
+            #     pred_start_batch[m, d].Not())
+            #
+            start_batch[m, d] = model.NewBoolVar(f"start_batch_m{m}_d{d}")
+            # model.AddBoolOr([pred_start_batch[m, d], completed_transition[m, d]]).OnlyEnforceIf(
+            #     start_batch[m, d])
+            # model.AddBoolAnd([pred_start_batch[m, d].Not(), completed_transition[m, d].Not()]).OnlyEnforceIf(
+            #     start_batch[m, d].Not())
+            #
+            # model.Add(jobs[m, d] == jobs[m, pred_idx]).OnlyEnforceIf([batch_end_complite[m, pred_idx].Not(), prev_is_not_zero[m, d]])
+
 
             # ### НАЧАЛО НОВОГО БЛОКА: Ограничение на повышение индекса продукта ###
             # Это ограничение срабатывает только в день `d`, когда завершился двухдневный переход,
             # что определяется переменной completed_transition[m, d].
 
             # 1. Находим индекс рабочего дня перед началом перехода.
-            #    Переход занимал дни `pred_pred_idx` и `pred_idx`. Ищем день до `pred_pred_idx`.
-            day_before_transition_start = pred_pred_idx - 1
+            #    Переход занимал дни `pred_idx` и `d`. Ищем день до `pred_idx`.
+            day_before_transition_start = pred_idx - 1
             while day_before_transition_start >= 0 and (m, day_before_transition_start) in cleans:
                 day_before_transition_start -= 1
 
@@ -503,7 +466,7 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
             #    Существующее ограничение `model.add(jobs[m, d] != PRODUCT_ZERO).OnlyEnforceIf(completed_transition[m, d])`
             #    уже гарантирует, что jobs[m, d] не будет нулем, если переход завершен.
             model.Add(jobs[m, d] > product_before).OnlyEnforceIf(
-                [completed_transition[m, d], product_before_is_not_zero]
+                [completed_transition[m, pred_idx], product_before_is_not_zero]
             )
             # ### КОНЕЦ НОВОГО БЛОКА ###
 
@@ -511,17 +474,14 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
             # Если текущий день - не ноль, то либо:
             # 1) тот же продукт, что и вчера (если вчера не ноль)
             # 2) завершен двухдневный переход
-            same_as_prev[m, d] = model.NewBoolVar(f"same_as_prev_{m}_{d}")
-            model.Add(jobs[m, d] == jobs[m, pred_idx]).OnlyEnforceIf(same_as_prev[m, d])
-            model.Add(jobs[m, d] != jobs[m, pred_idx]).OnlyEnforceIf(same_as_prev[m, d].Not())
 
             model.AddBoolOr([
                 is_not_zero[m, d].Not(),  # Текущий день - PRODUCT_ZERO
                 same_as_prev[m, d],  # Тот же продукт, что вчера
-                completed_transition[m, d]  # Завершен двухдневный переход
+                completed_transition[m, pred_idx]  # Завершен двухдневный переход
             ])
             # Запрет на 3-й ZERO
-            model.add(jobs[m, d] != PRODUCT_ZERO).OnlyEnforceIf(completed_transition[m, d])
+            model.add(jobs[m, d] != PRODUCT_ZERO).OnlyEnforceIf(completed_transition[m, pred_idx])
             # Запрет на переход в последние 2 дня
             if d >= count_days - 2:
                 model.add(jobs[m, d] != PRODUCT_ZERO)
@@ -612,14 +572,15 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
         model.AddAbsEquality(abs_diff_var, diff_var)
         proportion_objective_terms.append(abs_diff_var)
 
-    downtime_penalty = round(0.1 * sum(proportions_input)/len(work_days))
-    if downtime_penalty < 1:
-        downtime_penalty = 1
+    downtime_penalty = round(sum(proportions_input)/len(work_days))
+    if downtime_penalty < 2:
+        downtime_penalty = 2
 
     model.Minimize(sum(proportion_objective_terms) + product_counts[PRODUCT_ZERO] * downtime_penalty)
 
 
-    return model, jobs, product_counts, proportion_objective_terms, total_products_count
+    return (model, jobs, product_counts, proportion_objective_terms, total_products_count, prev_lday, start_batch,
+            batch_end_complite, days_in_batch, completed_transition, pred_start_batch, same_as_prev)
 
 
 def create_schedule_init(machines, products, cleans, count_days, max_daily_prod_zero):
