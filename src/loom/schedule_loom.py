@@ -423,18 +423,18 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
             model.Add(days_in_batch[m, d] != prev_lday[m, d]).OnlyEnforceIf(batch_end_complite[m, d].Not())
 
             pred_start_batch[m, d] = model.NewBoolVar(f"pred_start_batch_m{m}_d{d}")
-            # model.AddBoolAnd([same_as_prev[m, d], batch_end_complite[m, pred_idx]]).OnlyEnforceIf(
-            #     pred_start_batch[m, d])
-            # model.AddBoolOr([same_as_prev[m, d].Not(), batch_end_complite[m, pred_idx].Not()]).OnlyEnforceIf(
-            #     pred_start_batch[m, d].Not())
-            #
+            model.AddBoolAnd([same_as_prev[m, d], batch_end_complite[m, pred_idx]]).OnlyEnforceIf(
+                pred_start_batch[m, d])
+            model.AddBoolOr([same_as_prev[m, d].Not(), batch_end_complite[m, pred_idx].Not()]).OnlyEnforceIf(
+                pred_start_batch[m, d].Not())
+
             start_batch[m, d] = model.NewBoolVar(f"start_batch_m{m}_d{d}")
-            # model.AddBoolOr([pred_start_batch[m, d], completed_transition[m, d]]).OnlyEnforceIf(
-            #     start_batch[m, d])
-            # model.AddBoolAnd([pred_start_batch[m, d].Not(), completed_transition[m, d].Not()]).OnlyEnforceIf(
-            #     start_batch[m, d].Not())
-            #
-            # model.Add(jobs[m, d] == jobs[m, pred_idx]).OnlyEnforceIf([batch_end_complite[m, pred_idx].Not(), prev_is_not_zero[m, d]])
+            model.AddBoolOr([pred_start_batch[m, d], completed_transition[m, d]]).OnlyEnforceIf(
+                start_batch[m, d])
+            model.AddBoolAnd([pred_start_batch[m, d].Not(), completed_transition[m, d].Not()]).OnlyEnforceIf(
+                start_batch[m, d].Not())
+
+            model.Add(jobs[m, d] == jobs[m, pred_idx]).OnlyEnforceIf([batch_end_complite[m, pred_idx].Not(), prev_is_not_zero[m, d]])
 
 
             # ### НАЧАЛО НОВОГО БЛОКА: Ограничение на повышение индекса продукта ###
@@ -442,8 +442,8 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
             # что определяется переменной completed_transition[m, d].
 
             # 1. Находим индекс рабочего дня перед началом перехода.
-            #    Переход занимал дни `pred_idx` и `d`. Ищем день до `pred_idx`.
-            day_before_transition_start = pred_idx - 1
+            #    Переход занимал дни `pred_pred_idx` и `pred_idx`. Ищем день до `pred_pred_idx`.
+            day_before_transition_start = pred_idx - 2
             while day_before_transition_start >= 0 and (m, day_before_transition_start) in cleans:
                 day_before_transition_start -= 1
 
@@ -451,23 +451,12 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
             if day_before_transition_start >= 0:
                 # Переменная, указывающая на продукт до начала перехода.
                 product_before = jobs[(m, day_before_transition_start)]
-            else:
-                product_before = initial_product
-
-            # 3. Вводим вспомогательную переменную. Она будет истинной, если
-            #    продукт до перехода не был PRODUCT_ZERO. Это нужно, чтобы
-            #    избежать сравнения, если до этого уже был простой.
-            product_before_is_not_zero = model.NewBoolVar(f"prod_before_not_zero_{m}_{d}")
-            model.Add(product_before != PRODUCT_ZERO).OnlyEnforceIf(product_before_is_not_zero)
-            model.Add(product_before == PRODUCT_ZERO).OnlyEnforceIf(product_before_is_not_zero.Not())
-
-            # 4. Устанавливаем само ограничение.
-            #    Оно должно сработать, только если (А) переход завершен И (Б) продукт до перехода не был нулевым.
-            #    Существующее ограничение `model.add(jobs[m, d] != PRODUCT_ZERO).OnlyEnforceIf(completed_transition[m, d])`
-            #    уже гарантирует, что jobs[m, d] не будет нулем, если переход завершен.
-            model.Add(jobs[m, d] > product_before).OnlyEnforceIf(
-                [completed_transition[m, pred_idx], product_before_is_not_zero]
-            )
+                product_before_is_not_zero = model.NewBoolVar(f"prod_before_not_zero_{m}_{d}")
+                model.Add(product_before != PRODUCT_ZERO).OnlyEnforceIf(product_before_is_not_zero)
+                model.Add(product_before == PRODUCT_ZERO).OnlyEnforceIf(product_before_is_not_zero.Not())
+                model.Add(jobs[m, d] > product_before).OnlyEnforceIf(
+                    [completed_transition[m, pred_idx], product_before_is_not_zero]
+                )
             # ### КОНЕЦ НОВОГО БЛОКА ###
 
             # Ограничения:
