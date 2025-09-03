@@ -154,9 +154,11 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
         solver.parameters.enumerate_all_solutions = True
         status = solver.solve(model, sol_printer)
     else:
+        sol_printer = NursesPartialSolutionPrinter(settings.SOLVER_ENUMERATE_COUNT)
         solver.parameters.max_time_in_seconds = settings.LOOM_MAX_TIME
         solver.parameters.num_search_workers = settings.LOOM_NUM_WORKERS
-        status = solver.solve(model)
+        # status = solver.solve(model)
+        status = solver.solve(model, sol_printer)
 
     logger.info(f"Статус решения: {solver.StatusName(status)}")
     if status == cp_model.OPTIMAL or status == cp_model.FEASIBLE:
@@ -282,8 +284,8 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
         model.Add(product_counts[p] == sum(
             product_produced_bools[p, m, d] for m, d in work_days))
         # Добавляем условие НЕ МЕНЬШЕ для некоторых продуктов
-        if products[p][4] == 0 and products[p][1] > 0:
-            model.Add(product_counts[p] >= products[p][1])
+        # if products[p][4] == 0 and products[p][1] > 0:
+        #     model.Add(product_counts[p] >= products[p][1])
 
     # Сумма PRODUCT_ZERO в смену d не более max_daily_prod_zero
     # Количество нулевого продукта по дням
@@ -359,7 +361,11 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
             remain_day[m] += 1
             model.Add(jobs[m, 0] == initial_product)
             # выставляем начальное значение остатка партии
-            start_val = product_lday - days_to_constrain[m] + 1
+            if product_lday >= days_to_constrain[m]:
+                start_val = product_lday - days_to_constrain[m] + 1
+            else:
+                start_val = 1
+                ldays[initial_product] = days_to_constrain[m]
             model.Add(days_in_batch[m, 0] == start_val)
         elif initial_product == 0:
             model.Add(days_in_batch[m, 0] == 1).OnlyEnforceIf([is_not_zero[m, 0]])
@@ -474,8 +480,8 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
             # Запрет на 3-й ZERO
             model.add(jobs[m, d] != PRODUCT_ZERO).OnlyEnforceIf(completed_transition[m, pred_idx])
             # Запрет на переход в последние 2 дня
-            if d >= count_days - 2:
-                model.add(jobs[m, d] != PRODUCT_ZERO)
+            # if d >= count_days - 2:
+            #     model.add(jobs[m, d] != PRODUCT_ZERO)
 
     # не более 1-го простоя за неделю
     for m in range(num_machines):
@@ -526,8 +532,6 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
                                             prev_product_id_hint == PRODUCT_ZERO and prev2_product_id_hint == PRODUCT_ZERO) else 0
                                 model.AddHint(completed_transition[m, d], completed_transition_hint)
 
-
-
         # ### END: ADDING INITIAL STATE (HINTS) ###
 
     # ------------ Мягкое ограничение: Пропорции продукции (для продуктов с индексом > 0) ------------
@@ -536,8 +540,26 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
     # Мы хотим, чтобы product_counts[p1] / product_counts[p2] было близко к proportions_input[p1] / proportions_input[p2]
     # Это эквивалентно product_counts[p1] * proportions_input[p2] ~= product_counts[p2] * proportions_input[p1]
 
+    # Корректировка общего количества распланированного на остатки на станках, не включаемых в план
+    products_init_machines = [0 for _ in range(len(products))]
+    products_count_corr = [0 for _ in range(len(products))]
+    for m in all_machines:
+        if initial_products[m] > 0:
+            products_init_machines[initial_products[m]] = products_init_machines[initial_products[m]] + days_to_constrain[m]
+    for p in range(1, len(products)):
+        if proportions_input[p] < products_init_machines[p]:
+            products_count_corr[p] = products_init_machines[p] - proportions_input[p]
+
+    product_counts_calc = [model.NewIntVar(0, num_machines * num_days, f"count_prod_{p}") for p in range(num_products)]
+    for p in all_products:
+        model.Add(product_counts_calc[p] == sum(
+            product_produced_bools[p, m, d] for m, d in work_days) - products_count_corr[p])
+
     total_products_count = model.NewIntVar(0, num_machines * num_days, "total_products_count")
     model.Add(total_products_count == sum(product_counts[p] for p in range(1, len(products))))
+
+    total_products_count_calc = model.NewIntVar(0, num_machines * num_days, "total_products_count_calc")
+    model.Add(total_products_count_calc == sum(product_counts_calc[p] for p in range(1, len(products))))
 
     total_input_quantity = sum(proportions_input)
     logger.debug(f"total_input_quantity={total_input_quantity}")
@@ -549,11 +571,11 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
         # product_counts[p] * total_input_quantity
         term1_expr = model.NewIntVar(0, num_machines * num_days * total_input_quantity,
                                      f"term1_{p}")
-        model.AddMultiplicationEquality(term1_expr, [product_counts[p], total_input_quantity])
+        model.AddMultiplicationEquality(term1_expr, [product_counts_calc[p], total_input_quantity])
 
         # total_products_count * proportions_input[p1_idx]
         term2_expr = model.NewIntVar(0, cp_model.INT32_MAX, f"term2_{p}")
-        model.AddMultiplicationEquality(term2_expr, [total_products_count,
+        model.AddMultiplicationEquality(term2_expr, [total_products_count_calc,
                                                      model.NewConstant(proportions_input[p])])
 
         # diff = term1_expr - term2_expr
@@ -563,9 +585,7 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
         model.AddAbsEquality(abs_diff_var, diff_var)
         proportion_objective_terms.append(abs_diff_var)
 
-    downtime_penalty = round(sum(proportions_input)/len(work_days))
-    if downtime_penalty < 2:
-        downtime_penalty = 2
+    downtime_penalty = total_input_quantity * 5
 
     model.Minimize(sum(proportion_objective_terms) + product_counts[PRODUCT_ZERO] * downtime_penalty)
 

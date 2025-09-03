@@ -14,7 +14,7 @@
 "product_idx": 2,
 "id": "fbc4c3a1-8087-11ea-80cc-005056aab926",
 "type": 0,
-  "remain_day": 11
+  "remain_day": 1
 },
 {
 "idx": 2,
@@ -37,7 +37,7 @@
 {
 "idx": 4,
 "name": "ТС Тойота №106",
-"product_idx": 11,
+"product_idx": 5,
 "id": "8282b5e9-abfa-11ec-80e0-005056aac628",
 "type": 1,
 "remain_day": 9
@@ -136,7 +136,73 @@
 "product_idx": 5,
 "id": "c11b8cb5-abfa-11ec-80e0-005056aac628",
 "type": 1,
+"remain_day": 22
+}
+
+,
+{
+"idx": 17,
+"name": "ТС Тойота №120",
+"product_idx": 6,
+"id": "c11b8cbe-abfa-11ec-80e0-005056aac628",
+"type": 1,
+"remain_day": 4
+},
+{
+"idx": 18,
+"name": "ТС Тойота №121",
+"product_idx": 6,
+"id": "c8696e59-abfa-11ec-80e0-005056aac628",
+"type": 1,
+"remain_day": 4
+},
+{
+"idx": 19,
+"name": "ТС Тойота №122",
+"product_idx": 6,
+"id": "c8696e5a-abfa-11ec-80e0-005056aac628",
+"type": 1,
+"remain_day": 9
+},
+{
+"idx": 20,
+"name": "ТС Тойота №123",
+"product_idx": 6,
+"id": "cf58caa2-abfa-11ec-80e0-005056aac628",
+"type": 1,
+"remain_day": 10
+},
+{
+"idx": 21,
+"name": "ТС Тойота №124",
+"product_idx": 6,
+"id": "cf58caa4-abfa-11ec-80e0-005056aac628",
+"type": 1,
+"remain_day": 13
+},
+{
+"idx": 22,
+"name": "ТС Тойота №125",
+"product_idx": 6,
+"id": "e05486a2-abfa-11ec-80e0-005056aac628",
+"type": 1,
+"remain_day": 13
+},
+{
+"idx": 23,
+"name": "ТС Тойота №126",
+"product_idx": 6,
+"id": "e05486a4-abfa-11ec-80e0-005056aac628",
+"type": 1,
 "remain_day": 17
+},
+{
+"idx": 24,
+"name": "ТС Тойота №127",
+"product_idx": 6,
+"id": "e8b7876d-abfa-11ec-80e0-005056aac628",
+"type": 1,
+"remain_day": 22
 }
 
 
@@ -159,7 +225,7 @@
 "qty": 0,
 "id": "7ec17dc8-f3bd-4384-9738-7538ab3dc315",
 "machine_type": 0,
-  "qty_minus": 0,
+  "qty_minus": 1,
 "lday": 16,
 "qty_week": [0, 3]
 },
@@ -197,11 +263,21 @@
 "idx": 5,
 "name": "ст87416t1",
 "qty": 219,
-"id": "cd825c90-bb80-4b95-9f81-2486b871bf94",
+"id": "cd825c90-cc80-4b95-9f81-2486b871bf94",
 "machine_type": 0,
   "qty_minus": 1,
 "lday": 23,
 "qty_week": [219, 42]
+},
+{
+"idx": 6,
+"name": "ст18422ахмt6",
+"qty": 139,
+"id": "cd825c90-ee80-4b95-9f81-2486b871bf94",
+"machine_type": 0,
+  "qty_minus": 1,
+"lday": 16,
+"qty_week": [139, 42]
 }
 
 ],
