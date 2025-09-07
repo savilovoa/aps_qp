@@ -282,7 +282,7 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
         model.Add(product_counts[p] == sum(
             product_produced_bools[p, m, d] for m, d in work_days))
         # Добавляем условие НЕ МЕНЬШЕ для некоторых продуктов
-        if products[p][4] == 0 and products[p][1] > 0:
+        if settings.APPLY_QTY_MINUS and products[p][4] == 0 and products[p][1] > 0:
             model.Add(product_counts[p] >= products[p][1])
 
     # Сумма PRODUCT_ZERO в смену d не более max_daily_prod_zero
