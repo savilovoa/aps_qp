@@ -5,7 +5,7 @@ import uvicorn
 from fastapi import FastAPI
 from .routers import router
 import json
-from src.loom.schedule_loom import schedule_loom_calc
+from src.loom.schedule_loom import schedule_loom_calc, schedule_loom_weeks_calc
 #from example.loom_plan_view import view_schedule
 from src.loom.loom_plan_html import schedule_to_html
 import sys
@@ -31,9 +31,9 @@ def calc_test_data_from():
 
     data = json.loads(test_in)
     machines = [(d["name"], d["product_idx"], d["id"], d["type"], d["remain_day"]) for d in data["machines"]]
-    products = [(d["name"], d["qty"], d["id"], d["machine_type"], d["qty_minus"], d["lday"]) for d in data["products"]]
+    products = [(d["name"], d["qty"], d["id"], d["machine_type"], d["qty_minus"], d["lday"], d["qty_week"]) for d in data["products"]]
     cleans = [(d["machine_idx"], d["day_idx"]) for d in data["cleans"]]
-    result_calc = schedule_loom_calc(machines=machines, products=products, remains=[], cleans=cleans,
+    result_calc = schedule_loom_weeks_calc(machines=machines, products=products, remains=[], cleans=cleans,
                                 max_daily_prod_zero=data["max_daily_prod_zero"], count_days=data["count_days"], data=data)
     if result_calc["error_str"]:
         print(result_calc["error_str"])
@@ -43,7 +43,7 @@ def calc_test_data_from():
     machines = [d["name"] for d in data["machines"]]
     products = [d["name"] for d in data["products"]]
     title_text = f"{result_calc['status_str']} оптимизационное значение {result_calc['objective_value']}"
-    dt_begin = datetime.strptime(data["dt_begin"], "%Y-%m-%dT%H:%M:%S")
+    dt_begin = datetime.strptime(data["dt_begin"], "%Y-%m-%dT00:00:00")
 
     result_html = schedule_to_html(machines=machines, products=products, days=days, schedules=result_calc["schedule"],
                                    dt_begin=dt_begin, title_text=title_text)
