@@ -251,6 +251,9 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
     for idx, (_, product_idx, m_id, t, remain_day) in enumerate(machines):
         initial_products.append(product_idx)
         days_to_constrain.append(remain_day)
+        # Корректировка ldays
+        if product_idx > 0 and ldays[product_idx] < remain_day:
+            ldays[product_idx] = remain_day
 
     model = cp_model.CpModel()
 
@@ -265,6 +268,7 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
                 jobs[(m, d)] = model.new_int_var(0, num_products - 1, f"job_{m}_{d}")
 
     PRODUCT_ZERO = 0  # Индекс "особенной" продукции
+
 
     # ------------ Подсчет общего количества каждого продукта ------------
     # Вспомогательные булевы переменные: product_produced[p, m, d] истинно, если продукт p производится на машине m в день d
@@ -284,8 +288,8 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
         model.Add(product_counts[p] == sum(
             product_produced_bools[p, m, d] for m, d in work_days))
         # Добавляем условие НЕ МЕНЬШЕ для некоторых продуктов
-        # if products[p][4] == 0 and products[p][1] > 0:
-        #     model.Add(product_counts[p] >= products[p][1])
+        if products[p][4] == 0 and products[p][1] > 0:
+            model.Add(product_counts[p] >= products[p][1])
 
     # Сумма PRODUCT_ZERO в смену d не более max_daily_prod_zero
     # Количество нулевого продукта по дням
@@ -361,11 +365,7 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
             remain_day[m] += 1
             model.Add(jobs[m, 0] == initial_product)
             # выставляем начальное значение остатка партии
-            if product_lday >= days_to_constrain[m]:
-                start_val = product_lday - days_to_constrain[m] + 1
-            else:
-                start_val = 1
-                ldays[initial_product] = days_to_constrain[m]
+            start_val = product_lday - days_to_constrain[m] + 1
             model.Add(days_in_batch[m, 0] == start_val)
         elif initial_product == 0:
             model.Add(days_in_batch[m, 0] == 1).OnlyEnforceIf([is_not_zero[m, 0]])

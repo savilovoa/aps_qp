@@ -205,7 +205,147 @@
 "remain_day": 22
 }
 
+,
+{
+"idx": 25,
+"name": "ТС Тойота №128",
+"product_idx": 7,
+"id": "e8b7876e-abfa-11ec-80e0-005056aac628",
+"type": 1,
+"remain_day": 0
+},
+{
+"idx": 26,
+"name": "ТС Тойота №129",
+"product_idx": 7,
+"id": "f27d1290-abfa-11ec-80e0-005056aac628",
+"type": 1,
+"remain_day": 2
+},
+{
+"idx": 27,
+"name": "ТС Тойота №130",
+"product_idx": 7,
+"id": "f27d1291-abfa-11ec-80e0-005056aac628",
+"type": 1,
+"remain_day": 5
+},
+{
+"idx": 28,
+"name": "ТС Тойота №131",
+"product_idx": 7,
+"id": "fedde8c8-abfa-11ec-80e0-005056aac628",
+"type": 1,
+"remain_day": 13
+},
+{
+"idx": 29,
+"name": "ТС Тойота №132",
+"product_idx": 7,
+"id": "fedde8c9-abfa-11ec-80e0-005056aac628",
+"type": 1,
+"remain_day": 15
+},
+{
+"idx": 30,
+"name": "ТС Тойота №133",
+"product_idx": 7,
+"id": "06dd754d-abfb-11ec-80e0-005056aac628",
+"type": 1,
+"remain_day": 16
+},
+{
+"idx": 31,
+"name": "ТС Тойота №134",
+"product_idx": 7,
+"id": "06dd754e-abfb-11ec-80e0-005056aac628",
+"type": 1,
+"remain_day": 20
+}
 
+,
+{
+"idx": 32,
+"name": "ТС Тойота №135",
+"product_idx": 8,
+"id": "945d9886-b16c-11ec-80e2-005056aa1736",
+"type": 1,
+"remain_day": 11
+},
+{
+"idx": 33,
+"name": "ТС Тойота №136",
+"product_idx": 8,
+"id": "0e700716-abfb-11ec-80e0-005056aac628",
+"type": 1,
+"remain_day": 9
+},
+{
+"idx": 34,
+"name": "ТС Тойота №137",
+"product_idx": 8,
+"id": "9d3ea9f9-b16c-11ec-80e2-005056aa1736",
+"type": 1,
+"remain_day": 6
+},
+{
+"idx": 35,
+"name": "ТС Тойота №138",
+"product_idx": 8,
+"id": "9d3ea9fa-b16c-11ec-80e2-005056aa1736",
+"type": 1,
+"remain_day": 2
+},
+{
+"idx": 36,
+"name": "ТС Тойота №139",
+"product_idx": 8,
+"id": "a4477be2-b16c-11ec-80e2-005056aa1736",
+"type": 1,
+"remain_day": 0
+}
+
+,
+{
+"idx": 37,
+"name": "ТС Тойота №140",
+"product_idx": 9,
+"id": "a4477be3-b16c-11ec-80e2-005056aa1736",
+"type": 1,
+"remain_day": 17
+},
+{
+"idx": 38,
+"name": "ТС Тойота №141",
+"product_idx": 9,
+"id": "ab27292b-b16c-11ec-80e2-005056aa1736",
+"type": 1,
+"remain_day": 8
+},
+{
+"idx": 39,
+"name": "ТС Тойота №95",
+"product_idx": 9,
+"id": "450b8a00-abfa-11ec-80e0-005056aac628",
+"type": 1,
+"remain_day": 4
+},
+{
+"idx": 40,
+"name": "ТС Тойота №96",
+"product_idx": 9,
+"id": "53bec441-abfa-11ec-80e0-005056aac628",
+"type": 1,
+"remain_day": 2
+},
+{
+"idx": 41,
+"name": "ТС Тойота №97",
+"product_idx": 9,
+"id": "5af9b5d8-abfa-11ec-80e0-005056aac628",
+"type": 1,
+"remain_day": 2
+}
 
 ],
 "products": [
@@ -278,6 +418,36 @@
   "qty_minus": 1,
 "lday": 16,
 "qty_week": [139, 42]
+},
+{
+"idx": 7,
+"name": "ст18308t1",
+"qty": 119,
+"id": "cd825c90-ff80-4b95-9f81-2486b871bf94",
+"machine_type": 0,
+  "qty_minus": 1,
+"lday": 12,
+"qty_week": [119, 42]
+},
+{
+"idx": 8,
+"name": "ст18450амt4",
+"qty": 100,
+"id": "cd825c90-ef80-4b95-9f81-2486b871bf94",
+"machine_type": 0,
+  "qty_minus": 1,
+"lday": 23,
+"qty_week": [100, 42]
+},
+{
+"idx": 9,
+"name": "ст15404амt2",
+"qty": 100,
+"id": "cd825c90-df80-4b95-9f81-2486b871bf94",
+"machine_type": 0,
+  "qty_minus": 1,
+"lday": 14,
+"qty_week": [100, 42]
 }
 
 ],
