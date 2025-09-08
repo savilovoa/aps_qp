@@ -43,7 +43,7 @@ def calc_test_data_from():
     machines = [d["name"] for d in data["machines"]]
     products = [d["name"] for d in data["products"]]
     title_text = f"{result_calc['status_str']} оптимизационное значение {result_calc['objective_value']}"
-    dt_begin = datetime.strptime(data["dt_begin"], "%Y-%m-%dT00:00:00")
+    dt_begin = datetime.strptime(data["dt_begin"], "%Y-%m-%dT%H:%M:%S")
 
     result_html = schedule_to_html(machines=machines, products=products, days=days, schedules=result_calc["schedule"],
                                    dt_begin=dt_begin, title_text=title_text)

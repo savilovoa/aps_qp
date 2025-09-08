@@ -4,211 +4,92 @@
 "machines": [
 {
 "idx": 0,
-"name": "ТС Тойота №1",
-"product_idx": 1,
-"id": "fbc4c3a0-8087-11ea-80cc-005056aab926",
+"name": "ТС Тойота №16",
+"product_idx": 3,
+"id": "fbc4c37a-8087-11ea-80cc-005056aab926",
 "type": 0,
-"remain_day": 18
+"remain_day": 2
 },
 {
 "idx": 1,
-"name": "ТС Тойота №2",
-"product_idx": 2,
-"id": "fbc4c3a1-8087-11ea-80cc-005056aab926",
+"name": "ТС Тойота №24",
+"product_idx": 6,
+"id": "fbc4c382-8087-11ea-80cc-005056aab926",
 "type": 0,
-  "remain_day": 1
+"remain_day": 20
 },
 {
 "idx": 2,
-"name": "ТС Тойота №3",
-"product_idx": 3,
-"id": "fbc4c372-8087-11ea-80cc-005056aab926",
+"name": "ТС Тойота №29",
+"product_idx": 9,
+"id": "fbc4c387-8087-11ea-80cc-005056aab926",
 "type": 0,
-  "remain_day": 6
-}
-,
-
+"remain_day": 20
+},
 {
 "idx": 3,
-"name": "ТС Тойота №104",
-"product_idx": 5,
-"id": "798b5811-abfa-11ec-80e0-005056aac628",
-"type": 1,
-"remain_day": 1
+"name": "ТС Тойота №30",
+"product_idx": 3,
+"id": "fbc4c388-8087-11ea-80cc-005056aab926",
+"type": 0,
+"remain_day": 17
 },
 {
 "idx": 4,
-"name": "ТС Тойота №106",
-"product_idx": 5,
-"id": "8282b5e9-abfa-11ec-80e0-005056aac628",
-"type": 1,
-"remain_day": 9
+"name": "ТС Тойота №47",
+"product_idx": 2,
+"id": "fbc4c399-8087-11ea-80cc-005056aab926",
+"type": 0,
+"remain_day": 13
 },
 {
 "idx": 5,
-"name": "ТС Тойота №107",
-"product_idx": 5,
-"id": "8282b5ec-abfa-11ec-80e0-005056aac628",
-"type": 1,
-"remain_day": 4
+"name": "ТС Тойота №60",
+"product_idx": 12,
+"id": "fbc4c3a6-8087-11ea-80cc-005056aab926",
+"type": 0,
+"remain_day": 25
 },
 {
 "idx": 6,
-"name": "ТС Тойота №108",
-"product_idx": 5,
-"id": "8a9f0ec4-abfa-11ec-80e0-005056aac628",
-"type": 1,
-"remain_day": 4
-},
-{
-"idx": 7,
-"name": "ТС Тойота №109",
-"product_idx": 5,
-"id": "917b2e36-abfa-11ec-80e0-005056aac628",
-"type": 1,
-"remain_day": 4
-},
-{
-"idx": 8,
-"name": "ТС Тойота №110",
-"product_idx": 5,
-"id": "917b2e38-abfa-11ec-80e0-005056aac628",
-"type": 1,
-"remain_day": 5
-},
-{
-"idx": 9,
-"name": "ТС Тойота №111",
-"product_idx": 5,
-"id": "a3ef8268-abfa-11ec-80e0-005056aac628",
+"name": "ТС Тойота №78",
+"product_idx": 4,
+"id": "fbc4c3b8-8087-11ea-80cc-005056aab926",
 "type": 1,
 "remain_day": 6
 },
 {
+"idx": 7,
+"name": "ТС Тойота №87",
+"product_idx": 1,
+"id": "fbc4c3c1-8087-11ea-80cc-005056aab926",
+"type": 1,
+"remain_day": 3
+},
+{
+"idx": 8,
+"name": "ТС Тойота №91",
+"product_idx": 10,
+"id": "fbc4c3c5-8087-11ea-80cc-005056aab926",
+"type": 1,
+"remain_day": 26
+},
+{
+"idx": 9,
+"name": "ТС Тойота №93",
+"product_idx": 11,
+"id": "fbc4c3c7-8087-11ea-80cc-005056aab926",
+"type": 1,
+"remain_day": 21
+},
+{
 "idx": 10,
-"name": "ТС Тойота №113",
-"product_idx": 5,
-"id": "aa2b3543-abfa-11ec-80e0-005056aac628",
+"name": "ТС Тойота №94",
+"product_idx": 3,
+"id": "fbc4c3c8-8087-11ea-80cc-005056aab926",
 "type": 1,
-"remain_day": 7
-},
-{
-"idx": 11,
-"name": "ТС Тойота №114",
-"product_idx": 5,
-"id": "aa2b3544-abfa-11ec-80e0-005056aac628",
-"type": 1,
-"remain_day": 7
-},
-{
-"idx": 12,
-"name": "ТС Тойота №115",
-"product_idx": 5,
-"id": "b283054f-abfa-11ec-80e0-005056aac628",
-"type": 1,
-"remain_day": 9
-},
-{
-"idx": 13,
-"name": "ТС Тойота №116",
-"product_idx": 5,
-"id": "b2830550-abfa-11ec-80e0-005056aac628",
-"type": 1,
-"remain_day": 9
-},
-{
-"idx": 14,
-"name": "ТС Тойота №117",
-"product_idx": 5,
-"id": "b998c049-abfa-11ec-80e0-005056aac628",
-"type": 1,
-"remain_day": 13
-},
-{
-"idx": 15,
-"name": "ТС Тойота №118",
-"product_idx": 5,
-"id": "b998c04a-abfa-11ec-80e0-005056aac628",
-"type": 1,
-"remain_day": 13
-},
-{
-"idx": 16,
-"name": "ТС Тойота №119",
-"product_idx": 5,
-"id": "c11b8cb5-abfa-11ec-80e0-005056aac628",
-"type": 1,
-"remain_day": 22
+"remain_day": 0
 }
-
-,
-{
-"idx": 17,
-"name": "ТС Тойота №120",
-"product_idx": 6,
-"id": "c11b8cbe-abfa-11ec-80e0-005056aac628",
-"type": 1,
-"remain_day": 4
-},
-{
-"idx": 18,
-"name": "ТС Тойота №121",
-"product_idx": 6,
-"id": "c8696e59-abfa-11ec-80e0-005056aac628",
-"type": 1,
-"remain_day": 4
-},
-{
-"idx": 19,
-"name": "ТС Тойота №122",
-"product_idx": 6,
-"id": "c8696e5a-abfa-11ec-80e0-005056aac628",
-"type": 1,
-"remain_day": 9
-},
-{
-"idx": 20,
-"name": "ТС Тойота №123",
-"product_idx": 6,
-"id": "cf58caa2-abfa-11ec-80e0-005056aac628",
-"type": 1,
-"remain_day": 10
-},
-{
-"idx": 21,
-"name": "ТС Тойота №124",
-"product_idx": 6,
-"id": "cf58caa4-abfa-11ec-80e0-005056aac628",
-"type": 1,
-"remain_day": 13
-},
-{
-"idx": 22,
-"name": "ТС Тойота №125",
-"product_idx": 6,
-"id": "e05486a2-abfa-11ec-80e0-005056aac628",
-"type": 1,
-"remain_day": 13
-},
-{
-"idx": 23,
-"name": "ТС Тойота №126",
-"product_idx": 6,
-"id": "e05486a4-abfa-11ec-80e0-005056aac628",
-"type": 1,
-"remain_day": 17
-},
-{
-"idx": 24,
-"name": "ТС Тойота №127",
-"product_idx": 6,
-"id": "e8b7876d-abfa-11ec-80e0-005056aac628",
-"type": 1,
-"remain_day": 17
-}
-
-
-
 ],
 "products": [
 {
@@ -217,77 +98,186 @@
 "qty": 0,
 "id": "",
 "machine_type": 0,
-  "qty_minus": 0,
-"lday": 2,
-"qty_week": [0, 0]
+"qty_minus": 0,
+"lday": 0,
+"qty_week": [
+0
+]
 },
 {
 "idx": 1,
-"name": "ст16612t3",
+"name": "ст87001t1 ",
 "qty": 0,
-"id": "7ec17dc8-f3bd-4384-9738-7538ab3dc315",
+"id": "123e7d53-8f5d-41cf-89cc-7c1c18ad2b3d",
 "machine_type": 0,
-  "qty_minus": 1,
-"lday": 16,
-"qty_week": [0, 3]
+"qty_minus": true,
+"lday": 21,
+"qty_week": [
+134
+]
 },
 {
 "idx": 2,
-"name": "ст60405амt15",
+"name": "ст2022УИСt4 ",
 "qty": 0,
-"id": "9559e2e8-6e72-41f8-9dba-08aab5463623",
+"id": "d4420085-0666-4481-8b2e-241af39c38d2",
 "machine_type": 0,
-  "qty_minus": 1,
-"lday": 15,
-"qty_week": [0, 14]
+"qty_minus": 0,
+"lday": 1,
+"qty_week": [
+0
+]
 },
 {
 "idx": 3,
-"name": "ст81408амt14",
-"qty": 20,
-"id": "cd825c90-aa80-4b95-9f81-2486b871bf94",
+"name": "ст87021t4 ",
+"qty": 0,
+"id": "3f04a4fe-c049-4b1c-a2ec-a65f4a6eb9d8",
 "machine_type": 0,
-  "qty_minus": 1,
-"lday": 15,
-"qty_week": [20, 42]
+"qty_minus": 0,
+"lday": 1,
+"qty_week": [
+0
+]
 },
 {
 "idx": 4,
-"name": "ст15406aмRSt2",
-"qty": 16,
-"id": "cd825c90-bb80-4b95-9f81-2486b871bf94",
+"name": "ст76004t2 П, 0, 2, П2",
+"qty": 0,
+"id": "ee5b91c4-4808-4ef6-8be6-7646bbc5fa25",
 "machine_type": 0,
-  "qty_minus": 1,
-"lday": 12,
-"qty_week": [16, 42]
+"qty_minus": 0,
+"lday": 1,
+"qty_week": [
+0
+]
 },
 {
 "idx": 5,
-"name": "ст87416t1",
-"qty": 219,
-"id": "cd825c90-cc80-4b95-9f81-2486b871bf94",
-"machine_type": 0,
-  "qty_minus": 1,
-"lday": 23,
-"qty_week": [219, 42]
+"name": "ст10421амt3 ",
+"qty": 0,
+"id": "45848c9e-929e-407d-80d1-784c7f57e17c",
+"machine_type": 1,
+"qty_minus": true,
+"lday": 21,
+"qty_week": [
+0
+]
 },
 {
 "idx": 6,
-"name": "ст18422ахмt6",
-"qty": 139,
-"id": "cd825c90-ee80-4b95-9f81-2486b871bf94",
+"name": "ст87315t ",
+"qty": 0,
+"id": "95bfee9b-9a95-4e39-97ae-4b45c42a55a3",
 "machine_type": 0,
-  "qty_minus": 1,
-"lday": 16,
-"qty_week": [139, 42]
+"qty_minus": true,
+"lday": 20,
+"qty_week": [
+0
+]
+},
+{
+"idx": 7,
+"name": "ст87416t1 ",
+"qty": 9,
+"id": "7b5cd3ae-1639-4709-9a17-25cb942b673c",
+"machine_type": 0,
+"qty_minus": true,
+"lday": 23,
+"qty_week": [
+9
+]
+},
+{
+"idx": 8,
+"name": "ст15306t4 ",
+"qty": 9,
+"id": "0ce913a8-0455-48fe-b329-d5be16ed9921",
+"machine_type": 0,
+"qty_minus": true,
+"lday": 23,
+"qty_week": [
+9
+]
+},
+{
+"idx": 9,
+"name": "ст60410t3 ",
+"qty": 21,
+"id": "ead190da-537b-420d-98bb-563ac8d73f41",
+"machine_type": 0,
+"qty_minus": true,
+"lday": 20,
+"qty_week": [
+21
+]
+},
+{
+"idx": 10,
+"name": "ст60411t7 ",
+"qty": 19,
+"id": "a6ef21b2-5d06-4791-899f-b97688a7c897",
+"machine_type": 0,
+"qty_minus": true,
+"lday": 26,
+"qty_week": [
+19
+]
+},
+{
+"idx": 11,
+"name": "ст78425t П, 0, 14, П2",
+"qty": 21,
+"id": "f48f1017-97c2-42a3-8c50-e5ebf744c5bf",
+"machine_type": 0,
+"qty_minus": true,
+"lday": 21,
+"qty_week": [
+21
+]
+},
+{
+"idx": 12,
+"name": "ст10417RSt ",
+"qty": 21,
+"id": "c96d4eca-1ba5-4f65-953d-88073c103c84",
+"machine_type": 0,
+"qty_minus": true,
+"lday": 25,
+"qty_week": [
+21
+]
+},
+{
+"idx": 13,
+"name": "ст87024t1 ",
+"qty": 42,
+"id": "d44bd724-94c6-4f2e-b82b-db90d5adf178",
+"machine_type": 0,
+"qty_minus": true,
+"lday": 21,
+"qty_week": [
+42
+]
+},
+{
+"idx": 14,
+"name": "ст87027t ",
+"qty": 42,
+"id": "dd5a9c9b-9465-4e44-89ee-28478f77f7d1",
+"machine_type": 0,
+"qty_minus": true,
+"lday": 14,
+"qty_week": [
+42
+]
 }
-
 ],
 "remains": [],
 "cleans": [],
 "max_daily_prod_zero": 3,
 "count_days": 21,
-  "dt_begin": "2025-07-01T00:00:00"
+"dt_begin": "2025-08-11T00:00:00"
 }
 существующая модель для планирования продукта по слудующим критериям:
 - вначале на машине дорабатывается тот продукт, который указан в начальном состоянии, на количество дней указанное в remain_day
@@ -369,8 +359,8 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
         model.Add(product_counts[p] == sum(
             product_produced_bools[p, m, d] for m, d in work_days))
         # Добавляем условие НЕ МЕНЬШЕ для некоторых продуктов
-        # if products[p][4] == 0 and products[p][1] > 0:
-        #     model.Add(product_counts[p] >= products[p][1])
+        if settings.APPLY_QTY_MINUS and products[p][4] == 0 and products[p][1] > 0:
+            model.Add(product_counts[p] >= products[p][1])
 
     # Сумма PRODUCT_ZERO в смену d не более max_daily_prod_zero
     # Количество нулевого продукта по дням
@@ -425,20 +415,18 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
     prev_is_not_zero = {}
     prev2_is_not_zero = {}
     two_day_zero = {}
+
     start_batch = {}
+    for m in range(num_machines):
+        for d in range(num_days):
+            completed_transition[m, d] = model.NewBoolVar(f"completed_transition_{m}_{d}")
 
     remain_day = [0 for _ in range(num_machines)]
     # Ограничение для первого дня (d=0)
     for m in range(num_machines):
         initial_product = initial_products[m]
         is_initial_product = model.NewBoolVar(f"is_initial_product_{m}_0")
-        model.Add(jobs[m, 0] == initial_product).OnlyEnforceIf(is_initial_product)
-        model.Add(jobs[m, 0] != initial_product).OnlyEnforceIf(is_initial_product.Not())
-
         is_not_zero[m, 0] = model.NewBoolVar(f"is_not_zero_{m}_0")
-        model.Add(jobs[m, 0] == PRODUCT_ZERO).OnlyEnforceIf(is_not_zero[m, 0].Not())
-        model.Add(jobs[m, 0] != PRODUCT_ZERO).OnlyEnforceIf(is_not_zero[m, 0])
-
         product_lday = ldays[initial_product]
         batch_end_complite[m, 0] = model.NewBoolVar(f"batch_end_complite_m{m}_d0")
 
@@ -448,10 +436,11 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
             # выставляем начальное значение остатка партии
             start_val = product_lday - days_to_constrain[m] + 1
             model.Add(days_in_batch[m, 0] == start_val)
-        elif initial_product == 0:
-            model.Add(days_in_batch[m, 0] == 1).OnlyEnforceIf([is_not_zero[m, 0]])
-            model.Add(jobs[m, 0] != PRODUCT_ZERO)
         else:
+            model.Add(jobs[m, 0] == initial_product).OnlyEnforceIf(is_initial_product)
+            model.Add(jobs[m, 0] != initial_product).OnlyEnforceIf(is_initial_product.Not())
+            model.Add(jobs[m, 0] == PRODUCT_ZERO).OnlyEnforceIf(is_not_zero[m, 0].Not())
+            model.Add(jobs[m, 0] != PRODUCT_ZERO).OnlyEnforceIf(is_not_zero[m, 0])
 
             # Первый день: либо начальный продукт, либо PRODUCT_ZERO
             model.AddBoolOr([is_initial_product, is_not_zero[m, 0].Not()])
@@ -460,7 +449,6 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
             model.Add(days_in_batch[m, 0] == 0).OnlyEnforceIf(is_not_zero[m, 0].Not())
 
         # Устанавливаем completed_transition для дня 0
-        completed_transition[m, 0] = model.NewBoolVar(f"completed_transition_{m}_0")
         model.Add(completed_transition[m, 0] == 0)  # Нет перехода в день 0
 
         model.Add(days_in_batch[m, 0] == prev_lday[m, 0]).OnlyEnforceIf(batch_end_complite[m, 0])
@@ -495,7 +483,7 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
             model.Add(jobs[m, pred_idx] == PRODUCT_ZERO).OnlyEnforceIf(prev_is_not_zero[m, d].Not())
 
             # Проверяем, был ли завершен двухдневный переход
-            completed_transition[m, d] = model.NewBoolVar(f"completed_transition_{m}_{d}")
+            completed_transition[m, d] = model.NewBoolVar(f"two_day_zero_{m}_{d}")
             model.AddBoolAnd(prev_is_not_zero[m, d].Not(), is_not_zero[m, d].Not()).OnlyEnforceIf(
                 completed_transition[m, d])
             model.AddBoolOr(prev_is_not_zero[m, d], is_not_zero[m, d]).OnlyEnforceIf(
@@ -561,8 +549,8 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
             # Запрет на 3-й ZERO
             model.add(jobs[m, d] != PRODUCT_ZERO).OnlyEnforceIf(completed_transition[m, pred_idx])
             # Запрет на переход в последние 2 дня
-            # if d >= count_days - 2:
-            #     model.add(jobs[m, d] != PRODUCT_ZERO)
+            if d >= count_days - 2:
+                model.add(jobs[m, d] != PRODUCT_ZERO)
 
     # не более 1-го простоя за неделю
     for m in range(num_machines):
@@ -613,6 +601,8 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
                                             prev_product_id_hint == PRODUCT_ZERO and prev2_product_id_hint == PRODUCT_ZERO) else 0
                                 model.AddHint(completed_transition[m, d], completed_transition_hint)
 
+
+
         # ### END: ADDING INITIAL STATE (HINTS) ###
 
     # ------------ Мягкое ограничение: Пропорции продукции (для продуктов с индексом > 0) ------------
@@ -621,26 +611,8 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
     # Мы хотим, чтобы product_counts[p1] / product_counts[p2] было близко к proportions_input[p1] / proportions_input[p2]
     # Это эквивалентно product_counts[p1] * proportions_input[p2] ~= product_counts[p2] * proportions_input[p1]
 
-    # Корректировка общего количества распланированного на остатки на станках, не включаемых в план
-    products_init_machines = [0 for _ in range(len(products))]
-    products_count_corr = [0 for _ in range(len(products))]
-    for m in all_machines:
-        if initial_products[m] > 0:
-            products_init_machines[initial_products[m]] = products_init_machines[initial_products[m]] + days_to_constrain[m]
-    for p in range(1, len(products)):
-        if proportions_input[p] < products_init_machines[p]:
-            products_count_corr[p] = products_init_machines[p] - proportions_input[p]
-
-    product_counts_calc = [model.NewIntVar(0, num_machines * num_days, f"count_prod_{p}") for p in range(num_products)]
-    for p in all_products:
-        model.Add(product_counts_calc[p] == sum(
-            product_produced_bools[p, m, d] for m, d in work_days) - products_count_corr[p])
-
     total_products_count = model.NewIntVar(0, num_machines * num_days, "total_products_count")
     model.Add(total_products_count == sum(product_counts[p] for p in range(1, len(products))))
-
-    total_products_count_calc = model.NewIntVar(0, num_machines * num_days, "total_products_count_calc")
-    model.Add(total_products_count_calc == sum(product_counts_calc[p] for p in range(1, len(products))))
 
     total_input_quantity = sum(proportions_input)
     logger.debug(f"total_input_quantity={total_input_quantity}")
@@ -652,11 +624,11 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
         # product_counts[p] * total_input_quantity
         term1_expr = model.NewIntVar(0, num_machines * num_days * total_input_quantity,
                                      f"term1_{p}")
-        model.AddMultiplicationEquality(term1_expr, [product_counts_calc[p], total_input_quantity])
+        model.AddMultiplicationEquality(term1_expr, [product_counts[p], total_input_quantity])
 
         # total_products_count * proportions_input[p1_idx]
         term2_expr = model.NewIntVar(0, cp_model.INT32_MAX, f"term2_{p}")
-        model.AddMultiplicationEquality(term2_expr, [total_products_count_calc,
+        model.AddMultiplicationEquality(term2_expr, [total_products_count,
                                                      model.NewConstant(proportions_input[p])])
 
         # diff = term1_expr - term2_expr
@@ -666,7 +638,9 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
         model.AddAbsEquality(abs_diff_var, diff_var)
         proportion_objective_terms.append(abs_diff_var)
 
-    downtime_penalty = total_input_quantity * 5
+    downtime_penalty = round(sum(proportions_input)/len(work_days))
+    if downtime_penalty < 2:
+        downtime_penalty = 2
 
     model.Minimize(sum(proportion_objective_terms) + product_counts[PRODUCT_ZERO] * downtime_penalty)
 
@@ -676,5 +650,4 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
 
 
 Но с именно с этими начальными данными, указанными в начале, никаких решений не строится - выдается INFEASIBLE.
-Причем если в первой машине поставить remain_day=17 и меньше, то решения начинают строится.
 Где ошибка в модели?
