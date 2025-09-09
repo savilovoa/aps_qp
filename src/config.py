@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     CALC_TEST_DATA: bool = Field(default=False)
     SOLVER_ENUMERATE: bool = Field(default=False)
     SOLVER_ENUMERATE_COUNT: int = Field(default=3)
+    APPLY_QTY_MINUS: bool = Field(default=True)
 
 settings = Settings()
 

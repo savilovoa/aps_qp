@@ -2,28 +2,181 @@
 "machines": [
 {
 "idx": 0,
-"name": "ТС Тойота №1",
-"product_idx": 3,
-"id": "fbc4c3a0-8087-11ea-80cc-005056aab926",
-"type": 0,
-"remain_day": 6
+"name": "ТС Тойота №114",
+"product_idx": 21,
+"id": "aa2b3544-abfa-11ec-80e0-005056aac628",
+"type": 1,
+"remain_day": 7
 },
 {
 "idx": 1,
-"name": "ТС Тойота №2",
-"product_idx": 3,
-"id": "fbc4c3a1-8087-11ea-80cc-005056aab926",
-"type": 0,
-  "remain_day": 0
+"name": "ТС Тойота №115",
+"product_idx": 6,
+"id": "b283054f-abfa-11ec-80e0-005056aac628",
+"type": 1,
+"remain_day": 12
 },
 {
 "idx": 2,
-"name": "ТС Тойота №3",
-"product_idx": 1,
-"id": "fbc4c372-8087-11ea-80cc-005056aab926",
+"name": "ТС Тойота №117",
+"product_idx": 13,
+"id": "b998c049-abfa-11ec-80e0-005056aac628",
+"type": 1,
+"remain_day": 20
+},
+{
+"idx": 3,
+"name": "ТС Тойота №129",
+"product_idx": 18,
+"id": "f27d1290-abfa-11ec-80e0-005056aac628",
+"type": 1,
+"remain_day": 2
+},
+{
+"idx": 4,
+"name": "ТС Тойота №132",
+"product_idx": 15,
+"id": "fedde8c9-abfa-11ec-80e0-005056aac628",
+"type": 1,
+"remain_day": 3
+},
+{
+"idx": 5,
+"name": "ТС Тойота №134",
+"product_idx": 4,
+"id": "06dd754e-abfb-11ec-80e0-005056aac628",
+"type": 1,
+"remain_day": 12
+},
+{
+"idx": 6,
+"name": "ТС Тойота №141",
+"product_idx": 20,
+"id": "ab27292b-b16c-11ec-80e2-005056aa1736",
+"type": 1,
+"remain_day": 13
+},
+{
+"idx": 7,
+"name": "ТС Тойота №16",
+"product_idx": 3,
+"id": "fbc4c37a-8087-11ea-80cc-005056aab926",
 "type": 0,
-  "remain_day": 1
-}],
+"remain_day": 2
+},
+{
+"idx": 8,
+"name": "ТС Тойота №24",
+"product_idx": 8,
+"id": "fbc4c382-8087-11ea-80cc-005056aab926",
+"type": 0,
+"remain_day": 20
+},
+{
+"idx": 9,
+"name": "ТС Тойота №29",
+"product_idx": 16,
+"id": "fbc4c387-8087-11ea-80cc-005056aab926",
+"type": 0,
+"remain_day": 20
+},
+{
+"idx": 10,
+"name": "ТС Тойота №30",
+"product_idx": 3,
+"id": "fbc4c388-8087-11ea-80cc-005056aab926",
+"type": 0,
+"remain_day": 17
+},
+{
+"idx": 11,
+"name": "ТС Тойота №47",
+"product_idx": 2,
+"id": "fbc4c399-8087-11ea-80cc-005056aab926",
+"type": 0,
+"remain_day": 13
+},
+{
+"idx": 12,
+"name": "ТС Тойота №60",
+"product_idx": 22,
+"id": "fbc4c3a6-8087-11ea-80cc-005056aab926",
+"type": 0,
+"remain_day": 25
+},
+{
+"idx": 13,
+"name": "ТС Тойота №78",
+"product_idx": 5,
+"id": "fbc4c3b8-8087-11ea-80cc-005056aab926",
+"type": 1,
+"remain_day": 6
+},
+{
+"idx": 14,
+"name": "ТС Тойота №84",
+"product_idx": 14,
+"id": "fbc4c3be-8087-11ea-80cc-005056aab926",
+"type": 0,
+"remain_day": 18
+},
+{
+"idx": 15,
+"name": "ТС Тойота №86",
+"product_idx": 14,
+"id": "fbc4c3c0-8087-11ea-80cc-005056aab926",
+"type": 0,
+"remain_day": 1
+},
+{
+"idx": 16,
+"name": "ТС Тойота №87",
+"product_idx": 1,
+"id": "fbc4c3c1-8087-11ea-80cc-005056aab926",
+"type": 1,
+"remain_day": 3
+},
+{
+"idx": 17,
+"name": "ТС Тойота №91",
+"product_idx": 17,
+"id": "fbc4c3c5-8087-11ea-80cc-005056aab926",
+"type": 1,
+"remain_day": 26
+},
+{
+"idx": 18,
+"name": "ТС Тойота №93",
+"product_idx": 19,
+"id": "fbc4c3c7-8087-11ea-80cc-005056aab926",
+"type": 1,
+"remain_day": 21
+},
+{
+"idx": 19,
+"name": "ТС Тойота №94",
+"product_idx": 3,
+"id": "fbc4c3c8-8087-11ea-80cc-005056aab926",
+"type": 1,
+"remain_day": 0
+},
+{
+"idx": 20,
+"name": "ТС Тойота №98",
+"product_idx": 11,
+"id": "5af9b5d9-abfa-11ec-80e0-005056aac628",
+"type": 1,
+"remain_day": 5
+},
+{
+"idx": 21,
+"name": "ТС Тойота №99",
+"product_idx": 12,
+"id": "6166f3dc-abfa-11ec-80e0-005056aac628",
+"type": 1,
+"remain_day": 12
+}
+],
 "products": [
 {
 "idx": 0,
@@ -31,44 +184,304 @@
 "qty": 0,
 "id": "",
 "machine_type": 0,
-  "qty_minus": 0,
-"lday": 1,
-"qty_week": [0, 0]
+"qty_minus": 0,
+"lday": 0,
+"qty_week": [
+0
+]
 },
 {
 "idx": 1,
-"name": "ст87017t3 ",
-"qty": 6,
-"id": "7ec17dc8-f3bd-4384-9738-7538ab3dc315",
+"name": "ст87001t1 ",
+"qty": 0,
+"id": "bb9137b8-04f9-4a1a-896f-49482a4ffcc0",
 "machine_type": 0,
-  "qty_minus": 0,
-"lday": 3,
-"qty_week": [3, 3]
+"qty_minus": true,
+"lday": 21,
+"qty_week": [
+134
+]
 },
 {
 "idx": 2,
-"name": "ст87416t1 ",
-"qty": 30,
-"id": "9559e2e8-6e72-41f8-9dba-08aab5463623",
+"name": "ст2022УИСt4 ",
+"qty": 0,
+"id": "df00a1ab-7040-46ed-a4eb-1d32d37bf15e",
 "machine_type": 0,
-  "qty_minus": 1,
-"lday": 2,
-"qty_week": [16, 14]
+"qty_minus": 0,
+"lday": 13,
+"qty_week": [
+0
+]
 },
 {
 "idx": 3,
-"name": "ст2022УИСt4 ",
-"qty": 84,
-"id": "cd825c90-aa80-4b95-9f81-2486b871bf94",
+"name": "ст87021t4 ",
+"qty": 0,
+"id": "10a3f9dc-05b5-4030-b926-c5020ff8cb8c",
 "machine_type": 0,
-  "qty_minus": 1,
-"lday": 4,
-"qty_week": [42, 42]
+"qty_minus": 0,
+"lday": 17,
+"qty_week": [
+0
+]
+},
+{
+"idx": 4,
+"name": "ст60405амt15 П, 0, 29, П2",
+"qty": 0,
+"id": "9923af8c-6c70-41e9-9559-5ecab70dd2ee",
+"machine_type": 0,
+"qty_minus": 0,
+"lday": 12,
+"qty_week": [
+0
+]
+},
+{
+"idx": 5,
+"name": "ст76004t2 П, 0, 2, П2",
+"qty": 0,
+"id": "9b49e8d7-292f-435e-924e-61cbcca1823e",
+"machine_type": 0,
+"qty_minus": 0,
+"lday": 6,
+"qty_week": [
+0
+]
+},
+{
+"idx": 6,
+"name": "ст16612t3 ",
+"qty": 0,
+"id": "70808a9d-93c5-476d-83cb-c24fcba9d198",
+"machine_type": 0,
+"qty_minus": 0,
+"lday": 12,
+"qty_week": [
+0
+]
+},
+{
+"idx": 7,
+"name": "ст10421амt3 ",
+"qty": 0,
+"id": "683d0651-e61c-49dd-90a2-307c53b98f33",
+"machine_type": 1,
+"qty_minus": true,
+"lday": 21,
+"qty_week": [
+0
+]
+},
+{
+"idx": 8,
+"name": "ст87315t ",
+"qty": 0,
+"id": "a251bc10-87dc-4312-83be-4076f5e8178e",
+"machine_type": 0,
+"qty_minus": true,
+"lday": 20,
+"qty_week": [
+0
+]
+},
+{
+"idx": 9,
+"name": "стХП55-019МВДt1 ",
+"qty": 8,
+"id": "4a8ee8d8-5c75-4bca-9d1d-9eecb0670b52",
+"machine_type": 1,
+"qty_minus": false,
+"lday": 14,
+"qty_week": [
+8
+]
+},
+{
+"idx": 10,
+"name": "ст15306t4 ",
+"qty": 9,
+"id": "32948bb4-86b9-4346-ad5a-fd7f0ba32d3b",
+"machine_type": 0,
+"qty_minus": true,
+"lday": 23,
+"qty_week": [
+9
+]
+},
+{
+"idx": 11,
+"name": "ст18422ахмt6 ",
+"qty": 13,
+"id": "ec910c0b-1e2d-416d-8c58-59d1a95e0f16",
+"machine_type": 1,
+"qty_minus": true,
+"lday": 23,
+"qty_week": [
+13
+]
+},
+{
+"idx": 12,
+"name": "ст18450амt4 ",
+"qty": 16,
+"id": "0b3b2d29-ec25-4643-a36f-1d69b331c69f",
+"machine_type": 1,
+"qty_minus": true,
+"lday": 23,
+"qty_week": [
+16
+]
+},
+{
+"idx": 13,
+"name": "ст18308t1 ",
+"qty": 14,
+"id": "8261ae14-ee21-4e94-8240-ce66516a9ef3",
+"machine_type": 1,
+"qty_minus": true,
+"lday": 20,
+"qty_week": [
+14
+]
+},
+{
+"idx": 14,
+"name": "ст87416t1 ",
+"qty": 18,
+"id": "4b40493a-5feb-43b5-8150-a6637a6fd228",
+"machine_type": 0,
+"qty_minus": true,
+"lday": 23,
+"qty_week": [
+18
+]
+},
+{
+"idx": 15,
+"name": "ст15404амt2 ",
+"qty": 16,
+"id": "b4f6200d-cb3f-4b62-ba6e-988c6479e46e",
+"machine_type": 1,
+"qty_minus": true,
+"lday": 18,
+"qty_week": [
+16
+]
+},
+{
+"idx": 16,
+"name": "ст60410t3 ",
+"qty": 21,
+"id": "83bb95a8-d012-4108-b53e-21459429d427",
+"machine_type": 0,
+"qty_minus": true,
+"lday": 20,
+"qty_week": [
+21
+]
+},
+{
+"idx": 17,
+"name": "ст60411t7 ",
+"qty": 19,
+"id": "e8c18f54-6bd6-434e-a7b4-11cc8be3ba34",
+"machine_type": 0,
+"qty_minus": true,
+"lday": 26,
+"qty_week": [
+19
+]
+},
+{
+"idx": 18,
+"name": "ст87309t ",
+"qty": 19,
+"id": "8f14dd7a-4fae-4add-aa2e-71b74961c3a9",
+"machine_type": 0,
+"qty_minus": true,
+"lday": 16,
+"qty_week": [
+19
+]
+},
+{
+"idx": 19,
+"name": "ст78425t П, 0, 14, П2",
+"qty": 21,
+"id": "4facb0d9-7616-4fbe-85ef-c2d8f32022d6",
+"machine_type": 0,
+"qty_minus": true,
+"lday": 21,
+"qty_week": [
+21
+]
+},
+{
+"idx": 20,
+"name": "ст15406aмRSt2 ",
+"qty": 17,
+"id": "e782f8c5-6001-4d3a-b165-3a5c77d8f245",
+"machine_type": 1,
+"qty_minus": true,
+"lday": 13,
+"qty_week": [
+17
+]
+},
+{
+"idx": 21,
+"name": "ст81408амt14 ",
+"qty": 20,
+"id": "aacdb20e-950d-412c-bd4b-9466ef8756f8",
+"machine_type": 1,
+"qty_minus": false,
+"lday": 15,
+"qty_week": [
+20
+]
+},
+{
+"idx": 22,
+"name": "ст10417RSt ",
+"qty": 21,
+"id": "6bb4af24-3deb-42a6-99c6-a9a7b3f70a4f",
+"machine_type": 0,
+"qty_minus": true,
+"lday": 25,
+"qty_week": [
+21
+]
+},
+{
+"idx": 23,
+"name": "ст87024t1 ",
+"qty": 42,
+"id": "7a063ee7-f309-4cd0-ad75-2c336544e013",
+"machine_type": 0,
+"qty_minus": true,
+"lday": 21,
+"qty_week": [
+42
+]
+},
+{
+"idx": 24,
+"name": "ст87027t ",
+"qty": 42,
+"id": "ed9dd5ce-e35b-4a2c-801e-851050e5582a",
+"machine_type": 0,
+"qty_minus": true,
+"lday": 14,
+"qty_week": [
+42
+]
 }
 ],
 "remains": [],
 "cleans": [],
 "max_daily_prod_zero": 3,
-"count_days": 42,
-  "dt_begin": "2025-07-01T00:00:00"
+"count_days": 21,
+"dt_begin": "2025-08-11T00:00:00"
 }

@@ -1,0 +1,653 @@
+Модель qttools для планирования расписания
+Начальные данные:
+{
+"machines": [
+{
+"idx": 0,
+"name": "ТС Тойота №16",
+"product_idx": 3,
+"id": "fbc4c37a-8087-11ea-80cc-005056aab926",
+"type": 0,
+"remain_day": 2
+},
+{
+"idx": 1,
+"name": "ТС Тойота №24",
+"product_idx": 6,
+"id": "fbc4c382-8087-11ea-80cc-005056aab926",
+"type": 0,
+"remain_day": 20
+},
+{
+"idx": 2,
+"name": "ТС Тойота №29",
+"product_idx": 9,
+"id": "fbc4c387-8087-11ea-80cc-005056aab926",
+"type": 0,
+"remain_day": 20
+},
+{
+"idx": 3,
+"name": "ТС Тойота №30",
+"product_idx": 3,
+"id": "fbc4c388-8087-11ea-80cc-005056aab926",
+"type": 0,
+"remain_day": 17
+},
+{
+"idx": 4,
+"name": "ТС Тойота №47",
+"product_idx": 2,
+"id": "fbc4c399-8087-11ea-80cc-005056aab926",
+"type": 0,
+"remain_day": 13
+},
+{
+"idx": 5,
+"name": "ТС Тойота №60",
+"product_idx": 12,
+"id": "fbc4c3a6-8087-11ea-80cc-005056aab926",
+"type": 0,
+"remain_day": 25
+},
+{
+"idx": 6,
+"name": "ТС Тойота №78",
+"product_idx": 4,
+"id": "fbc4c3b8-8087-11ea-80cc-005056aab926",
+"type": 1,
+"remain_day": 6
+},
+{
+"idx": 7,
+"name": "ТС Тойота №87",
+"product_idx": 1,
+"id": "fbc4c3c1-8087-11ea-80cc-005056aab926",
+"type": 1,
+"remain_day": 3
+},
+{
+"idx": 8,
+"name": "ТС Тойота №91",
+"product_idx": 10,
+"id": "fbc4c3c5-8087-11ea-80cc-005056aab926",
+"type": 1,
+"remain_day": 26
+},
+{
+"idx": 9,
+"name": "ТС Тойота №93",
+"product_idx": 11,
+"id": "fbc4c3c7-8087-11ea-80cc-005056aab926",
+"type": 1,
+"remain_day": 21
+},
+{
+"idx": 10,
+"name": "ТС Тойота №94",
+"product_idx": 3,
+"id": "fbc4c3c8-8087-11ea-80cc-005056aab926",
+"type": 1,
+"remain_day": 0
+}
+],
+"products": [
+{
+"idx": 0,
+"name": "",
+"qty": 0,
+"id": "",
+"machine_type": 0,
+"qty_minus": 0,
+"lday": 0,
+"qty_week": [
+0
+]
+},
+{
+"idx": 1,
+"name": "ст87001t1 ",
+"qty": 0,
+"id": "123e7d53-8f5d-41cf-89cc-7c1c18ad2b3d",
+"machine_type": 0,
+"qty_minus": true,
+"lday": 21,
+"qty_week": [
+134
+]
+},
+{
+"idx": 2,
+"name": "ст2022УИСt4 ",
+"qty": 0,
+"id": "d4420085-0666-4481-8b2e-241af39c38d2",
+"machine_type": 0,
+"qty_minus": 0,
+"lday": 1,
+"qty_week": [
+0
+]
+},
+{
+"idx": 3,
+"name": "ст87021t4 ",
+"qty": 0,
+"id": "3f04a4fe-c049-4b1c-a2ec-a65f4a6eb9d8",
+"machine_type": 0,
+"qty_minus": 0,
+"lday": 1,
+"qty_week": [
+0
+]
+},
+{
+"idx": 4,
+"name": "ст76004t2 П, 0, 2, П2",
+"qty": 0,
+"id": "ee5b91c4-4808-4ef6-8be6-7646bbc5fa25",
+"machine_type": 0,
+"qty_minus": 0,
+"lday": 1,
+"qty_week": [
+0
+]
+},
+{
+"idx": 5,
+"name": "ст10421амt3 ",
+"qty": 0,
+"id": "45848c9e-929e-407d-80d1-784c7f57e17c",
+"machine_type": 1,
+"qty_minus": true,
+"lday": 21,
+"qty_week": [
+0
+]
+},
+{
+"idx": 6,
+"name": "ст87315t ",
+"qty": 0,
+"id": "95bfee9b-9a95-4e39-97ae-4b45c42a55a3",
+"machine_type": 0,
+"qty_minus": true,
+"lday": 20,
+"qty_week": [
+0
+]
+},
+{
+"idx": 7,
+"name": "ст87416t1 ",
+"qty": 9,
+"id": "7b5cd3ae-1639-4709-9a17-25cb942b673c",
+"machine_type": 0,
+"qty_minus": true,
+"lday": 23,
+"qty_week": [
+9
+]
+},
+{
+"idx": 8,
+"name": "ст15306t4 ",
+"qty": 9,
+"id": "0ce913a8-0455-48fe-b329-d5be16ed9921",
+"machine_type": 0,
+"qty_minus": true,
+"lday": 23,
+"qty_week": [
+9
+]
+},
+{
+"idx": 9,
+"name": "ст60410t3 ",
+"qty": 21,
+"id": "ead190da-537b-420d-98bb-563ac8d73f41",
+"machine_type": 0,
+"qty_minus": true,
+"lday": 20,
+"qty_week": [
+21
+]
+},
+{
+"idx": 10,
+"name": "ст60411t7 ",
+"qty": 19,
+"id": "a6ef21b2-5d06-4791-899f-b97688a7c897",
+"machine_type": 0,
+"qty_minus": true,
+"lday": 26,
+"qty_week": [
+19
+]
+},
+{
+"idx": 11,
+"name": "ст78425t П, 0, 14, П2",
+"qty": 21,
+"id": "f48f1017-97c2-42a3-8c50-e5ebf744c5bf",
+"machine_type": 0,
+"qty_minus": true,
+"lday": 21,
+"qty_week": [
+21
+]
+},
+{
+"idx": 12,
+"name": "ст10417RSt ",
+"qty": 21,
+"id": "c96d4eca-1ba5-4f65-953d-88073c103c84",
+"machine_type": 0,
+"qty_minus": true,
+"lday": 25,
+"qty_week": [
+21
+]
+},
+{
+"idx": 13,
+"name": "ст87024t1 ",
+"qty": 42,
+"id": "d44bd724-94c6-4f2e-b82b-db90d5adf178",
+"machine_type": 0,
+"qty_minus": true,
+"lday": 21,
+"qty_week": [
+42
+]
+},
+{
+"idx": 14,
+"name": "ст87027t ",
+"qty": 42,
+"id": "dd5a9c9b-9465-4e44-89ee-28478f77f7d1",
+"machine_type": 0,
+"qty_minus": true,
+"lday": 14,
+"qty_week": [
+42
+]
+}
+],
+"remains": [],
+"cleans": [],
+"max_daily_prod_zero": 3,
+"count_days": 21,
+"dt_begin": "2025-08-11T00:00:00"
+}
+существующая модель для планирования продукта по слудующим критериям:
+- вначале на машине дорабатывается тот продукт, который указан в начальном состоянии, на количество дней указанное в remain_day
+- далее либо продолжается тот-же продукт, либо указывается переход на другой продукт длительностью 2 дня и далее планируется уже другой продукт
+- для указания чистки существует специальный продукт с индексом 0 PRODUCT_ZERO
+- есть ограничения на переходы - в один день не более 3-х переходов - max_daily_prod_zero
+- ограничение на типы машин, для продукта с machine_type > 0 разрешены машины только type=machine_type, если machine_type = 0 то можно на любой машине
+- не более одного перехода в 21 день
+- если есть чистка в на машине в определенный день, то машина пропускает день производства
+- использование длины партии lday - после перехода необходимо использовать то количество дней, которое укзано в lday, только после этого можно сделать либо переход, либо следующую партию на lday дней, причем следующий цикл также не менее lday и только затем возможен переход.
+- если индекс продукта на машине product_idx=0,то на ней можно начинать любой продукт
+
+- мягкое ограничение - минимизировать отклонение от заданных пропорций qty
+функция оптимального результата - минимум отклонений от пропорций и минимум переходов: model.Minimize(sum(proportion_objective_terms) + product_counts[PRODUCT_ZERO] * downtime_penalty)
+
+Код текущей модели:
+def create_model(remains: list, products: list, machines: list, cleans: list, max_daily_prod_zero: int, count_days: int,
+                 schedule_init: list = None):
+    # products: [ # ("idx, "name", "qty", "id", "machine_type", "qty_minus")
+    #     ("", 0, "", 0),
+    #     ("ст87017t3", 42, "7ec17dc8-f3bd-4384-9738-7538ab3dc315", 0, 1),
+    #     ("ст87416t1", 15, "9559e2e8-6e72-41f8-9dba-08aab5463623", 0, 1),
+    #     ("ст2022УИСt4", 4, "cd825c90-aa80-4b95-9f81-2486b871bf94", 0, 0)
+    # ]
+    # machines = [ # (name, product_idx, id, type, remain_day)
+    #   ("ТС Тойота №1", 1, "fbc4c3a0-8087-11ea-80cc-005056aab926", 0, 2),
+    #   ("ТС Тойота №2", 1, "fbc4c3a1-8087-11ea-80cc-005056aab926", 0, 5),
+    #   ("ТС Тойота №3", 3, "fbc4c372-8087-11ea-80cc-005056aab926", 0, 4),
+    # ]
+    # cleans: [ # ("machine_idx", "day_idx")
+    # (3, 1)
+    # max_daily_prod_zero = 3
+
+    num_days = count_days
+    num_machines = len(machines)
+    num_products = len(products)
+
+    all_machines = range(num_machines)
+    all_days = range(num_days)
+    all_products = range(num_products)
+
+    proportions_input = [p[1] for p in products]
+    ldays = [p[5] for p in products]
+    initial_products = []
+    days_to_constrain = []
+    for idx, (_, product_idx, m_id, t, remain_day) in enumerate(machines):
+        initial_products.append(product_idx)
+        days_to_constrain.append(remain_day)
+
+    model = cp_model.CpModel()
+
+    jobs = {}
+    work_days = []
+    # Значение для отображения чистки в итоговом расписании
+    for m in range(num_machines):
+        for d in range(num_days):
+            if (m, d) not in cleans:
+                work_days.append((m, d))
+                # Домен переменной: от 0 до num_products - 1
+                jobs[(m, d)] = model.new_int_var(0, num_products - 1, f"job_{m}_{d}")
+
+    PRODUCT_ZERO = 0  # Индекс "особенной" продукции
+
+    # ------------ Подсчет общего количества каждого продукта ------------
+    # Вспомогательные булевы переменные: product_produced[p, m, d] истинно, если продукт p производится на машине m в день d
+    product_produced_bools = {}
+
+    max_lday = max(ldays) if ldays else 1
+    for p in all_products:
+        for m, d in work_days:
+            product_produced_bools[p, m, d] = model.NewBoolVar(f"product_produced_{p}_{m}_{d}")
+            # Связь product_produced_bools с jobs
+            model.Add(jobs[m, d] == p).OnlyEnforceIf(product_produced_bools[p, m, d])
+            model.Add(jobs[m, d] != p).OnlyEnforceIf(product_produced_bools[p, m, d].Not())
+
+    # Общее количество каждого продукта: product_counts[p]
+    product_counts = [model.NewIntVar(0, num_machines * num_days, f"count_prod_{p}") for p in range(num_products)]
+    for p in all_products:
+        model.Add(product_counts[p] == sum(
+            product_produced_bools[p, m, d] for m, d in work_days))
+        # Добавляем условие НЕ МЕНЬШЕ для некоторых продуктов
+        if settings.APPLY_QTY_MINUS and products[p][4] == 0 and products[p][1] > 0:
+            model.Add(product_counts[p] >= products[p][1])
+
+    # Сумма PRODUCT_ZERO в смену d не более max_daily_prod_zero
+    # Количество нулевого продукта по дням
+    # И просто количество нулевого продукта
+    for d in all_days:
+        daily_prod_zero_on_machines = []
+        for m in range(num_machines):
+            if (m, d) in work_days:
+                # Используем уже созданные product_produced_bools для эффективности
+                # product_produced_bools[PRODUCT_ZERO, m, d] истинно, если на машине m в день d производится PRODUCT_ZERO
+                daily_prod_zero_on_machines.append(product_produced_bools[PRODUCT_ZERO, m, d])
+
+        # Сумма этих булевых переменных даст количество PRODUCT_ZERO в день d
+        model.Add(sum(daily_prod_zero_on_machines) <= max_daily_prod_zero)
+
+    # Ограничение по типам машин ###
+    # Продукты с типом 1 могут производиться только на машинах с типом 1.
+    # Продукты с типом 0 могут производиться на любых машинах.
+    for p in all_products:
+        # Индекс 3 в кортеже продукта - это 'machine_type'
+        product_machine_type_req = products[p][3]
+        if product_machine_type_req == 1:
+            for m in all_machines:
+                # Индекс 3 в кортеже машины - это 'type'
+                machine_type = machines[m][3]
+                if machine_type != 1:
+                    # Эта машина не может производить данный продукт.
+                    # Запрещаем назначение этого продукта на эту машину во все дни.
+                    for d in all_days:
+                        if (m, d) in work_days:
+                            model.Add(jobs[m, d] != p)
+
+    # Основная переменная состояния: отслеживает день внутри текущей партии
+    days_in_batch = {}
+    for m in all_machines:
+        for d in all_days:
+            days_in_batch[m, d] = model.NewIntVar(0, max_lday, f'days_in_batch_m{m}_d{d}')
+
+    prev_lday = {}
+    for m in all_machines:
+        for d in all_days:
+            prev_lday[m, d] = model.NewIntVar(0, max_lday, f'prev_lday_m{m}_d{d}')
+            model.AddElement(jobs[m, d], ldays, prev_lday[m, d])
+
+    batch_end_complite = {}
+
+    # Ограничения ПЕРЕХОДА
+    # Переменные для отслеживания завершения двухдневного перехода
+    completed_transition = {}
+    is_not_zero = {}
+    same_as_prev = {}
+    prev_is_not_zero = {}
+    prev2_is_not_zero = {}
+    two_day_zero = {}
+
+    start_batch = {}
+    for m in range(num_machines):
+        for d in range(num_days):
+            completed_transition[m, d] = model.NewBoolVar(f"completed_transition_{m}_{d}")
+
+    remain_day = [0 for _ in range(num_machines)]
+    # Ограничение для первого дня (d=0)
+    for m in range(num_machines):
+        initial_product = initial_products[m]
+        is_initial_product = model.NewBoolVar(f"is_initial_product_{m}_0")
+        is_not_zero[m, 0] = model.NewBoolVar(f"is_not_zero_{m}_0")
+        product_lday = ldays[initial_product]
+        batch_end_complite[m, 0] = model.NewBoolVar(f"batch_end_complite_m{m}_d0")
+
+        if days_to_constrain[m] > 0:
+            remain_day[m] += 1
+            model.Add(jobs[m, 0] == initial_product)
+            # выставляем начальное значение остатка партии
+            start_val = product_lday - days_to_constrain[m] + 1
+            model.Add(days_in_batch[m, 0] == start_val)
+        else:
+            model.Add(jobs[m, 0] == initial_product).OnlyEnforceIf(is_initial_product)
+            model.Add(jobs[m, 0] != initial_product).OnlyEnforceIf(is_initial_product.Not())
+            model.Add(jobs[m, 0] == PRODUCT_ZERO).OnlyEnforceIf(is_not_zero[m, 0].Not())
+            model.Add(jobs[m, 0] != PRODUCT_ZERO).OnlyEnforceIf(is_not_zero[m, 0])
+
+            # Первый день: либо начальный продукт, либо PRODUCT_ZERO
+            model.AddBoolOr([is_initial_product, is_not_zero[m, 0].Not()])
+            # Первый день: либо начало партии, либо 0, если переход
+            model.Add(days_in_batch[m, 0] == 1).OnlyEnforceIf([is_initial_product, is_not_zero[m, 0]])
+            model.Add(days_in_batch[m, 0] == 0).OnlyEnforceIf(is_not_zero[m, 0].Not())
+
+        # Устанавливаем completed_transition для дня 0
+        model.Add(completed_transition[m, 0] == 0)  # Нет перехода в день 0
+
+        model.Add(days_in_batch[m, 0] == prev_lday[m, 0]).OnlyEnforceIf(batch_end_complite[m, 0])
+        model.Add(days_in_batch[m, 0] != prev_lday[m, 0]).OnlyEnforceIf(batch_end_complite[m, 0].Not())
+
+    # Логика переходов для дней d ≥ 1
+    pred_start_batch = {}
+    for m in range(num_machines):
+        for d in range(1, num_days):
+            initial_product = initial_products[m]
+            if (m, d) not in cleans and (m, d - 1) not in cleans:
+                pred_idx = d - 1
+            elif (m, d) in cleans:
+                continue
+            elif (m, d - 1) in cleans:
+                pred_idx = d - 2
+
+            if days_to_constrain[m] > remain_day[m]:
+                model.Add(jobs[m, d] == initial_product)
+                remain_day[m] += 1
+
+            same_as_prev[m, d] = model.NewBoolVar(f"same_as_prev_{m}_{d}")
+            model.Add(jobs[m, d] == jobs[m, pred_idx]).OnlyEnforceIf(same_as_prev[m, d])
+            model.Add(jobs[m, d] != jobs[m, pred_idx]).OnlyEnforceIf(same_as_prev[m, d].Not())
+
+            is_not_zero[m, d] = model.NewBoolVar(f"is_not_zero_{m}_{d}")
+            model.Add(jobs[m, d] != PRODUCT_ZERO).OnlyEnforceIf(is_not_zero[m, d])
+            model.Add(jobs[m, d] == PRODUCT_ZERO).OnlyEnforceIf(is_not_zero[m, d].Not())
+
+            prev_is_not_zero[m, d] = model.NewBoolVar(f"prev_is_not_zero_{m}_{d}")
+            model.Add(jobs[m, pred_idx] != PRODUCT_ZERO).OnlyEnforceIf(prev_is_not_zero[m, d])
+            model.Add(jobs[m, pred_idx] == PRODUCT_ZERO).OnlyEnforceIf(prev_is_not_zero[m, d].Not())
+
+            # Проверяем, был ли завершен двухдневный переход
+            completed_transition[m, d] = model.NewBoolVar(f"two_day_zero_{m}_{d}")
+            model.AddBoolAnd(prev_is_not_zero[m, d].Not(), is_not_zero[m, d].Not()).OnlyEnforceIf(
+                completed_transition[m, d])
+            model.AddBoolOr(prev_is_not_zero[m, d], is_not_zero[m, d]).OnlyEnforceIf(
+                completed_transition[m, d].Not())
+
+            # логика расчета количества партии
+
+            model.Add(days_in_batch[m, d] == 0).OnlyEnforceIf(is_not_zero[m, d].Not())
+            model.Add(days_in_batch[m, d] == 1).OnlyEnforceIf([batch_end_complite[m, pred_idx], is_not_zero[m, d]])
+            model.Add(days_in_batch[m, d] == days_in_batch[m, pred_idx] + 1).OnlyEnforceIf([batch_end_complite[m, pred_idx].Not(), is_not_zero[m, d]])
+
+            batch_end_complite[m, d] = model.NewBoolVar(f"batch_end_complite_m{m}_d{d}")
+            model.Add(days_in_batch[m, d] == prev_lday[m ,d]).OnlyEnforceIf(batch_end_complite[m, d])
+            model.Add(days_in_batch[m, d] != prev_lday[m, d]).OnlyEnforceIf(batch_end_complite[m, d].Not())
+
+            pred_start_batch[m, d] = model.NewBoolVar(f"pred_start_batch_m{m}_d{d}")
+            model.AddBoolAnd([same_as_prev[m, d], batch_end_complite[m, pred_idx]]).OnlyEnforceIf(
+                pred_start_batch[m, d])
+            model.AddBoolOr([same_as_prev[m, d].Not(), batch_end_complite[m, pred_idx].Not()]).OnlyEnforceIf(
+                pred_start_batch[m, d].Not())
+
+            start_batch[m, d] = model.NewBoolVar(f"start_batch_m{m}_d{d}")
+            model.AddBoolOr([pred_start_batch[m, d], completed_transition[m, d]]).OnlyEnforceIf(
+                start_batch[m, d])
+            model.AddBoolAnd([pred_start_batch[m, d].Not(), completed_transition[m, d].Not()]).OnlyEnforceIf(
+                start_batch[m, d].Not())
+
+            model.Add(jobs[m, d] == jobs[m, pred_idx]).OnlyEnforceIf([batch_end_complite[m, pred_idx].Not(), prev_is_not_zero[m, d]])
+
+
+            # ### НАЧАЛО НОВОГО БЛОКА: Ограничение на повышение индекса продукта ###
+            # Это ограничение срабатывает только в день `d`, когда завершился двухдневный переход,
+            # что определяется переменной completed_transition[m, d].
+
+            # 1. Находим индекс рабочего дня перед началом перехода.
+            #    Переход занимал дни `pred_pred_idx` и `pred_idx`. Ищем день до `pred_pred_idx`.
+            day_before_transition_start = pred_idx - 2
+            while day_before_transition_start >= 0 and (m, day_before_transition_start) in cleans:
+                day_before_transition_start -= 1
+
+            # 2. Применяем ограничение, только если такой день существует в расписании.
+            if day_before_transition_start >= 0:
+                # Переменная, указывающая на продукт до начала перехода.
+                product_before = jobs[(m, day_before_transition_start)]
+                product_before_is_not_zero = model.NewBoolVar(f"prod_before_not_zero_{m}_{d}")
+                model.Add(product_before != PRODUCT_ZERO).OnlyEnforceIf(product_before_is_not_zero)
+                model.Add(product_before == PRODUCT_ZERO).OnlyEnforceIf(product_before_is_not_zero.Not())
+                model.Add(jobs[m, d] > product_before).OnlyEnforceIf(
+                    [completed_transition[m, pred_idx], product_before_is_not_zero]
+                )
+            # ### КОНЕЦ НОВОГО БЛОКА ###
+
+            # Ограничения:
+            # Если текущий день - не ноль, то либо:
+            # 1) тот же продукт, что и вчера (если вчера не ноль)
+            # 2) завершен двухдневный переход
+
+            model.AddBoolOr([
+                is_not_zero[m, d].Not(),  # Текущий день - PRODUCT_ZERO
+                same_as_prev[m, d],  # Тот же продукт, что вчера
+                completed_transition[m, pred_idx]  # Завершен двухдневный переход
+            ])
+            # Запрет на 3-й ZERO
+            model.add(jobs[m, d] != PRODUCT_ZERO).OnlyEnforceIf(completed_transition[m, pred_idx])
+            # Запрет на переход в последние 2 дня
+            if d >= count_days - 2:
+                model.add(jobs[m, d] != PRODUCT_ZERO)
+
+    # не более 1-го простоя за неделю
+    for m in range(num_machines):
+        prod_zero_on_machine = []
+        for d in all_days:
+            if not (m, d) in cleans:
+                prod_zero_on_machine.append(product_produced_bools[PRODUCT_ZERO, m, d])
+        model.Add(sum(prod_zero_on_machine) <= 2)
+
+    # ### НОВОЕ: Добавление начального расписания как подсказки (hint) ###
+    if schedule_init:
+        for m in all_machines:
+            for d in all_days:
+                # Подсказку можно добавить только для существующей переменной (т.е. не в день чистки)
+                if (m, d) in work_days:
+                    initial_product_idx = schedule_init[m][d]
+                    # Игнорируем значения чистки (-2) и другие некорректные
+                    if initial_product_idx and initial_product_idx >= 0:
+                        model.AddHint(jobs[(m, d)], initial_product_idx)
+
+                        # 2. Подсказки для вспомогательных переменных
+                        # 'product_produced_bools'
+                        for p in all_products:
+                            hint_value = 1 if p == initial_product_idx else 0
+                            model.AddHint(product_produced_bools[p, m, d], hint_value)
+
+                        # 'is_not_zero'
+                        is_not_zero_hint = 1 if initial_product_idx != PRODUCT_ZERO else 0
+                        model.AddHint(is_not_zero[m, d], is_not_zero_hint)
+
+                        # 'same_as_prev' and 'completed_transition'
+                        if d > 0 and schedule_init[m][d-1] and schedule_init[m][d-1] > 0:
+                            d_prev = d - 1
+                            prev_product_id_hint = schedule_init[m][d_prev]
+
+                            # # 'same_as_prev'
+                            # same_as_prev_hint = 1 if initial_product_idx == prev_product_id_hint else 0
+                            # model.AddHint(same_as_prev[m, d], same_as_prev_hint)
+
+                            if d > 1 and schedule_init[m][d-2] and schedule_init[m][d-2] > 0:
+                                d_prev = d - 1
+                                d_prev2 = d - 2
+                                prev_product_id_hint = schedule_init[m][d_prev]
+                                prev2_product_id_hint = schedule_init[m][d_prev2]
+
+                                # 'completed_transition'
+                                completed_transition_hint = 1 if (
+                                            prev_product_id_hint == PRODUCT_ZERO and prev2_product_id_hint == PRODUCT_ZERO) else 0
+                                model.AddHint(completed_transition[m, d], completed_transition_hint)
+
+
+
+        # ### END: ADDING INITIAL STATE (HINTS) ###
+
+    # ------------ Мягкое ограничение: Пропорции продукции (для продуктов с индексом > 0) ------------
+    # Цель: минимизировать отклонение от заданных пропорций
+    # Пропорции касаются только продуктов p > 0.
+    # Мы хотим, чтобы product_counts[p1] / product_counts[p2] было близко к proportions_input[p1] / proportions_input[p2]
+    # Это эквивалентно product_counts[p1] * proportions_input[p2] ~= product_counts[p2] * proportions_input[p1]
+
+    total_products_count = model.NewIntVar(0, num_machines * num_days, "total_products_count")
+    model.Add(total_products_count == sum(product_counts[p] for p in range(1, len(products))))
+
+    total_input_quantity = sum(proportions_input)
+    logger.debug(f"total_input_quantity={total_input_quantity}")
+    proportion_objective_terms = []
+
+    for p in range(1, len(products)):  # Skip p == 0
+        logger.debug(f"proportions_input[{p}]={proportions_input[p]}")
+
+        # product_counts[p] * total_input_quantity
+        term1_expr = model.NewIntVar(0, num_machines * num_days * total_input_quantity,
+                                     f"term1_{p}")
+        model.AddMultiplicationEquality(term1_expr, [product_counts[p], total_input_quantity])
+
+        # total_products_count * proportions_input[p1_idx]
+        term2_expr = model.NewIntVar(0, cp_model.INT32_MAX, f"term2_{p}")
+        model.AddMultiplicationEquality(term2_expr, [total_products_count,
+                                                     model.NewConstant(proportions_input[p])])
+
+        # diff = term1_expr - term2_expr
+        diff_var = model.NewIntVar(-cp_model.INT32_MAX, cp_model.INT32_MAX, f"diff_{p}")
+        model.Add(diff_var == (term1_expr - term2_expr))
+        abs_diff_var = model.NewIntVar(0, cp_model.INT32_MAX, f"abs_diff_{p}")
+        model.AddAbsEquality(abs_diff_var, diff_var)
+        proportion_objective_terms.append(abs_diff_var)
+
+    downtime_penalty = round(sum(proportions_input)/len(work_days))
+    if downtime_penalty < 2:
+        downtime_penalty = 2
+
+    model.Minimize(sum(proportion_objective_terms) + product_counts[PRODUCT_ZERO] * downtime_penalty)
+
+
+    return (model, jobs, product_counts, proportion_objective_terms, total_products_count, prev_lday, start_batch,
+            batch_end_complite, days_in_batch, completed_transition, pred_start_batch, same_as_prev)
+
+
+Но с именно с этими начальными данными, указанными в начале, никаких решений не строится - выдается INFEASIBLE.
+Где ошибка в модели?
