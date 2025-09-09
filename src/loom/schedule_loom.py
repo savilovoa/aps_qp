@@ -107,15 +107,6 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
     schedule_init, objective_value, deviation_proportion, count_product_zero = (
         create_schedule_init(data["machines"], data["products"], data["cleans"], count_days, max_daily_prod_zero))
 
-    # schedule = [{"machine_idx": m, "day_idx": d, "product_idx": schedule_init[m][d]}
-    #             for m in range(len(machines))
-    #             for d in range(count_days)]
-    # result = {"status": 20, "status_str": "INIT", "schedule": schedule,
-    #           "products": [], "objective_value": objective_value,
-    #           "proportion_diff": int(deviation_proportion), "error_str": ""}
-    #
-    # return result
-
     machines_new = machines.copy()
     products_new = products.copy()
 
@@ -201,9 +192,11 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
             logger.info(f"Минимальное значение функции цели (сумма абс. отклонений пропорций): "
                         f"{solver.ObjectiveValue()}")
 
-        schedule, products_schedule, diff_all = solver_result(solver, status, machines, products, machines_new,
-                                                              products_new, cleans, count_days, [],
-                                                              proportion_objective_terms, product_counts, jobs, total_products_count)
+        schedule, products_schedule, diff_all, remains_new = solver_result(solver, status, machines, products,
+                                                                           machines_new, products_new, cleans,
+                                                                           count_days, [],proportion_objective_terms,
+                                                                           product_counts, jobs, total_products_count,
+                                                                           days_in_batch, prev_lday)
     else:
         schedule = []
         products_schedule = []
@@ -993,7 +986,7 @@ def update_data_for_schedule_init(machines: list, products: list, cleans: list, 
     return machines_full
 
 def solver_result(solver, status, machines_old, products_old, machines, products, cleans, count_days, machines_full,
-                  proportion_objective_terms, product_counts, jobs, total_products_count):
+                  proportion_objective_terms, product_counts, jobs, total_products_count, days_in_batch, prev_lday):
 
     def find_machine_id_old(machine_idx: int):
         for i, machine in enumerate(machines_old):
@@ -1012,9 +1005,10 @@ def solver_result(solver, status, machines_old, products_old, machines, products
 
     diff_all = 0
     schedule = []
+    remains_new = []
     products_schedule = []
     if status != cp_model.OPTIMAL and status != cp_model.FEASIBLE:
-        return schedule, products_schedule, diff_all
+        return schedule, products_schedule, diff_all, remains_new
     for m in range(num_machines):
         m_old = find_machine_id_old(m)
         logger.debug(f"Loom {m_old}")
@@ -1026,6 +1020,7 @@ def solver_result(solver, status, machines_old, products_old, machines, products
                 p_old = None
             schedule.append({"machine_idx": m_old, "day_idx": d, "product_idx": p_old})
             logger.debug(f"  Day {d} works  {p_old}")
+        remains_new.append(prev_lday[m][count_days-1] - days_in_batch[m][count_days-1])
 
     logger.debug("\nОбщее количество произведенной продукции:")
     logger.debug(f"\n{solver.value(total_products_count)}")
@@ -1043,7 +1038,7 @@ def solver_result(solver, status, machines_old, products_old, machines, products
             schedule.append({"machine_idx": m, "day_idx": d, "product_idx": p})
             logger.debug(f"  Day {d} works  {p}")
 
-    return schedule, products_schedule, diff_all
+    return schedule, products_schedule, diff_all, remains_new
 
 
 '''
