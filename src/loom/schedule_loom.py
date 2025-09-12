@@ -200,60 +200,61 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
             solver.parameters.num_search_workers = settings.LOOM_NUM_WORKERS
             status = solver.solve(model)
 
-    logger.info(f"Статус решения: {solver.StatusName(status)}")
-    if status == cp_model.OPTIMAL or status == cp_model.FEASIBLE:
-        if prev_lday:
-            for m in range(len(machines_new)):
-                s = ""
-                s_bc = ""
-                for d in range(21):
-                    p = solver.value(days_in_batch[m, d])
-                    s = s + str(p) +","
-                    p = solver.value(batch_end_complite[m, d])
-                    s_bc = s_bc + str(p) + ","
-                logger.info(f"days_in_batch {m}:       [{s}]")
-                logger.info(f"batch_end_complite {m}:  [{s_bc}]")
+        logger.info(f"Статус решения: {solver.StatusName(status)}")
+        if status == cp_model.OPTIMAL or status == cp_model.FEASIBLE:
+            if prev_lday:
+                for m in range(len(machines_new)):
+                    s = ""
+                    s_bc = ""
+                    for d in range(21):
+                        p = solver.value(days_in_batch[m, d])
+                        s = s + str(p) +","
+                        p = solver.value(batch_end_complite[m, d])
+                        s_bc = s_bc + str(p) + ","
+                    logger.info(f"days_in_batch {m}:       [{s}]")
+                    logger.info(f"batch_end_complite {m}:  [{s_bc}]")
 
-                s = ""
-                s_sb = ""
-                s_ct = ""
-                s_sp =""
-                for d in range(1, 21):
-                    p = solver.value(prev_lday[m, d])
-                    s = s + str(p) +","
-                    p = solver.value(start_batch[m, d])
-                    s_sb = s_sb + str(p) + ","
-                    p = solver.value(completed_transition[m, d])
-                    s_ct = s_ct + str(p) + ","
-                    p = solver.value(same_as_prev[m, d])
-                    s_sp = s_sp + str(p) + ","
-                logger.info(f"same_as_prev {m}:          [{s_sp}]")
-                logger.info(f"completed_transition {m}:  [{s_ct}]")
-                logger.info(f"prev_lday {m}:             [{s}]")
-                logger.info(f"start_batch {m}:           [{s_sb}]")
+                    s = ""
+                    s_sb = ""
+                    s_ct = ""
+                    s_sp =""
+                    for d in range(1, 21):
+                        p = solver.value(prev_lday[m, d])
+                        s = s + str(p) +","
+                        p = solver.value(start_batch[m, d])
+                        s_sb = s_sb + str(p) + ","
+                        p = solver.value(completed_transition[m, d])
+                        s_ct = s_ct + str(p) + ","
+                        p = solver.value(same_as_prev[m, d])
+                        s_sp = s_sp + str(p) + ","
+                    logger.info(f"same_as_prev {m}:          [{s_sp}]")
+                    logger.info(f"completed_transition {m}:  [{s_ct}]")
+                    logger.info(f"prev_lday {m}:             [{s}]")
+                    logger.info(f"start_batch {m}:           [{s_sb}]")
 
-                s_sb = ""
-                for d in range(2, 21):
-                    p = solver.value(pred_start_batch[m, d])
-                    s_sb = s_sb + str(p) + ","
-                logger.info(f"pred_start_batch {m}:        [{s_sb}]")
+                    s_sb = ""
+                    for d in range(2, 21):
+                        p = solver.value(pred_start_batch[m, d])
+                        s_sb = s_sb + str(p) + ","
+                    logger.info(f"pred_start_batch {m}:        [{s_sb}]")
 
 
-        if proportion_objective_terms:
-            logger.info(f"Минимальное значение функции цели (сумма абс. отклонений пропорций): "
-                        f"{solver.ObjectiveValue()}")
+            if proportion_objective_terms:
+                logger.info(f"Минимальное значение функции цели (сумма абс. отклонений пропорций): "
+                            f"{solver.ObjectiveValue()}")
 
-        schedule, products_schedule, diff_all, remains_new = solver_result(solver, status, machines, products,
-                                                                           machines_new, products_new, cleans,
-                                                                           count_days, [],proportion_objective_terms,
-                                                                           product_counts, jobs, total_products_count,
-                                                                           days_in_batch, prev_lday)
-    else:
-        schedule = []
-        products_schedule = []
-        diff_all = 0
+            schedule, products_schedule, diff_all, remains_new = solver_result(solver, status, machines, products,
+                                                                               machines_new, products_new, cleans,
+                                                                               count_days, [],proportion_objective_terms,
+                                                                               product_counts, jobs, total_products_count,
+                                                                               days_in_batch, prev_lday)
+        else:
+            schedule = []
+            products_schedule = []
+            diff_all = 0
 
-    logger.info(solver.ResponseStats())  # Основные статистические данные
+        logger.info(solver.ResponseStats())  # Основные статистические данные
+
     result = {"status": int(status), "status_str": solver.StatusName(status), "schedule": schedule,
               "products": products_schedule, "objective_value": int(solver.ObjectiveValue()),
               "proportion_diff": int(diff_all), "error_str": ""}
