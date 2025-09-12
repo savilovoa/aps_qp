@@ -104,15 +104,34 @@ def loom_plans_view(plan_in: LoomPlansViewIn) -> LoomPlansViewOut:
 def schedule_loom_calc(remains: list, products: list, machines: list, cleans: list, max_daily_prod_zero: int,
                        count_days: int, data: dict) -> LoomPlansOut:
 
-    schedule_init, objective_value, deviation_proportion, count_product_zero = (
-        create_schedule_init(data["machines"], data["products"], data["cleans"], count_days, max_daily_prod_zero))
+    # schedule_init, objective_value, deviation_proportion, count_product_zero = (
+    #     create_schedule_init(data["machines"], data["products"], data["cleans"], count_days, max_daily_prod_zero))
+    def MachinesDFToArray(machines_in: pd.DataFrame) -> list[(str, int, str, int, int)]:
+        result = []
+        idx = 0
+        for index, item in machines_in.iterrows():
+            if item["idx"] != idx:
+                break
+            result.append((item["name"], item["product_idx"], item["id"], item["type"], item["remain_day"]))
+            idx += 1
+        return result
 
-    machines_new = machines.copy()
-    products_new = products.copy()
+    def ProductsDFToArray(products_in: pd.DataFrame) -> list[(str, int, str, int, int)]:
+        result = []
+        first = True
+        for index, item in products_in.iterrows():
+            if first:
+                first = False
+                if item["qty"] > 0:
+                    raise "Первый элемент продукции должен быть сменой артикула, т.е. количество плана = 0"
+            result.append((item["name"], item["qty"], item["id"], item["machine_type"], item["qty_minus"], item["lday"]))
+        return result
+
+    weeks = range(count_days // 21)
 
     #machines_full = update_data_for_schedule_init(machines_new, products_new, cleans, count_days, schedule_init)
 
-    solver = cp_model.CpSolver()
+
 
     class NursesPartialSolutionPrinter(cp_model.CpSolverSolutionCallback):
         """Print intermediate solutions."""
@@ -131,23 +150,55 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
         def solutionCount(self):
             return self._solution_count
 
-    (model, jobs, product_counts, proportion_objective_terms, total_products_count, prev_lday, start_batch,
-     batch_end_complite, days_in_batch, completed_transition, pred_start_batch, same_as_prev) = create_model(remains=remains, products=products_new, machines=machines_new, cleans=cleans,
-                                        max_daily_prod_zero=max_daily_prod_zero, count_days=count_days, schedule_init=schedule_init)
+    machines_df = pd.DataFrame(data["machines"])
+    products_df = pd.DataFrame(data["products"])
+    product_id = products_df["id"]
+    jobs = []
+    prev_lday = []
+    days_in_batch = []
+    machines_df["product_id"] = machines_df["product_idx"].map(product_id)
+    for w in weeks:
+
+        machines_df_new = machines_df.copy()
+        if w > 0:
+            for index, m in machines_df_new.iterrows():
+                m["product_id"] = products_new[jobs[(index, 20)]][2]
+                m["remain_day"] = prev_lday[index][20] - days_in_batch[index][20]
+
+        for p_idx in range(len(products)):
+            products_df.at[p_idx, "qty"] = products[p_idx][6][w]
+
+        products_df_new = products_df.sort_values(by=["qty"])
+        products_df_zero = products_df[products_df["qty"]==0]
+        for index, p in products_df_zero.iterrows():
+            if len(machines_df[machines_df["product_id"] == p["id"]]) == 0:
+                products_df_new.drop(index)
+
+        for index, m in machines_df_new.iterrows():
+            m["product_idx"] = products_df_new[products_df_new["id"] == m["product_id"]][0]["idx"]
+
+        products_new = ProductsDFToArray(products_df_new)
+        machines_new = MachinesDFToArray(machines_df_new)
+
+        solver = cp_model.CpSolver()
+
+        (model, jobs, product_counts, proportion_objective_terms, total_products_count, prev_lday, start_batch,
+         batch_end_complite, days_in_batch, completed_transition, pred_start_batch, same_as_prev) = create_model(remains=remains, products=products_new, machines=machines_new, cleans=cleans,
+                                            max_daily_prod_zero=max_daily_prod_zero, count_days=21)
 
 
     # solver.parameters.log_search_progress = True
     #solver.parameters.debug_crash_on_bad_hint = True
     #solver.parameters.num_search_workers = 4
 
-    if settings.SOLVER_ENUMERATE:
-        sol_printer = NursesPartialSolutionPrinter(settings.SOLVER_ENUMERATE_COUNT)
-        solver.parameters.enumerate_all_solutions = True
-        status = solver.solve(model, sol_printer)
-    else:
-        solver.parameters.max_time_in_seconds = settings.LOOM_MAX_TIME
-        solver.parameters.num_search_workers = settings.LOOM_NUM_WORKERS
-        status = solver.solve(model)
+        if settings.SOLVER_ENUMERATE:
+            sol_printer = NursesPartialSolutionPrinter(settings.SOLVER_ENUMERATE_COUNT)
+            solver.parameters.enumerate_all_solutions = True
+            status = solver.solve(model, sol_printer)
+        else:
+            solver.parameters.max_time_in_seconds = settings.LOOM_MAX_TIME
+            solver.parameters.num_search_workers = settings.LOOM_NUM_WORKERS
+            status = solver.solve(model)
 
     logger.info(f"Статус решения: {solver.StatusName(status)}")
     if status == cp_model.OPTIMAL or status == cp_model.FEASIBLE:
