@@ -2,243 +2,355 @@
 "machines": [
 {
 "idx": 0,
-"name": "ТС Тойота №114",
-"product_idx": 15,
-"id": "aa2b3544-abfa-11ec-80e0-005056aac628",
+"name": "ТС Тойота №100",
+"product_idx": 8,
+"id": "692550d4-abfa-11ec-80e0-005056aac628",
+"type": 1,
+"remain_day": 8
+},
+{
+"idx": 1,
+"name": "ТС Тойота №102",
+"product_idx": 9,
+"id": "6fbbe5ed-abfa-11ec-80e0-005056aac628",
+"type": 1,
+"remain_day": 0
+},
+{
+"idx": 2,
+"name": "ТС Тойота №103",
+"product_idx": 6,
+"id": "6fbbe5ef-abfa-11ec-80e0-005056aac628",
+"type": 1,
+"remain_day": 6
+},
+{
+"idx": 3,
+"name": "ТС Тойота №104",
+"product_idx": 6,
+"id": "798b5811-abfa-11ec-80e0-005056aac628",
 "type": 1,
 "remain_day": 9
 },
 {
-"idx": 1,
-"name": "ТС Тойота №12",
-"product_idx": 19,
-"id": "fbc4c376-8087-11ea-80cc-005056aab926",
-"type": 0,
-"remain_day": 6
-},
-{
-"idx": 2,
-"name": "ТС Тойота №120",
-"product_idx": 6,
-"id": "c11b8cbe-abfa-11ec-80e0-005056aac628",
-"type": 1,
-"remain_day": 3
-},
-{
-"idx": 3,
-"name": "ТС Тойота №122",
-"product_idx": 20,
-"id": "c8696e5a-abfa-11ec-80e0-005056aac628",
-"type": 1,
-"remain_day": 1
-},
-{
 "idx": 4,
-"name": "ТС Тойота №129",
-"product_idx": 13,
-"id": "f27d1290-abfa-11ec-80e0-005056aac628",
+"name": "ТС Тойота №106",
+"product_idx": 11,
+"id": "8282b5e9-abfa-11ec-80e0-005056aac628",
 "type": 1,
-"remain_day": 8
+"remain_day": 9
 },
 {
 "idx": 5,
-"name": "ТС Тойота №132",
-"product_idx": 20,
-"id": "fedde8c9-abfa-11ec-80e0-005056aac628",
+"name": "ТС Тойота №107",
+"product_idx": 8,
+"id": "8282b5ec-abfa-11ec-80e0-005056aac628",
 "type": 1,
-"remain_day": 3
+"remain_day": 4
 },
 {
 "idx": 6,
-"name": "ТС Тойота №134",
-"product_idx": 2,
-"id": "06dd754e-abfb-11ec-80e0-005056aac628",
+"name": "ТС Тойота №108",
+"product_idx": 9,
+"id": "8a9f0ec4-abfa-11ec-80e0-005056aac628",
 "type": 1,
-"remain_day": 4
+"remain_day": 13
 },
 {
 "idx": 7,
-"name": "ТС Тойота №141",
-"product_idx": 14,
-"id": "ab27292b-b16c-11ec-80e2-005056aa1736",
+"name": "ТС Тойота №109",
+"product_idx": 9,
+"id": "917b2e36-abfa-11ec-80e0-005056aac628",
 "type": 1,
-"remain_day": 5
+"remain_day": 16
 },
 {
 "idx": 8,
-"name": "ТС Тойота №30",
-"product_idx": 22,
-"id": "fbc4c388-8087-11ea-80cc-005056aab926",
-"type": 0,
-"remain_day": 1
+"name": "ТС Тойота №110",
+"product_idx": 11,
+"id": "917b2e38-abfa-11ec-80e0-005056aac628",
+"type": 1,
+"remain_day": 17
 },
 {
 "idx": 9,
-"name": "ТС Тойота №35",
-"product_idx": 19,
-"id": "fbc4c38d-8087-11ea-80cc-005056aab926",
-"type": 0,
-"remain_day": 4
+"name": "ТС Тойота №111",
+"product_idx": 9,
+"id": "a3ef8268-abfa-11ec-80e0-005056aac628",
+"type": 1,
+"remain_day": 15
 },
 {
 "idx": 10,
-"name": "ТС Тойота №43",
-"product_idx": 11,
-"id": "fbc4c395-8087-11ea-80cc-005056aab926",
-"type": 0,
-"remain_day": 1
+"name": "ТС Тойота №113",
+"product_idx": 6,
+"id": "aa2b3543-abfa-11ec-80e0-005056aac628",
+"type": 1,
+"remain_day": 2
 },
 {
 "idx": 11,
-"name": "ТС Тойота №46",
-"product_idx": 8,
-"id": "fbc4c398-8087-11ea-80cc-005056aab926",
-"type": 0,
+"name": "ТС Тойота №114",
+"product_idx": 4,
+"id": "aa2b3544-abfa-11ec-80e0-005056aac628",
+"type": 1,
 "remain_day": 6
 },
 {
 "idx": 12,
-"name": "ТС Тойота №47",
-"product_idx": 1,
-"id": "fbc4c399-8087-11ea-80cc-005056aab926",
-"type": 0,
-"remain_day": 6
+"name": "ТС Тойота №115",
+"product_idx": 2,
+"id": "b283054f-abfa-11ec-80e0-005056aac628",
+"type": 1,
+"remain_day": 11
 },
 {
 "idx": 13,
-"name": "ТС Тойота №60",
-"product_idx": 16,
-"id": "fbc4c3a6-8087-11ea-80cc-005056aab926",
-"type": 0,
-"remain_day": 8
+"name": "ТС Тойота №116",
+"product_idx": 9,
+"id": "b2830550-abfa-11ec-80e0-005056aac628",
+"type": 1,
+"remain_day": 2
 },
 {
 "idx": 14,
-"name": "ТС Тойота №61",
-"product_idx": 8,
-"id": "fbc4c3a7-8087-11ea-80cc-005056aab926",
-"type": 0,
-"remain_day": 1
+"name": "ТС Тойота №117",
+"product_idx": 9,
+"id": "b998c049-abfa-11ec-80e0-005056aac628",
+"type": 1,
+"remain_day": 20
 },
 {
 "idx": 15,
-"name": "ТС Тойота №63",
-"product_idx": 0,
-"id": "fbc4c3a9-8087-11ea-80cc-005056aab926",
-"type": 0,
+"name": "ТС Тойота №118",
+"product_idx": 11,
+"id": "b998c04a-abfa-11ec-80e0-005056aac628",
+"type": 1,
 "remain_day": 1
 },
 {
 "idx": 16,
-"name": "ТС Тойота №68",
-"product_idx": 5,
-"id": "fbc4c3ae-8087-11ea-80cc-005056aab926",
-"type": 0,
+"name": "ТС Тойота №119",
+"product_idx": 8,
+"id": "c11b8cb5-abfa-11ec-80e0-005056aac628",
+"type": 1,
 "remain_day": 2
 },
 {
 "idx": 17,
-"name": "ТС Тойота №82",
-"product_idx": 10,
-"id": "fbc4c3bc-8087-11ea-80cc-005056aab926",
-"type": 0,
-"remain_day": 17
+"name": "ТС Тойота №120",
+"product_idx": 6,
+"id": "c11b8cbe-abfa-11ec-80e0-005056aac628",
+"type": 1,
+"remain_day": 0
 },
 {
 "idx": 18,
-"name": "ТС Тойота №83",
-"product_idx": 10,
-"id": "fbc4c3bd-8087-11ea-80cc-005056aab926",
-"type": 0,
-"remain_day": 11
+"name": "ТС Тойота №121",
+"product_idx": 11,
+"id": "c8696e59-abfa-11ec-80e0-005056aac628",
+"type": 1,
+"remain_day": 6
 },
 {
 "idx": 19,
-"name": "ТС Тойота №84",
-"product_idx": 10,
-"id": "fbc4c3be-8087-11ea-80cc-005056aab926",
-"type": 0,
-"remain_day": 18
+"name": "ТС Тойота №122",
+"product_idx": 8,
+"id": "c8696e5a-abfa-11ec-80e0-005056aac628",
+"type": 1,
+"remain_day": 17
 },
 {
 "idx": 20,
-"name": "ТС Тойота №86",
+"name": "ТС Тойота №123",
 "product_idx": 10,
-"id": "fbc4c3c0-8087-11ea-80cc-005056aab926",
-"type": 0,
-"remain_day": 2
+"id": "cf58caa2-abfa-11ec-80e0-005056aac628",
+"type": 1,
+"remain_day": 9
 },
 {
 "idx": 21,
-"name": "ТС Тойота №87",
-"product_idx": 5,
-"id": "fbc4c3c1-8087-11ea-80cc-005056aab926",
+"name": "ТС Тойота №124",
+"product_idx": 11,
+"id": "cf58caa4-abfa-11ec-80e0-005056aac628",
 "type": 1,
-"remain_day": 26
+"remain_day": 13
 },
 {
 "idx": 22,
-"name": "ТС Тойота №9",
-"product_idx": 9,
-"id": "fbc4c373-8087-11ea-80cc-005056aab926",
-"type": 0,
-"remain_day": 25
-},
-{
-"idx": 23,
-"name": "ТС Тойота №90",
-"product_idx": 18,
-"id": "fbc4c3c4-8087-11ea-80cc-005056aab926",
-"type": 1,
-"remain_day": 3
-},
-{
-"idx": 24,
-"name": "ТС Тойота №91",
-"product_idx": 8,
-"id": "fbc4c3c5-8087-11ea-80cc-005056aab926",
-"type": 1,
-"remain_day": 22
-},
-{
-"idx": 25,
-"name": "ТС Тойота №92",
-"product_idx": 3,
-"id": "fbc4c3c6-8087-11ea-80cc-005056aab926",
-"type": 1,
-"remain_day": 12
-},
-{
-"idx": 26,
-"name": "ТС Тойота №93",
-"product_idx": 3,
-"id": "fbc4c3c7-8087-11ea-80cc-005056aab926",
-"type": 1,
-"remain_day": 18
-},
-{
-"idx": 27,
-"name": "ТС Тойота №94",
-"product_idx": 22,
-"id": "fbc4c3c8-8087-11ea-80cc-005056aab926",
+"name": "ТС Тойота №125",
+"product_idx": 11,
+"id": "e05486a2-abfa-11ec-80e0-005056aac628",
 "type": 1,
 "remain_day": 7
 },
 {
-"idx": 28,
-"name": "ТС Тойота №98",
-"product_idx": 7,
-"id": "5af9b5d9-abfa-11ec-80e0-005056aac628",
+"idx": 23,
+"name": "ТС Тойота №126",
+"product_idx": 11,
+"id": "e05486a4-abfa-11ec-80e0-005056aac628",
 "type": 1,
-"remain_day": 14
+"remain_day": 7
+},
+{
+"idx": 24,
+"name": "ТС Тойота №127",
+"product_idx": 11,
+"id": "e8b7876d-abfa-11ec-80e0-005056aac628",
+"type": 1,
+"remain_day": 5
+},
+{
+"idx": 25,
+"name": "ТС Тойота №128",
+"product_idx": 5,
+"id": "e8b7876e-abfa-11ec-80e0-005056aac628",
+"type": 1,
+"remain_day": 13
+},
+{
+"idx": 26,
+"name": "ТС Тойота №129",
+"product_idx": 5,
+"id": "f27d1290-abfa-11ec-80e0-005056aac628",
+"type": 1,
+"remain_day": 1
+},
+{
+"idx": 27,
+"name": "ТС Тойота №130",
+"product_idx": 11,
+"id": "f27d1291-abfa-11ec-80e0-005056aac628",
+"type": 1,
+"remain_day": 13
+},
+{
+"idx": 28,
+"name": "ТС Тойота №131",
+"product_idx": 7,
+"id": "fedde8c8-abfa-11ec-80e0-005056aac628",
+"type": 1,
+"remain_day": 9
 },
 {
 "idx": 29,
+"name": "ТС Тойота №132",
+"product_idx": 8,
+"id": "fedde8c9-abfa-11ec-80e0-005056aac628",
+"type": 1,
+"remain_day": 2
+},
+{
+"idx": 30,
+"name": "ТС Тойота №133",
+"product_idx": 7,
+"id": "06dd754d-abfb-11ec-80e0-005056aac628",
+"type": 1,
+"remain_day": 4
+},
+{
+"idx": 31,
+"name": "ТС Тойота №134",
+"product_idx": 1,
+"id": "06dd754e-abfb-11ec-80e0-005056aac628",
+"type": 1,
+"remain_day": 11
+},
+{
+"idx": 32,
+"name": "ТС Тойота №135",
+"product_idx": 10,
+"id": "945d9886-b16c-11ec-80e2-005056aa1736",
+"type": 1,
+"remain_day": 13
+},
+{
+"idx": 33,
+"name": "ТС Тойота №136",
+"product_idx": 10,
+"id": "0e700716-abfb-11ec-80e0-005056aac628",
+"type": 1,
+"remain_day": 13
+},
+{
+"idx": 34,
+"name": "ТС Тойота №137",
+"product_idx": 11,
+"id": "9d3ea9f9-b16c-11ec-80e2-005056aa1736",
+"type": 1,
+"remain_day": 4
+},
+{
+"idx": 35,
+"name": "ТС Тойота №138",
+"product_idx": 11,
+"id": "9d3ea9fa-b16c-11ec-80e2-005056aa1736",
+"type": 1,
+"remain_day": 9
+},
+{
+"idx": 36,
+"name": "ТС Тойота №139",
+"product_idx": 11,
+"id": "a4477be2-b16c-11ec-80e2-005056aa1736",
+"type": 1,
+"remain_day": 4
+},
+{
+"idx": 37,
+"name": "ТС Тойота №140",
+"product_idx": 7,
+"id": "a4477be3-b16c-11ec-80e2-005056aa1736",
+"type": 1,
+"remain_day": 4
+},
+{
+"idx": 38,
+"name": "ТС Тойота №141",
+"product_idx": 7,
+"id": "ab27292b-b16c-11ec-80e2-005056aa1736",
+"type": 1,
+"remain_day": 13
+},
+{
+"idx": 39,
+"name": "ТС Тойота №95",
+"product_idx": 10,
+"id": "450b8a00-abfa-11ec-80e0-005056aac628",
+"type": 1,
+"remain_day": 13
+},
+{
+"idx": 40,
+"name": "ТС Тойота №96",
+"product_idx": 10,
+"id": "53bec441-abfa-11ec-80e0-005056aac628",
+"type": 1,
+"remain_day": 22
+},
+{
+"idx": 41,
+"name": "ТС Тойота №97",
+"product_idx": 10,
+"id": "5af9b5d8-abfa-11ec-80e0-005056aac628",
+"type": 1,
+"remain_day": 4
+},
+{
+"idx": 42,
+"name": "ТС Тойота №98",
+"product_idx": 10,
+"id": "5af9b5d9-abfa-11ec-80e0-005056aac628",
+"type": 1,
+"remain_day": 4
+},
+{
+"idx": 43,
 "name": "ТС Тойота №99",
 "product_idx": 6,
 "id": "6166f3dc-abfa-11ec-80e0-005056aac628",
 "type": 1,
-"remain_day": 5
+"remain_day": 11
 }
 ],
 "products": [
@@ -251,18 +363,17 @@
 "qty_minus": 0,
 "lday": 0,
 "qty_week": [
-0,
 0
 ]
 },
 {
 "idx": 1,
-"name": "ст2022УИСt4 ",
+"name": "ст60405амt15 П, 0, 29, П2",
 "qty": 0,
-"id": "7d6ab1ca-48e4-4bad-87e1-bd46125f33e8",
+"id": "6dd028a4-18de-46be-a263-93463077e5ff",
 "machine_type": 0,
 "qty_minus": 0,
-"lday": 6,
+"lday": 1,
 "qty_week": [
 0,
 0
@@ -270,12 +381,12 @@
 },
 {
 "idx": 2,
-"name": "ст60405амt15 П, 0, 29, П2",
+"name": "ст16612t3 ",
 "qty": 0,
-"id": "3a0ef3d7-9621-4538-88d1-4ea552d97426",
+"id": "7e020707-88a5-4de0-84b6-3d2804f452f1",
 "machine_type": 0,
 "qty_minus": 0,
-"lday": 4,
+"lday": 1,
 "qty_week": [
 0,
 0
@@ -283,268 +394,125 @@
 },
 {
 "idx": 3,
-"name": "ст78425t П, 0, 14, П2",
-"qty": 21,
-"id": "e5335e0b-dd0f-4e5a-b5e5-6e9b310e47e6",
-"machine_type": 0,
+"name": "стХП55-019МВДt1 ",
+"qty": 5,
+"id": "a9b25bd4-0e7d-4fc5-98fb-58251ed8c12a",
+"machine_type": 1,
 "qty_minus": true,
-"lday": 18,
+"lday": 14,
 "qty_week": [
-18,
-3
+5,
+0
 ]
 },
 {
 "idx": 4,
-"name": "ст60410t3 ",
-"qty": 33,
-"id": "409cb0e2-563c-4657-bef0-6ca509e7263e",
-"machine_type": 0,
+"name": "ст81408амt14 ",
+"qty": 20,
+"id": "d960f50e-49f3-4c9e-ad21-8783811664b0",
+"machine_type": 1,
 "qty_minus": true,
-"lday": 18,
+"lday": 15,
 "qty_week": [
-12,
-21
+17,
+3
 ]
 },
 {
 "idx": 5,
-"name": "ст87001t1 ",
-"qty": 35,
-"id": "cea8a06d-733a-4b4b-9a14-e3d7f6ee8300",
+"name": "ст87309t ",
+"qty": 40,
+"id": "c080246d-affa-4161-847f-aae0498852ca",
 "machine_type": 0,
 "qty_minus": true,
-"lday": 26,
+"lday": 16,
 "qty_week": [
-14,
-21
+34,
+6
 ]
 },
 {
 "idx": 6,
 "name": "ст18450амt4 ",
-"qty": 37,
-"id": "daafdae5-d8ea-4742-91e6-a45f59589ad7",
+"qty": 100,
+"id": "81764565-35b9-4aac-ada0-c03d9a5850a7",
 "machine_type": 1,
 "qty_minus": true,
 "lday": 23,
 "qty_week": [
-21,
-16
+85,
+15
 ]
 },
 {
 "idx": 7,
-"name": "ст18422ахмt6 ",
-"qty": 34,
-"id": "0edff76f-b8d8-49e2-9751-b48d42305886",
+"name": "ст15406aмRSt2 ",
+"qty": 80,
+"id": "d299e50e-6677-4e04-a1b2-c1779158791d",
 "machine_type": 1,
-"qty_minus": true,
-"lday": 16,
+"qty_minus": false,
+"lday": 12,
 "qty_week": [
-21,
-13
+68,
+12
 ]
 },
 {
 "idx": 8,
-"name": "ст60411t7 ",
-"qty": 35,
-"id": "b45addd9-75c2-417e-8f0a-ce6f0eb2332e",
-"machine_type": 0,
-"qty_minus": false,
-"lday": 22,
+"name": "ст15404амt2 ",
+"qty": 100,
+"id": "4644ca80-0d22-4df4-bda7-b3a5c94c2b98",
+"machine_type": 1,
+"qty_minus": true,
+"lday": 14,
 "qty_week": [
-35,
-0
+85,
+15
 ]
 },
 {
 "idx": 9,
-"name": "ст87024t1 ",
-"qty": 38,
-"id": "677b59b1-40c9-427b-ac57-74e303f986b8",
-"machine_type": 0,
-"qty_minus": true,
-"lday": 29,
-"qty_week": [
-17,
-21
-]
-},
-{
-"idx": 10,
-"name": "ст87416t1 ",
-"qty": 38,
-"id": "86ba8d64-43e0-47c0-ba37-4ac72513d7b4",
-"machine_type": 0,
-"qty_minus": true,
-"lday": 23,
-"qty_week": [
-8,
-30
-]
-},
-{
-"idx": 11,
-"name": "ст10421амt3 ",
-"qty": 37,
-"id": "8e0a49a1-8f07-4e3a-9cb4-7fc07c3000ee",
-"machine_type": 1,
-"qty_minus": true,
-"lday": 15,
-"qty_week": [
-19,
-18
-]
-},
-{
-"idx": 12,
 "name": "ст18308t1 ",
-"qty": 35,
-"id": "b94e1d13-4be8-4b4b-9e29-77f16fe2bc0d",
+"qty": 119,
+"id": "edfa362f-ca8d-4bc2-9ae7-9558e5bb01ab",
 "machine_type": 1,
 "qty_minus": true,
 "lday": 12,
 "qty_week": [
-21,
-14
-]
-},
-{
-"idx": 13,
-"name": "ст87309t ",
-"qty": 40,
-"id": "7ab74ede-c3c9-4443-997f-e2111a300358",
-"machine_type": 0,
-"qty_minus": true,
-"lday": 16,
-"qty_week": [
-21,
-19
-]
-},
-{
-"idx": 14,
-"name": "ст15406aмRSt2 ",
-"qty": 38,
-"id": "788f381b-0886-40c8-b506-0721028a6fcb",
-"machine_type": 1,
-"qty_minus": true,
-"lday": 14,
-"qty_week": [
-21,
-17
-]
-},
-{
-"idx": 15,
-"name": "ст81408амt14 ",
-"qty": 41,
-"id": "e2420432-85aa-4f49-a938-21d2d3173923",
-"machine_type": 1,
-"qty_minus": false,
-"lday": 15,
-"qty_week": [
-21,
-20
-]
-},
-{
-"idx": 16,
-"name": "ст10417RSt ",
-"qty": 40,
-"id": "fc771d9a-450b-4359-911c-48e791308ce6",
-"machine_type": 0,
-"qty_minus": true,
-"lday": 10,
-"qty_week": [
-19,
-21
-]
-},
-{
-"idx": 17,
-"name": "ст87315t ",
-"qty": 36,
-"id": "a99e0681-5731-4152-a696-dfd896c15d42",
-"machine_type": 0,
-"qty_minus": true,
-"lday": 13,
-"qty_week": [
-15,
-21
-]
-},
-{
-"idx": 18,
-"name": "ст15306t4 ",
-"qty": 52,
-"id": "2259fa5b-f5ee-4f90-8be6-2f7171833a6d",
-"machine_type": 0,
-"qty_minus": true,
-"lday": 21,
-"qty_week": [
-12,
-39
-]
-},
-{
-"idx": 19,
-"name": "ст87027t ",
-"qty": 44,
-"id": "3a695fbf-4b90-4659-8bea-1815c7c6e32d",
-"machine_type": 0,
-"qty_minus": false,
-"lday": 14,
-"qty_week": [
-44,
+98,
 0
 ]
 },
 {
-"idx": 20,
-"name": "ст15404амt2 ",
-"qty": 62,
-"id": "775624bf-398f-4c8b-b106-d4cb1778bcca",
+"idx": 10,
+"name": "ст18422ахмt6 ",
+"qty": 139,
+"id": "494c2f08-689c-4a62-bd75-e2b972e18de2",
 "machine_type": 1,
 "qty_minus": true,
-"lday": 14,
+"lday": 16,
 "qty_week": [
-42,
-20
+115,
+3
 ]
 },
 {
-"idx": 21,
-"name": "ст78426t П, 0, 14, П2",
-"qty": 90,
-"id": "f0565a77-c695-4b3c-aeb4-bc9e49b026db",
-"machine_type": 0,
-"qty_minus": false,
-"lday": 17,
-"qty_week": [
-27,
-63
-]
-},
-{
-"idx": 22,
-"name": "ст87021t4 ",
-"qty": 78,
-"id": "1f861d1d-9128-44b2-b557-712c7f770c7e",
+"idx": 11,
+"name": "ст87416t1 ",
+"qty": 219,
+"id": "012da1ce-b06e-4e36-b03e-4ed2c98c258a",
 "machine_type": 0,
 "qty_minus": true,
-"lday": 14,
+"lday": 23,
 "qty_week": [
-15,
-63
+183,
+15
 ]
 }
 ],
 "remains": [],
 "cleans": [],
 "max_daily_prod_zero": 3,
-"count_days": 42,
-"dt_begin": "2025-08-18T00:00:00"
+"count_days": 21,
+"dt_begin": "2025-08-11T07:03:00"
 }

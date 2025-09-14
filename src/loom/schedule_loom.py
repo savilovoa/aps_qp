@@ -154,16 +154,19 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
     products_df = pd.DataFrame(data["products"])
     product_id = products_df["id"]
     jobs = []
-    prev_lday = []
-    days_in_batch = []
+    schedule = []
+    products_schedule = []
+    diff_all = 0
+    remains_new = []
+
     machines_df["product_id"] = machines_df["product_idx"].map(product_id)
     for w in weeks:
 
         machines_df_new = machines_df.copy()
         if w > 0:
             for index, m in machines_df_new.iterrows():
-                m["product_id"] = products_new[jobs[(index, 20)]][2]
-                m["remain_day"] = prev_lday[index][20] - days_in_batch[index][20]
+                m["product_id"] = products_new[solver.value(jobs[(index, 20)])][2]
+                m["remain_day"] = remains_new[index]
 
         for p_idx in range(len(products)):
             products_df.at[p_idx, "qty"] = products[p_idx][6][w]
@@ -175,7 +178,7 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
                 products_df_new.drop(index)
 
         for index, m in machines_df_new.iterrows():
-            m["product_idx"] = products_df_new[products_df_new["id"] == m["product_id"]][0]["idx"]
+            m["product_idx"] = products_df_new[products_df_new["id"] == m["product_id"]]["idx"].values[0]
 
         products_new = ProductsDFToArray(products_df_new)
         machines_new = MachinesDFToArray(machines_df_new)
@@ -183,7 +186,7 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
         solver = cp_model.CpSolver()
 
         (model, jobs, product_counts, proportion_objective_terms, total_products_count, prev_lday, start_batch,
-         batch_end_complite, days_in_batch, completed_transition, pred_start_batch, same_as_prev) = create_model(remains=remains, products=products_new, machines=machines_new, cleans=cleans,
+         batch_end_complite, days_in_batch, completed_transition, pred_start_batch, same_as_prev) = create_model(remains=remains, products=products, machines=machines, cleans=cleans,
                                             max_daily_prod_zero=max_daily_prod_zero, count_days=21)
 
 
@@ -200,7 +203,7 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
             solver.parameters.num_search_workers = settings.LOOM_NUM_WORKERS
             status = solver.solve(model)
 
-        logger.info(f"Статус решения: {solver.StatusName(status)}")
+        logger.info(f"Неделя {w}, статус решения: {solver.StatusName(status)}")
         if status == cp_model.OPTIMAL or status == cp_model.FEASIBLE:
             if prev_lday:
                 for m in range(len(machines_new)):
@@ -243,17 +246,11 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
                 logger.info(f"Минимальное значение функции цели (сумма абс. отклонений пропорций): "
                             f"{solver.ObjectiveValue()}")
 
-            schedule, products_schedule, diff_all, remains_new = solver_result(solver, status, machines, products,
-                                                                               machines_new, products_new, cleans,
-                                                                               count_days, [],proportion_objective_terms,
+            solver_result(solver, status, machines, products, machines_new, products_new, cleans, 21, machines, proportion_objective_terms,
                                                                                product_counts, jobs, total_products_count,
-                                                                               days_in_batch, prev_lday)
-        else:
-            schedule = []
-            products_schedule = []
-            diff_all = 0
+                                                                               days_in_batch, prev_lday, w, schedule, products_schedule, diff_all, remains_new)
 
-        logger.info(solver.ResponseStats())  # Основные статистические данные
+            logger.info(solver.ResponseStats())  # Основные статистические данные
 
     result = {"status": int(status), "status_str": solver.StatusName(status), "schedule": schedule,
               "products": products_schedule, "objective_value": int(solver.ObjectiveValue()),
@@ -1038,7 +1035,8 @@ def update_data_for_schedule_init(machines: list, products: list, cleans: list, 
     return machines_full
 
 def solver_result(solver, status, machines_old, products_old, machines, products, cleans, count_days, machines_full,
-                  proportion_objective_terms, product_counts, jobs, total_products_count, days_in_batch, prev_lday):
+                  proportion_objective_terms, product_counts, jobs, total_products_count, days_in_batch, prev_lday,
+                  week, schedule, products_schedule, diff_all, remains_new):
 
     def find_machine_id_old(machine_idx: int):
         for i, machine in enumerate(machines_old):
@@ -1055,10 +1053,6 @@ def solver_result(solver, status, machines_old, products_old, machines, products
     num_products = len(products)
     num_machines = len(machines)
 
-    diff_all = 0
-    schedule = []
-    remains_new = []
-    products_schedule = []
     if status != cp_model.OPTIMAL and status != cp_model.FEASIBLE:
         return schedule, products_schedule, diff_all, remains_new
     for m in range(num_machines):
@@ -1070,9 +1064,9 @@ def solver_result(solver, status, machines_old, products_old, machines, products
                 p_old = find_product_id_old(p)
             else:
                 p_old = None
-            schedule.append({"machine_idx": m_old, "day_idx": d, "product_idx": p_old})
-            logger.debug(f"  Day {d} works  {p_old}")
-        remains_new.append(prev_lday[m][count_days-1] - days_in_batch[m][count_days-1])
+            schedule.append({"machine_idx": m_old, "day_idx": d + week * 21, "product_idx": p_old})
+            logger.debug(f"  Day {d  + week * 21} works  {p_old}")
+        remains_new.append(solver.value(prev_lday[m, count_days - 1]) - solver.value(days_in_batch[m, count_days - 1]))
 
     logger.debug("\nОбщее количество произведенной продукции:")
     logger.debug(f"\n{solver.value(total_products_count)}")
@@ -1087,10 +1081,10 @@ def solver_result(solver, status, machines_old, products_old, machines, products
     for m, p, id in machines_full:
         logger.debug(f"Loom {m}")
         for d in range(count_days):
-            schedule.append({"machine_idx": m, "day_idx": d, "product_idx": p})
-            logger.debug(f"  Day {d} works  {p}")
+            schedule.append({"machine_idx": m, "day_idx": d + week * 21, "product_idx": p})
+            logger.debug(f"  Day {d + week * 21} works  {p}")
 
-    return schedule, products_schedule, diff_all, remains_new
+
 
 
 '''
