@@ -1,0 +1,44 @@
+Есть 2 DataFrame
+1 products Index(['idx', 'name', 'qty', 'id', 'machine_type', 'qty_minus', 'lday', dtype='object')
+# [{
+#"idx": 1,
+#"name": "ст60405амt15 П, 0, 29, П2",
+#"qty": 0,
+#"id": "294b0307-02fa-4db5-8a14-77cadd5361b5",
+#"machine_type": 0,
+#"qty_minus": 0,
+#"lday": 4}, ...]
+
+2 machines Index(['idx', 'name', 'product_idx', 'id', 'type', 'remain_day', 'product_id'], dtype='object')
+# test data 
+#[{
+#"idx": 0,
+#"name": "ТС Тойота №114",
+#"product_idx": 8,
+#"id": "aa2b3544-abfa-11ec-80e0-005056aac628",
+#"type": 1,
+#"remain_day": 9,
+# "product_id": "42145fff-bf95-408d-a957-315b38a14cda",
+#}, ...]
+
+далее сортировка и изменения idx в DataFrame products_df_new
+products_df_new = products.sort_values(by=["qty"])
+products_df_new['idx'] = range(len(products_df_new))
+
+machines_df_new = machines_df.copy()
+
+напиши код для изменения колонки machines_df_new['product_idx'] в соответствии с новыми products_df_new['idx']. Идентификатор использовать machines_df_new['product_id'] - он соответствует нужной записи
+
+
+
+
+
+# Update the columns
+for i, (new_product_idx, new_remain_day) in enumerate(update):
+    machines.loc[i, 'product_idx'] = new_product_idx
+    machines.loc[i, 'remain_day'] = new_remain_day
+
+# Alternative vectorized way (faster for large DataFrames)
+new_product_idxs, new_remain_days = zip(*update)
+machines['product_idx'] = new_product_idxs
+machines['remain_day'] = new_remain_days
