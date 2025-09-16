@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     SOLVER_ENUMERATE: bool = Field(default=False)
     SOLVER_ENUMERATE_COUNT: int = Field(default=3)
     APPLY_QTY_MINUS: bool = Field(default=True)
+    APPLY_INDEX_UP: bool = Field(default=True)
 
 settings = Settings()
 
