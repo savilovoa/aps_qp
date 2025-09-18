@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     SOLVER_ENUMERATE_COUNT: int = Field(default=3)
     APPLY_QTY_MINUS: bool = Field(default=True)
     APPLY_INDEX_UP: bool = Field(default=True)
+    KFZ_DOWNTIME_PENALTY: int = Field(default=10)
 
 settings = Settings()
 

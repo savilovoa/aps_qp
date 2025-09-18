@@ -569,7 +569,7 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
         model.AddAbsEquality(abs_diff_var, diff_var)
         proportion_objective_terms.append(abs_diff_var)
 
-    downtime_penalty = round(total_input_max * 10)
+    downtime_penalty = round(total_input_max * settings.KFZ_DOWNTIME_PENALTY)
     if downtime_penalty < 2:
         downtime_penalty = 2
 
