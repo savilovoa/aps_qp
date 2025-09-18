@@ -161,6 +161,7 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
     mapped_machine_types = machines_df['product_idx'].map(product_type)
     condition = (machines_df['type'] == 0) & (mapped_machine_types == 1)
     machines_df.loc[condition, 'type'] = 1
+    product_zero = products_df[products_df["idx"]==0]
 
     for w in weeks:
 
@@ -174,17 +175,16 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
         for p_idx in range(len(products)):
             products_df.at[p_idx, "qty"] = products[p_idx][6][w]
 
-        # Получаем уникальные ID продуктов, которые есть в машинах
-        products_in_machines_id = machines_df['product_id'].unique()
-        # Создаем новую колонку. True, если idx продукта есть в списке products_in_machines_ids
-        products_df['in_machine'] = products_df['id'].isin(products_in_machines_id)
-        products_df_new = products_df.sort_values(by=['in_machine', 'qty'], ascending=[False, True])
-        products_df_new['idx'] = range(len(products_df_new))
+        products_df_new = products_df.tail(-1)
+        products_df_new = products_df_new.sort_values(by=['qty'])
+        products_df_new = pd.concat([product_zero, products_df_new])
+
         products_df_zero = products_df[products_df["qty"]==0]
         for index, p in products_df_zero.iterrows():
-            if len(machines_df[machines_df["product_id"] == p["id"]]) == 0:
+            if index > 0 and len(machines_df[machines_df["product_id"] == p["id"]]) == 0:
                 products_df_new.drop(index)
 
+        products_df_new['idx'] = range(len(products_df_new))
         id_to_new_idx_map = products_df_new.set_index('id')['idx']
         machines_df_new['product_idx'] = machines_df_new['product_id'].map(id_to_new_idx_map)
 
@@ -543,7 +543,9 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
     total_products_count = model.NewIntVar(0, num_machines * num_days, "total_products_count")
     model.Add(total_products_count == sum(product_counts[p] for p in range(1, len(products))))
 
+
     total_input_quantity = sum(proportions_input)
+    total_input_max = max(proportions_input)
     logger.debug(f"total_input_quantity={total_input_quantity}")
     proportion_objective_terms = []
 
@@ -567,7 +569,7 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
         model.AddAbsEquality(abs_diff_var, diff_var)
         proportion_objective_terms.append(abs_diff_var)
 
-    downtime_penalty = round(sum(proportions_input)/len(work_days))
+    downtime_penalty = round(total_input_max * 10)
     if downtime_penalty < 2:
         downtime_penalty = 2
 

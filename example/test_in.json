@@ -2,22 +2,46 @@
 "machines": [
 {
 "idx": 0,
+"name": "ТС Тойота №114",
+"product_idx": 8,
+"id": "aa2b3544-abfa-11ec-80e0-005056aac628",
+"type": 1,
+"remain_day": 9
+},
+{
+"idx": 1,
 "name": "ТС Тойота №120",
-"product_idx": 6,
+"product_idx": 3,
 "id": "c11b8cbe-abfa-11ec-80e0-005056aac628",
 "type": 1,
 "remain_day": 3
 },
 {
-"idx": 1,
+"idx": 2,
+"name": "ТС Тойота №122",
+"product_idx": 9,
+"id": "c8696e5a-abfa-11ec-80e0-005056aac628",
+"type": 1,
+"remain_day": 1
+},
+{
+"idx": 3,
+"name": "ТС Тойота №129",
+"product_idx": 6,
+"id": "f27d1290-abfa-11ec-80e0-005056aac628",
+"type": 1,
+"remain_day": 8
+},
+{
+"idx": 4,
 "name": "ТС Тойота №132",
-"product_idx": 8,
+"product_idx": 9,
 "id": "fedde8c9-abfa-11ec-80e0-005056aac628",
 "type": 1,
 "remain_day": 3
 },
 {
-"idx": 2,
+"idx": 5,
 "name": "ТС Тойота №134",
 "product_idx": 1,
 "id": "06dd754e-abfb-11ec-80e0-005056aac628",
@@ -25,33 +49,49 @@
 "remain_day": 4
 },
 {
-"idx": 3,
+"idx": 6,
 "name": "ТС Тойота №137",
-"product_idx": 7,
+"product_idx": 4,
 "id": "9d3ea9f9-b16c-11ec-80e2-005056aa1736",
 "type": 1,
 "remain_day": 9
 },
 {
-"idx": 4,
+"idx": 7,
 "name": "ТС Тойота №138",
-"product_idx": 7,
+"product_idx": 4,
 "id": "9d3ea9fa-b16c-11ec-80e2-005056aa1736",
 "type": 1,
 "remain_day": 9
 },
 {
-"idx": 5,
+"idx": 8,
 "name": "ТС Тойота №139",
-"product_idx": 7,
+"product_idx": 4,
 "id": "a4477be2-b16c-11ec-80e2-005056aa1736",
 "type": 1,
 "remain_day": 3
 },
 {
-"idx": 6,
+"idx": 9,
+"name": "ТС Тойота №141",
+"product_idx": 7,
+"id": "ab27292b-b16c-11ec-80e2-005056aa1736",
+"type": 1,
+"remain_day": 5
+},
+{
+"idx": 10,
+"name": "ТС Тойота №98",
+"product_idx": 2,
+"id": "5af9b5d9-abfa-11ec-80e0-005056aac628",
+"type": 1,
+"remain_day": 14
+},
+{
+"idx": 11,
 "name": "ТС Тойота №99",
-"product_idx": 6,
+"product_idx": 3,
 "id": "6166f3dc-abfa-11ec-80e0-005056aac628",
 "type": 1,
 "remain_day": 5
@@ -67,6 +107,7 @@
 "qty_minus": 0,
 "lday": 0,
 "qty_week": [
+0,
 0
 ]
 },
@@ -74,114 +115,123 @@
 "idx": 1,
 "name": "ст60405амt15 П, 0, 29, П2",
 "qty": 0,
-"id": "636414ca-4e1a-4010-9fc3-e428ef3a5296",
+"id": "294b0307-02fa-4db5-8a14-77cadd5361b5",
 "machine_type": 0,
 "qty_minus": 0,
 "lday": 4,
 "qty_week": [
+0,
 0
 ]
 },
 {
 "idx": 2,
-"name": "ст15406aмRSt2 ",
-"qty": 0,
-"id": "cc380e4a-87c1-4706-9b6b-4277cb4dc75b",
+"name": "ст18422ахмt6 ",
+"qty": 34,
+"id": "d3f38949-1100-445d-aad9-de110930b2a2",
 "machine_type": 1,
 "qty_minus": true,
-"lday": 14,
+"lday": 16,
 "qty_week": [
-0
+21,
+13
 ]
 },
 {
 "idx": 3,
-"name": "ст81408амt14 ",
-"qty": 0,
-"id": "f1b74c89-89b9-41cd-9172-ec37f86a001c",
+"name": "ст18450амt4 ",
+"qty": 41,
+"id": "867b5c64-4cc6-4102-bea2-46191b540c74",
 "machine_type": 1,
 "qty_minus": true,
-"lday": 15,
+"lday": 23,
 "qty_week": [
-0
+23,
+18
 ]
 },
 {
 "idx": 4,
-"name": "ст87309t ",
-"qty": 0,
-"id": "f5e9f93e-100f-445a-bfa0-2ac47c6fab2f",
+"name": "ст87416t1 ",
+"qty": 41,
+"id": "feff10c6-92aa-4fe0-9e4b-3929a23b0234",
 "machine_type": 0,
 "qty_minus": true,
-"lday": 16,
+"lday": 23,
 "qty_week": [
-0
+26,
+15
 ]
 },
 {
 "idx": 5,
-"name": "ст18422ахмt6 ",
-"qty": 0,
-"id": "f0c5a22e-e998-44a9-89f9-b49c5f0d0ab3",
-"machine_type": 1,
-"qty_minus": true,
-"lday": 16,
-"qty_week": [
-0
-]
-},
-{
-"idx": 6,
-"name": "ст18450амt4 ",
-"qty": 21,
-"id": "a3129ce4-f984-4dd2-97c6-e370e562ed9d",
-"machine_type": 1,
-"qty_minus": true,
-"lday": 23,
-"qty_week": [
-21
-]
-},
-{
-"idx": 7,
-"name": "ст87416t1 ",
-"qty": 21,
-"id": "4f0231f7-883f-4221-bddd-92041e680d47",
-"machine_type": 0,
-"qty_minus": true,
-"lday": 23,
-"qty_week": [
-21
-]
-},
-{
-"idx": 8,
-"name": "ст15404амt2 ",
-"qty": 21,
-"id": "4692be91-c03b-4b40-bdd6-e687e0955760",
-"machine_type": 1,
-"qty_minus": true,
-"lday": 14,
-"qty_week": [
-21
-]
-},
-{
-"idx": 9,
 "name": "ст18308t1 ",
-"qty": 21,
-"id": "03a36439-7f01-426d-8b55-318cf48bf6e3",
+"qty": 35,
+"id": "8654e797-93f3-42d1-a13f-27ea777bfd2d",
 "machine_type": 1,
 "qty_minus": true,
 "lday": 12,
 "qty_week": [
-21
+21,
+14
+]
+},
+{
+"idx": 6,
+"name": "ст87309t ",
+"qty": 40,
+"id": "ca97cb50-b1d7-4045-8424-16ff727d26ce",
+"machine_type": 0,
+"qty_minus": true,
+"lday": 16,
+"qty_week": [
+21,
+19
+]
+},
+{
+"idx": 7,
+"name": "ст15406aмRSt2 ",
+"qty": 38,
+"id": "26c7a2d3-431e-4b25-b7d0-d6a750ca6ab4",
+"machine_type": 1,
+"qty_minus": true,
+"lday": 14,
+"qty_week": [
+21,
+17
+]
+},
+{
+"idx": 8,
+"name": "ст81408амt14 ",
+"qty": 41,
+"id": "7b5625e3-61bf-4d6a-8153-8e5e2cc00299",
+"machine_type": 1,
+"qty_minus": false,
+"lday": 15,
+"qty_week": [
+21,
+20
+]
+},
+{
+"idx": 9,
+"name": "ст15404амt2 ",
+"qty": 62,
+"id": "42145fff-bf95-408d-a957-315b38a14cda",
+"machine_type": 1,
+"qty_minus": true,
+"lday": 14,
+"qty_week": [
+42,
+20
 ]
 }
 ],
 "remains": [],
 "cleans": [],
 "max_daily_prod_zero": 3,
-"count_days": 21,
+"count_days": 42,
 "dt_begin": "2025-08-18T00:00:00"
 }
