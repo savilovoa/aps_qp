@@ -3,6 +3,7 @@ from datetime import timedelta, date
 import colorsys
 import traceback as tr
 
+# TODO: переменную days нужно оптимизировать - list не нужен, достаточно количества дней
 def schedule_to_html(machines: list, products: list, days: list, schedules: list, dt_begin: date, title_text: str = ""):
 
     # --- 1. Подготовка сетки расписания ---
@@ -34,8 +35,8 @@ def schedule_to_html(machines: list, products: list, days: list, schedules: list
     x_dates = []
     x_positions = []
     x_idx = 0
-    for day in days:
-        date_str = (dt_begin + timedelta(days=day // 3)).strftime("%d.%m")
+    for day in range(len(days) // 3):
+        date_str = (dt_begin + timedelta(days=day)).strftime("%d.%m")
         for shift in shifts:
             x_labels.append(f'{date_str}<br>{shift}')
             x_positions.append(x_idx)
