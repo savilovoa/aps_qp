@@ -60,7 +60,8 @@ def schedule_loom_calc_model(DataIn: DataLoomIn) -> LoomPlansOut:
             id_html = str(uuid4())
 
 
-            schedule = [LoomPlan(machine_idx=s["machine_idx"], day_idx=s["day_idx"], product_idx=s["product_idx"])
+            schedule = [LoomPlan(machine_idx=s["machine_idx"], day_idx=s["day_idx"], product_idx=s["product_idx"],
+                                 days_in_batch=s["days_in_batch"], prev_lday=s["prev_lday"])
                         for s in result_calc["schedule"]]
 
 
@@ -125,6 +126,15 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
             result.append((item["name"], item["qty"], item["id"], item["machine_type"], item["qty_minus"], item["lday"]))
         return result
 
+    def CleansDFToArray(w: int, cleans_in: pd.DataFrame) -> list[(int, int)]:
+        result = []
+        idx_begin = w * 21
+        idx_end = w * 21 + 20
+        for _, item in cleans_in.iterrows():
+            if idx_begin <= item["day_idx"] <= idx_end:
+                result.append((item["machine_idx"], item["day_idx"] - w * 21))
+        return result
+
     weeks = range(count_days // 21)
 
     #machines_full = update_data_for_schedule_init(machines_new, products_new, cleans, count_days, schedule_init)
@@ -150,6 +160,7 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
 
     machines_df = pd.DataFrame(data["machines"])
     products_df = pd.DataFrame(data["products"])
+    clean_df = pd.DataFrame(data["cleans"])
     schedule = []
     products_schedule = []
     diff_all = 0
@@ -172,8 +183,8 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
             machines_df_new["product_idx"] = new_product_idxs
             machines_df_new["product_id"] = new_product_id
 
-        for p_idx in range(len(products)):
-            products_df.at[p_idx, "qty"] = products[p_idx][6][w]
+        for p_idx in range(len(products_df)):
+            products_df.at[p_idx, "qty"] = products_df.at[p_idx, "qty_week"][w]
 
         products_df_new = products_df.tail(-1)
         products_df_new = products_df_new.sort_values(by=['qty'])
@@ -190,12 +201,14 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
 
         products_new = ProductsDFToArray(products_df_new)
         machines_new = MachinesDFToArray(machines_df_new)
+        cleans_new = CleansDFToArray(w, clean_df)
 
         solver = cp_model.CpSolver()
 
         (model, jobs, product_counts, proportion_objective_terms, total_products_count, prev_lday, start_batch,
-         batch_end_complite, days_in_batch, completed_transition, pred_start_batch, same_as_prev) = create_model(remains=remains, products=products_new, machines=machines_new, cleans=cleans,
-                                            max_daily_prod_zero=max_daily_prod_zero, count_days=21)
+         batch_end_complite, days_in_batch, completed_transition, pred_start_batch, same_as_prev) = create_model(
+            remains=remains, products=products_new, machines=machines_new, cleans=cleans_new,
+            max_daily_prod_zero=max_daily_prod_zero, count_days=21)
 
 
     # solver.parameters.log_search_progress = True
@@ -218,10 +231,15 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
                     s = ""
                     s_bc = ""
                     for d in range(21):
-                        p = solver.value(days_in_batch[m, d])
-                        s = s + str(p) +","
-                        p = solver.value(batch_end_complite[m, d])
-                        s_bc = s_bc + str(p) + ","
+                        if (m, d) not in cleans_new:
+                            p = solver.value(days_in_batch[m, d])
+                            s = s + str(p) +","
+                            p = solver.value(batch_end_complite[m, d])
+                            s_bc = s_bc + str(p) + ","
+                        else:
+                            s = s + " ,"
+                            s_bc = s_bc + " ,"
+
                     logger.info(f"days_in_batch {m}:       [{s}]")
                     logger.info(f"batch_end_complite {m}:  [{s_bc}]")
 
@@ -230,14 +248,21 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
                     s_ct = ""
                     s_sp =""
                     for d in range(1, 21):
-                        p = solver.value(prev_lday[m, d])
-                        s = s + str(p) +","
-                        p = solver.value(start_batch[m, d])
-                        s_sb = s_sb + str(p) + ","
-                        p = solver.value(completed_transition[m, d])
-                        s_ct = s_ct + str(p) + ","
-                        p = solver.value(same_as_prev[m, d])
-                        s_sp = s_sp + str(p) + ","
+                        if (m, d) not in cleans_new:
+                            p = solver.value(prev_lday[m, d])
+                            s = s + str(p) +","
+                            p = solver.value(start_batch[m, d])
+                            s_sb = s_sb + str(p) + ","
+                            p = solver.value(completed_transition[m, d])
+                            s_ct = s_ct + str(p) + ","
+                            p = solver.value(same_as_prev[m, d])
+                            s_sp = s_sp + str(p) + ","
+                        else:
+                            s = s + " ,"
+                            s_sb = s_sb + " ,"
+                            s_ct = s_ct + " ,"
+                            s_sp = s_sp + ","
+
                     logger.info(f"same_as_prev {m}:          [{s_sp}]")
                     logger.info(f"completed_transition {m}:  [{s_ct}]")
                     logger.info(f"prev_lday {m}:             [{s}]")
@@ -245,8 +270,11 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
 
                     s_sb = ""
                     for d in range(2, 21):
-                        p = solver.value(pred_start_batch[m, d])
-                        s_sb = s_sb + str(p) + ","
+                        if (m, d) not in cleans_new:
+                            p = solver.value(pred_start_batch[m, d])
+                            s_sb = s_sb + str(p) + ","
+                        else:
+                            s_sb = s_sb + " ,"
                     logger.info(f"pred_start_batch {m}:        [{s_sb}]")
 
 
@@ -302,6 +330,8 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
     model = cp_model.CpModel()
 
     jobs = {}
+    prev_lday = {}
+    max_lday = max(ldays) if ldays else 1
     work_days = []
     # Значение для отображения чистки в итоговом расписании
     for m in range(num_machines):
@@ -310,6 +340,9 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
                 work_days.append((m, d))
                 # Домен переменной: от 0 до num_products - 1
                 jobs[(m, d)] = model.new_int_var(0, num_products - 1, f"job_{m}_{d}")
+                prev_lday[m, d] = model.NewIntVar(0, max_lday, f'prev_lday_m{m}_d{d}')
+                model.AddElement(jobs[m, d], ldays, prev_lday[m, d])
+
 
     PRODUCT_ZERO = 0  # Индекс "особенной" продукции
 
@@ -317,7 +350,6 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
     # Вспомогательные булевы переменные: product_produced[p, m, d] истинно, если продукт p производится на машине m в день d
     product_produced_bools = {}
 
-    max_lday = max(ldays) if ldays else 1
     for p in all_products:
         for m, d in work_days:
             product_produced_bools[p, m, d] = model.NewBoolVar(f"product_produced_{p}_{m}_{d}")
@@ -370,12 +402,6 @@ def create_model(remains: list, products: list, machines: list, cleans: list, ma
     for m in all_machines:
         for d in all_days:
             days_in_batch[m, d] = model.NewIntVar(0, max_lday, f'days_in_batch_m{m}_d{d}')
-
-    prev_lday = {}
-    for m in all_machines:
-        for d in all_days:
-            prev_lday[m, d] = model.NewIntVar(0, max_lday, f'prev_lday_m{m}_d{d}')
-            model.AddElement(jobs[m, d], ldays, prev_lday[m, d])
 
     batch_end_complite = {}
 
@@ -609,10 +635,16 @@ def solver_result(solver, status, machines_old, products_old, machines, products
             if not (m, d) in cleans:
                 p = solver.value(jobs[m, d])
                 p_old, p_id = find_product_id_old(p)
+                db_v = solver.value(days_in_batch[m, d])
+                plday = solver.value(prev_lday[m, d])
             else:
                 p_old = None
                 p_id = ""
-            schedule.append({"machine_idx": m_old, "day_idx": d + week * 21, "product_idx": p_old})
+                db_v = None
+                d_old = d + week * 21
+                plday = None
+            schedule.append({"machine_idx": m_old, "day_idx": d + week * 21, "product_idx": p_old,
+                             "days_in_batch": db_v, "prev_lday": plday})
             logger.debug(f"  Day {d  + week * 21} works  {p_old}")
         machines_state.append((p_old if p_old else 0, p_id, solver.value(prev_lday[m, count_days - 1]) - solver.value(days_in_batch[m, count_days - 1])))
 

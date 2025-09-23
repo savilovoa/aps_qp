@@ -47,6 +47,8 @@ class LoomPlan(BaseModel):
     machine_idx: int
     day_idx: int
     product_idx: int | None
+    days_in_batch: int | None
+    prev_lday: int | None
 
 class LoomPlansOut(BaseModel):
     status: int = Field(default=0)
