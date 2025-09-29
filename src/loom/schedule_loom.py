@@ -282,7 +282,7 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
                 logger.info(f"Минимальное значение функции цели (сумма абс. отклонений пропорций): "
                             f"{solver.ObjectiveValue()}")
 
-            solver_result(solver, status, machines, products, machines_new, products_new, cleans, 21,
+            solver_result(solver, status, machines, products, machines_new, products_new, cleans_new, 21,
                           proportion_objective_terms, product_counts, jobs, total_products_count,
                           days_in_batch, prev_lday, w, schedule, products_schedule, diff_all, machines_state)
             logger.info(solver.ResponseStats())  # Основные статистические данные
