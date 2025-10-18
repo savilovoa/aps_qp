@@ -1,5 +1,6 @@
-from pydantic import BaseModel, Field, Optional
+from pydantic import BaseModel, Field
 from datetime import date
+from typing import Optional
 
 class Machine(BaseModel):
     idx: int = Field(description="индекс")
