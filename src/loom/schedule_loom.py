@@ -46,6 +46,10 @@ def schedule_loom_calc_model(DataIn: DataLoomIn) -> LoomPlansOut:
         count_days = DataIn.count_days
         days = [i for i in range(count_days)]
         data = DataIn.model_dump()
+        if DataIn.apply_index_up:
+            settings.APPLY_INDEX_UP = DataIn.apply_index_up
+        if DataIn.apply_qty_minus:
+            settings.APPLY_QTY_MINUS = DataIn.apply_qty_minus
 
         result_calc = schedule_loom_calc(remains=remains, products=products, machines=machines, cleans=cleans,
                                     max_daily_prod_zero=max_daily_prod_zero, count_days=count_days, data=data)

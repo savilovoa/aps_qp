@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, Optional
 from datetime import date
 
 class Machine(BaseModel):
@@ -42,6 +42,8 @@ class DataLoomIn(BaseModel):
     max_daily_prod_zero: int = Field(description="Максимальное количество перезаправок в день")
     count_days: int = Field(description="Количество дней планирования")
     dt_begin: date
+    apply_qty_minus: Optional[bool] = Field(description="Применить ограничение на количество минус", default=None)
+    apply_index_up: Optional[bool] = Field(description="Применить ограничение на индекс up", default=None)
 
 class LoomPlan(BaseModel):
     machine_idx: int
