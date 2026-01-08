@@ -42,7 +42,27 @@ APPLY_INDEX_UP=false - логика выбора другого артикула
 Run the server
 - With .env configured: run.cmd
 
-Run for testing (planing data from file example/test_in.json)
-.env: CALC_TEST_DATA=true
-тогда запуститься процедура calc_test_data_from в main.py, а не сервер 
+Run for testing (planning data from a file)
+- In `.env` set `CALC_TEST_DATA=true`.
+- Optionally set `TEST_INPUT_FILE` to choose the input JSON (defaults to `example/test_in.json`):
+  - `TEST_INPUT_FILE=example/simple_test_data.json` — минимальный тест (3 станка × 21 день), должен давать статус `OPTIMAL`.
+  - `TEST_INPUT_FILE=example/middle_test_in.json` — промежуточный тест (12 станков × 42 дня), должен давать статус как минимум `FEASIBLE`.
+  - `TEST_INPUT_FILE=example/test_in.json` — полный расчёт (48 станков × 84 дня), может давать `UNKNOWN` при текущих ограничениях.
+- Запуск: `run.cmd` (вызывает `python run.py`). В режиме `CALC_TEST_DATA=true` поднимается не сервер, а выполняется `calc_test_data_from` в `src/main.py`.
 
+Result verification workflow
+- Перед тестовым запуском удалить старый лог, чтобы видеть только свежий результат:
+  - PowerShell: `if (Test-Path .\\log\\aps-loom.log) { Remove-Item .\\log\\aps-loom.log }`
+- Запустить `run.cmd`.
+- После завершения посмотреть лог `log/aps-loom.log`:
+  - Найти строки вида `Создание модели: num_machines=..., num_days=..., work_days=..., max_daily_prod_zero=...` и `lday[...]` — убедиться, что все `lday` для продуктов с `idx>0` > 0.
+  - Найти строку `Сводка по продуктам: минимально требуемое количество и машинные дни ёмкости` и убедиться, что значения `min_required` и `capacity_machine_days` выглядят корректно.
+  - Найти строку `total_input_quantity=...` и блок `proportions_input[...]`.
+  - Контрольный статус решателя: строка `Статус решения: ...`:
+    - Ожидаемые значения:
+      - для `simple_test_data.json`: `OPTIMAL`;
+      - для `middle_test_in.json`: как минимум `FEASIBLE`;
+      - для полного `test_in.json`: возможен `UNKNOWN` при жёстких ограничениях.
+- В случае ошибки в данных (например, `lday<=0` у реального продукта) расчёт не выполняется, а в лог пишется сообщение вида:
+  - `Некорректные данные: продукт(ы) имеют lday<=0: idx=..., name='...', lday=...`
+  - В этом случае нужно исправить входной JSON и повторить запуск.
