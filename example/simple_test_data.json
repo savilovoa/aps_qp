@@ -6,7 +6,8 @@
 "product_idx": 3,
 "id": "fbc4c3a0-8087-11ea-80cc-005056aab926",
 "type": 0,
-"remain_day": 3
+"remain_day": 3,
+"reserve": 0
 },
 {
 "idx": 1,
@@ -14,7 +15,8 @@
 "product_idx": 3,
 "id": "fbc4c3a1-8087-11ea-80cc-005056aab926",
 "type": 0,
-  "remain_day": 1
+"remain_day": 1,
+"reserve": 0
 },
 {
 "idx": 2,
@@ -22,7 +24,8 @@
 "product_idx": 1,
 "id": "fbc4c372-8087-11ea-80cc-005056aab926",
 "type": 0,
-  "remain_day": 1
+  "remain_day": 1,
+"reserve": 0
 }],
 "products": [
 {
@@ -33,7 +36,10 @@
 "machine_type": 0,
   "qty_minus": 0,
 "lday": 2,
-"qty_week": [0, 0]
+"src_root": -1,
+"qty_minus_min": 0,
+"sr": 0,
+"strategy": "--"
 },
 {
 "idx": 1,
@@ -43,17 +49,23 @@
 "machine_type": 0,
   "qty_minus": 0,
 "lday": 3,
-"qty_week": [3, 3]
+"src_root": -1,
+"qty_minus_min": 0,
+"sr": 0,
+"strategy": "--"
 },
 {
 "idx": 2,
 "name": "ст87416t1 ",
-"qty": 14,
+"qty": 16,
 "id": "9559e2e8-6e72-41f8-9dba-08aab5463623",
 "machine_type": 0,
-  "qty_minus": 1,
-"lday": 2,
-"qty_week": [16, 14]
+"qty_minus": 1,
+"lday": 5,
+"src_root": 0,
+"qty_minus_min": 12,
+"sr": 0,
+"strategy": "+"
 },
 {
 "idx": 3,
@@ -63,12 +75,18 @@
 "machine_type": 0,
   "qty_minus": 1,
 "lday": 4,
-"qty_week": [42, 42]
+"src_root": 1,
+"qty_minus_min": 40,
+"sr": 0,
+"strategy": "="
 }
 ],
-"remains": [],
+"remains": [
+[6,6],
+[5,6,4,8]
+],
 "cleans": [],
 "max_daily_prod_zero": 3,
 "count_days": 21,
-  "dt_begin": "2025-07-01T00:00:00"
+  "dt_begin": "2025-12-01T00:00:00"
 }

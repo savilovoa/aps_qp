@@ -30,11 +30,12 @@ def calc_test_data_from():
         test_in = f.read()
 
     data = json.loads(test_in)
-    machines = [(d["name"], d["product_idx"], d["id"], d["type"], d["remain_day"]) for d in data["machines"]]
-    products = [(d["name"], d["qty"], d["id"], d["machine_type"], d["qty_minus"], d["lday"], d["qty_week"])
+    machines = [(d["name"], d["product_idx"], d["id"], d["type"], d["remain_day"], d["reserve"]) for d in data["machines"]]
+    products = [(d["name"], d["qty"], d["id"], d["machine_type"], d["qty_minus"], d["lday"], d["src_root"], d["qty_minus_min"], d["sr"], d["strategy"])
                 for d in data["products"]]
     cleans = [(d["machine_idx"], d["day_idx"]) for d in data["cleans"]]
-    result_calc = schedule_loom_calc(machines=machines, products=products, remains=[], cleans=cleans,
+    remains = data["remains"]
+    result_calc = schedule_loom_calc(machines=machines, products=products, remains=remains, cleans=cleans,
                                      max_daily_prod_zero=data["max_daily_prod_zero"], count_days=data["count_days"],
                                      data=data)
     if result_calc["error_str"]:
