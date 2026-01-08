@@ -26,7 +26,9 @@ def main():
 
 def calc_test_data_from():
     # Исходные данные
-    with open("example/test_in.json", encoding="utf8") as f:
+    input_file = settings.TEST_INPUT_FILE or "example/test_in.json"
+    logger.info(f"Загрузка тестовых данных из файла: {input_file}")
+    with open(input_file, encoding="utf8") as f:
         test_in = f.read()
 
     data = json.loads(test_in)

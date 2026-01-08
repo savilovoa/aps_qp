@@ -9,6 +9,7 @@ class Machine(BaseModel):
     id: str
     type: int
     remain_day: int = Field(default=0)
+    reserve: bool = Field(default=False, description="признак резервирования машины")
 
 class Remain(BaseModel):
     idx: int
@@ -29,7 +30,10 @@ class Product(BaseModel):
     resource: list[Resources] = Field(default=[])
     qty_minus: int = Field(default=0)
     lday: int = Field(description="количество смен после перехода в основе")
-    qty_week: list[int] = Field(description="объемы по неделям")
+    src_root: int = Field(default=-1, description="индекс главного сырья из таблицы remains")
+    qty_minus_min: int = Field(default=0, description="минимальное количество планирования")
+    sr: bool = Field(default=False, description="признак специального продукта")
+    strategy: str = Field(default="--", description="стратегия планирования (--, -, =, +, ++)")
 
 class Clean(BaseModel):
     day_idx: int

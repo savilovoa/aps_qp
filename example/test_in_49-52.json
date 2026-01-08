@@ -807,7 +807,7 @@
 "qty_minus": true,
 "lday": 24,
 "src_root": 14,
-"qty_minus_min": 270000,
+"qty_minus_min": 280,
 "sr": false,
 "strategy": "="
 },
@@ -820,7 +820,7 @@
 "qty_minus": true,
 "lday": 21,
 "src_root": 15,
-"qty_minus_min": 380000,
+"qty_minus_min": 250,
 "sr": false,
 "strategy": "="
 },

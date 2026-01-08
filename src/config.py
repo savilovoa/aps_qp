@@ -18,10 +18,12 @@ class Settings(BaseSettings):
     LOOM_MAX_TIME: int = Field(default=600)
     LOOM_NUM_WORKERS: int = Field(default=1)
     CALC_TEST_DATA: bool = Field(default=False)
+    TEST_INPUT_FILE: str | None = Field(default=None, description="Путь к файлу тестовых данных для CALC_TEST_DATA")
     SOLVER_ENUMERATE: bool = Field(default=False)
     SOLVER_ENUMERATE_COUNT: int = Field(default=3)
     APPLY_QTY_MINUS: bool = Field(default=True)
     APPLY_INDEX_UP: bool = Field(default=True)
+    APPLY_DOWNTIME_LIMITS: bool = Field(default=True)
     KFZ_DOWNTIME_PENALTY: int = Field(default=10)
 
 settings = Settings()
