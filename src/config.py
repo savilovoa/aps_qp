@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     PROJECT_NAME: str
     VERSION: str = Field(default="0.0.1.2")
     DEBUG: bool = Field(default=False)
+    DEBUG_SCHEDULE: bool = Field(default=False, description="Подробные отладочные логи расписания (lday, батчи и т.п.)")
     PORT: int
     SERVER_NAME: str = Field(default="0.0.0.0")
     BASE_DIR: str = Field(default=getcwd())
@@ -24,6 +25,16 @@ class Settings(BaseSettings):
     APPLY_QTY_MINUS: bool = Field(default=True)
     APPLY_INDEX_UP: bool = Field(default=True)
     APPLY_DOWNTIME_LIMITS: bool = Field(default=True)
+
+    # Режим горизонта планирования: FULL (по умолчанию), LONG (упрощённый 84 смены), SHORT (детализированный 21 смена)
+    HORIZON_MODE: str = Field(default="FULL")
+
+    # Мастер-флаг бизнес-логики переходов (двухдневный переход, запрет 3-го нуля и т.п.)
+    APPLY_TRANSITION_BUSINESS_LOGIC: bool = Field(
+        default=True,
+        description="Включать ли полную бизнес-логику переходов (двухдневный переход, запрет 3-го нуля и пр.)",
+    )
+
     # Детальная настройка ограничений по простоям (PRODUCT_ZERO)
     # Если APPLY_DOWNTIME_LIMITS=False, оба ограничения полностью отключаются.
     APPLY_ZERO_PER_DAY_LIMIT: bool = Field(
