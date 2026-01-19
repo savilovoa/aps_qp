@@ -765,6 +765,10 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
     products_schedule = []
     diff_all = 0
 
+    # Режим горизонта: запоминаем исходное количество смен и режим LONG.
+    long_mode = getattr(settings, "HORIZON_MODE", "FULL").upper() == "LONG"
+    orig_count_days = count_days
+
     # Логируем ключевые настройки и размеры данных на момент создания модели.
     logger.info(
         "schedule_loom_calc: SOLVER_ENUMERATE=%s, SOLVER_ENUMERATE_COUNT=%s, "
@@ -882,6 +886,31 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
             "error_str": error_msg,
         }
 
+    # Для LONG-режима агрегируем горизонт: 2 реальные смены = 1 модельный день.
+    # ВРЕМЕННО ОТКЛЮЧЕНО (and False) ДЛЯ ПОИСКА ПРИЧИНЫ КРЭША OR-Tools.
+    if long_mode and False:
+        step = 2
+        count_days_long = (orig_count_days + step - 1) // step
+
+        cleans_agg_set: set[tuple[int, int]] = set()
+        for c in data["cleans"]:
+            try:
+                m = int(c["machine_idx"])
+                d = int(c["day_idx"])
+            except (KeyError, TypeError, ValueError):
+                continue
+            d2 = d // step
+            if d2 < 0 or d2 >= count_days_long:
+                continue
+            cleans_agg_set.add((m, d2))
+
+        clean_df = pd.DataFrame(
+            [{"machine_idx": m, "day_idx": d2} for (m, d2) in sorted(cleans_agg_set)]
+        )
+
+        # Обновляем количество дней для построения LONG-модели.
+        count_days = count_days_long
+
     product_id = products_df["id"]
     machines_df["product_id"] = machines_df["product_idx"].map(product_id)
     product_type = products_df["machine_type"]
@@ -930,7 +959,9 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
         )
 
     # Если есть жадный план и включён USE_GREEDY_HINT, используем его как hint для jobs[m,d].
-    if settings.USE_GREEDY_HINT and greedy_schedule is not None:
+    # В LONG-режиме временно отключаем hints, т.к. сочетание LONG+hint
+    # приводит к крэшу OR-Tools до вывода статуса решения.
+    if settings.USE_GREEDY_HINT and greedy_schedule is not None and not long_mode:
         try:
             # Маппинг: исходный idx продукта -> id, и id -> новый idx в products_df_new
             orig_idx_to_id = products_df.set_index("idx")["id"].to_dict()
@@ -1143,7 +1174,7 @@ def create_model_long(remains: list, products: list, machines: list, cleans: lis
             model.Add(jobs[m, d] == p).OnlyEnforceIf(b)
             model.Add(jobs[m, d] != p).OnlyEnforceIf(b.Not())
 
-    # Подсчёт количества смен каждого продукта.
+    # Подсчёт количества смен каждого продукта (в модельных днях).
     product_counts: list[cp_model.IntVar] = [
         model.NewIntVar(0, num_machines * num_days, f"count_prod_{p}") for p in all_products
     ]
@@ -1194,29 +1225,21 @@ def create_model_long(remains: list, products: list, machines: list, cleans: lis
                     completed_transition[m, d] = model.NewBoolVar(f"two_day_zero_long_{m}_{d}")
 
         for m in all_machines:
-            # День 0: переход завершиться не может.
-            if (m, 0) in work_days:
-                model.Add(completed_transition[m, 0] == 0)
+            for d in range(0, num_days):
 
-            for d in range(1, num_days):
-                if (m, d) not in work_days:
-                    continue
-
-                # Определяем предыдущий рабочий день pred_idx (с учётом чисток).
-                if (m, d - 1) in work_days:
-                    pred_idx = d - 1
+                if d == 0:
+                    job_pred = machines[m][1]
+                    completed_transition[m, 0] = 0
                 else:
-                    pred_idx = d - 2
-                    if pred_idx < 0 or (m, pred_idx) not in work_days:
-                        # Нет валидного предыдущего рабочего дня -> переход завершиться не мог.
-                        model.Add(completed_transition[m, d] == 0)
-                        continue
+                    job_pred = jobs[m, d - 1]
+                    model.Add(job_pred == PRODUCT_ZERO).OnlyEnforceIf(completed_transition[m, d-1])
+                    model.Add(job_pred != PRODUCT_ZERO).OnlyEnforceIf(completed_transition[m, d-1].Not())
 
                 # Булевы флаги для текущего и предыдущего дня.
                 same = model.NewBoolVar(f"same_as_prev_long_{m}_{d}")
                 same_as_prev[m, d] = same
-                model.Add(jobs[m, d] == jobs[m, pred_idx]).OnlyEnforceIf(same)
-                model.Add(jobs[m, d] != jobs[m, pred_idx]).OnlyEnforceIf(same.Not())
+                model.Add(jobs[m, d] == job_pred).OnlyEnforceIf(same)
+                model.Add(jobs[m, d] != job_pred).OnlyEnforceIf(same.Not())
 
                 inz = model.NewBoolVar(f"is_not_zero_long_{m}_{d}")
                 is_not_zero[m, d] = inz
@@ -1225,8 +1248,8 @@ def create_model_long(remains: list, products: list, machines: list, cleans: lis
 
                 prev_inz = model.NewBoolVar(f"prev_is_not_zero_long_{m}_{d}")
                 prev_is_not_zero[m, d] = prev_inz
-                model.Add(jobs[m, pred_idx] != PRODUCT_ZERO).OnlyEnforceIf(prev_inz)
-                model.Add(jobs[m, pred_idx] == PRODUCT_ZERO).OnlyEnforceIf(prev_inz.Not())
+                model.Add(job_pred != PRODUCT_ZERO).OnlyEnforceIf(prev_inz)
+                model.Add(job_pred == PRODUCT_ZERO).OnlyEnforceIf(prev_inz.Not())
 
                 # completed_transition[m,d] = 1 <=> и pred_idx, и d — нули.
                 model.AddBoolAnd([prev_inz.Not(), inz.Not()]).OnlyEnforceIf(completed_transition[m, d])
@@ -1239,18 +1262,17 @@ def create_model_long(remains: list, products: list, machines: list, cleans: lis
                 model.AddBoolOr([
                     inz.Not(),                # текущий день — ноль, всегда допустимо
                     same,                     # тот же продукт, что и на предыдущем рабочем дне
-                    completed_transition[m, pred_idx],  # завершён двухдневный переход перед сменой продукта
+                    completed_transition[m, d - 1],  # завершён двухдневный переход перед сменой продукта
                 ])
 
         # Запрет тройного нуля подряд на одной машине.
         for m in all_machines:
-            for d in range(2, num_days):
-                if (m, d) in work_days and (m, d - 1) in work_days and (m, d - 2) in work_days:
+            for d in range(1, num_days):
+                if (m, d) in work_days in work_days:
                     model.Add(
-                        product_produced_bools[PRODUCT_ZERO, m, d - 2]
-                        + product_produced_bools[PRODUCT_ZERO, m, d - 1]
+                        product_produced_bools[PRODUCT_ZERO, m, d - 1]
                         + product_produced_bools[PRODUCT_ZERO, m, d]
-                        <= 2
+                        <= 1
                     )
 
     # Пропорциональная цель и стратегии (по аналогии с create_model, но без lday).
@@ -1284,7 +1306,7 @@ def create_model_long(remains: list, products: list, machines: list, cleans: lis
                 # Нижняя граница: не меньше 0 смен.
                 model.Add(product_counts[p] >= 0)
                 # Верхняя граница: не более planned_qty + 6 смен (и не больше общего горизонта).
-                upper = min(max_count, planned_qty + 6)
+                upper = min(max_count, planned_qty + 3)
                 model.Add(product_counts[p] <= upper)
                 continue
 
