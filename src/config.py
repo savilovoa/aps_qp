@@ -54,6 +54,19 @@ class Settings(BaseSettings):
     KFZ_DOWNTIME_PENALTY: int = Field(default=10)
     USE_GREEDY_HINT: bool = Field(default=False, description="Использовать ли жадный предварительный план как hint для CP-SAT")
 
+    # Альтернативная цель: линейный штраф за превышение плана вместо пропорций
+    APPLY_OVERPENALTY_INSTEAD_OF_PROP: bool = Field(
+        default=False,
+        description="Если True, в LONG/LONG_SIMPLE используем линейный штраф за превышение плана вместо пропорциональной цели",
+    )
+
+    # Для LONG_SIMPLE: использовать ли "полный" алгоритм пропорций (через умножение),
+    # вместо упрощённого линейного штрафа. Работает только при APPLY_PROP_OBJECTIVE=True.
+    SIMPLE_USE_PROP_MULT: bool = Field(
+        default=False,
+        description="В LONG_SIMPLE использовать алгоритм пропорций с умножением вместо линейного штрафа",
+    )
+
 settings = Settings()
 
 log_path = settings.BASE_DIR + "/log"

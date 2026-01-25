@@ -8,9 +8,9 @@ class Machine(BaseModel):
     product_idx: int = Field(description="индекс продукта на машине")
     id: str
     type: int
+    div: int = Field(default=1, description="цех/подразделение: 1 или 2")
     remain_day: int = Field(default=0)
     reserve: bool = Field(default=False, description="признак резервирования машины")
-
 class Remain(BaseModel):
     idx: int
     name: str
@@ -34,7 +34,10 @@ class Product(BaseModel):
     qty_minus_min: int = Field(default=0, description="минимальное количество планирования")
     sr: bool = Field(default=False, description="признак специального продукта")
     strategy: str = Field(default="--", description="стратегия планирования (--, -, =, +, ++)")
-
+    div: int | None = Field(
+        default=None,
+        description="цех: 1 или 2 – фиксированный, 0 – можно в любом цехе (но только в одном), None – не используется",
+    )
 class Clean(BaseModel):
     day_idx: int
     machine_idx: int

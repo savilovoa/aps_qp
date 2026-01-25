@@ -3,317 +3,352 @@
 {
 "idx": 0,
 "name": "ТС Тойота №104",
-"product_idx": 17,
+"product_idx": 27,
 "id": "798b5811-abfa-11ec-80e0-005056aac628",
 "type": 1,
-"remain_day": 8,
-"reserve": 0
+"remain_day": 0,
+"reserve": 0,
+"div": 2
 },
 {
 "idx": 1,
-"name": "ТС Тойота №11",
-"product_idx": 16,
-"id": "fbc4c375-8087-11ea-80cc-005056aab926",
-"type": 0,
-"remain_day": 5,
-"reserve": 0
+"name": "ТС Тойота №105",
+"product_idx": 29,
+"id": "798b581c-abfa-11ec-80e0-005056aac628",
+"type": 1,
+"remain_day": 0,
+"reserve": 0,
+"div": 2
 },
 {
 "idx": 2,
-"name": "ТС Тойота №111",
-"product_idx": 17,
-"id": "a3ef8268-abfa-11ec-80e0-005056aac628",
-"type": 1,
-"remain_day": 1,
-"reserve": 0
+"name": "ТС Тойота №114",
+"product_idx": 1,
+"id": "aa2b3544-abfa-11ec-80e0-005056aac628",
+"type": 0,
+"remain_day": 0,
+"reserve": 0,
+"div": 2
 },
 {
 "idx": 3,
-"name": "ТС Тойота №113",
-"product_idx": 17,
-"id": "aa2b3543-abfa-11ec-80e0-005056aac628",
+"name": "ТС Тойота №115",
+"product_idx": 27,
+"id": "b283054f-abfa-11ec-80e0-005056aac628",
 "type": 1,
-"remain_day": 3,
-"reserve": 0
+"remain_day": 0,
+"reserve": 0,
+"div": 2
 },
 {
 "idx": 4,
-"name": "ТС Тойота №115",
-"product_idx": 17,
-"id": "b283054f-abfa-11ec-80e0-005056aac628",
-"type": 1,
-"remain_day": 2,
-"reserve": 0
+"name": "ТС Тойота №116",
+"product_idx": 2,
+"id": "b2830550-abfa-11ec-80e0-005056aac628",
+"type": 0,
+"remain_day": 0,
+"reserve": 0,
+"div": 2
 },
 {
 "idx": 5,
-"name": "ТС Тойота №12",
-"product_idx": 10,
-"id": "fbc4c376-8087-11ea-80cc-005056aab926",
+"name": "ТС Тойота №119",
+"product_idx": 2,
+"id": "c11b8cb5-abfa-11ec-80e0-005056aac628",
 "type": 0,
-"remain_day": 1,
-"reserve": 0
+"remain_day": 0,
+"reserve": 0,
+"div": 2
 },
 {
 "idx": 6,
-"name": "ТС Тойота №120",
-"product_idx": 5,
-"id": "c11b8cbe-abfa-11ec-80e0-005056aac628",
+"name": "ТС Тойота №121",
+"product_idx": 28,
+"id": "c8696e59-abfa-11ec-80e0-005056aac628",
 "type": 1,
-"remain_day": 25,
-"reserve": 0
+"remain_day": 0,
+"reserve": 0,
+"div": 2
 },
 {
 "idx": 7,
-"name": "ТС Тойота №127",
-"product_idx": 11,
-"id": "e8b7876d-abfa-11ec-80e0-005056aac628",
-"type": 1,
-"remain_day": 12,
-"reserve": 0
+"name": "ТС Тойота №122",
+"product_idx": 3,
+"id": "c8696e5a-abfa-11ec-80e0-005056aac628",
+"type": 0,
+"remain_day": 0,
+"reserve": 0,
+"div": 2
 },
 {
 "idx": 8,
-"name": "ТС Тойота №133",
-"product_idx": 20,
-"id": "06dd754d-abfb-11ec-80e0-005056aac628",
-"type": 1,
-"remain_day": 12,
-"reserve": 0
+"name": "ТС Тойота №123",
+"product_idx": 3,
+"id": "cf58caa2-abfa-11ec-80e0-005056aac628",
+"type": 0,
+"remain_day": 0,
+"reserve": 0,
+"div": 2
 },
 {
 "idx": 9,
-"name": "ТС Тойота №134",
-"product_idx": 11,
-"id": "06dd754e-abfb-11ec-80e0-005056aac628",
-"type": 1,
-"remain_day": 13,
-"reserve": 0
+"name": "ТС Тойота №124",
+"product_idx": 4,
+"id": "cf58caa4-abfa-11ec-80e0-005056aac628",
+"type": 0,
+"remain_day": 0,
+"reserve": 0,
+"div": 2
 },
 {
 "idx": 10,
-"name": "ТС Тойота №135",
-"product_idx": 2,
-"id": "945d9886-b16c-11ec-80e2-005056aa1736",
-"type": 1,
-"remain_day": 7,
-"reserve": 0
+"name": "ТС Тойота №125",
+"product_idx": 4,
+"id": "e05486a2-abfa-11ec-80e0-005056aac628",
+"type": 0,
+"remain_day": 0,
+"reserve": 0,
+"div": 2
 },
 {
 "idx": 11,
-"name": "ТС Тойота №136",
-"product_idx": 11,
-"id": "0e700716-abfb-11ec-80e0-005056aac628",
-"type": 1,
-"remain_day": 4,
-"reserve": 0
+"name": "ТС Тойота №126",
+"product_idx": 5,
+"id": "e05486a4-abfa-11ec-80e0-005056aac628",
+"type": 0,
+"remain_day": 0,
+"reserve": 0,
+"div": 2
 },
 {
 "idx": 12,
-"name": "ТС Тойота №137",
-"product_idx": 11,
-"id": "9d3ea9f9-b16c-11ec-80e2-005056aa1736",
-"type": 1,
-"remain_day": 5,
-"reserve": 0
+"name": "ТС Тойота №127",
+"product_idx": 5,
+"id": "e8b7876d-abfa-11ec-80e0-005056aac628",
+"type": 0,
+"remain_day": 0,
+"reserve": 0,
+"div": 2
 },
 {
 "idx": 13,
-"name": "ТС Тойота №140",
-"product_idx": 20,
-"id": "a4477be3-b16c-11ec-80e2-005056aa1736",
-"type": 1,
-"remain_day": 9,
-"reserve": 0
+"name": "ТС Тойота №130",
+"product_idx": 21,
+"id": "f27d1291-abfa-11ec-80e0-005056aac628",
+"type": 0,
+"remain_day": 0,
+"reserve": 0,
+"div": 2
 },
 {
 "idx": 14,
-"name": "ТС Тойота №141",
-"product_idx": 20,
-"id": "ab27292b-b16c-11ec-80e2-005056aa1736",
-"type": 1,
-"remain_day": 3,
-"reserve": 0
+"name": "ТС Тойота №132",
+"product_idx": 6,
+"id": "fedde8c9-abfa-11ec-80e0-005056aac628",
+"type": 0,
+"remain_day": 0,
+"reserve": 0,
+"div": 2
 },
 {
 "idx": 15,
-"name": "ТС Тойота №16",
-"product_idx": 19,
-"id": "fbc4c37a-8087-11ea-80cc-005056aab926",
-"type": 0,
-"remain_day": 10,
-"reserve": 0
+"name": "ТС Тойота №133",
+"product_idx": 28,
+"id": "06dd754d-abfb-11ec-80e0-005056aac628",
+"type": 1,
+"remain_day": 0,
+"reserve": 0,
+"div": 2
 },
 {
 "idx": 16,
-"name": "ТС Тойота №19",
-"product_idx": 16,
-"id": "fbc4c37d-8087-11ea-80cc-005056aab926",
+"name": "ТС Тойота №134",
+"product_idx": 6,
+"id": "06dd754e-abfb-11ec-80e0-005056aac628",
 "type": 0,
-"remain_day": 2,
-"reserve": 0
+"remain_day": 0,
+"reserve": 0,
+"div": 2
 },
 {
 "idx": 17,
-"name": "ТС Тойота №21",
-"product_idx": 9,
-"id": "fbc4c37f-8087-11ea-80cc-005056aab926",
-"type": 0,
-"remain_day": 6,
-"reserve": 0
+"name": "ТС Тойота №136",
+"product_idx": 28,
+"id": "0e700716-abfb-11ec-80e0-005056aac628",
+"type": 1,
+"remain_day": 0,
+"reserve": 0,
+"div": 2
 },
 {
 "idx": 18,
-"name": "ТС Тойота №27",
-"product_idx": 19,
-"id": "fbc4c385-8087-11ea-80cc-005056aab926",
+"name": "ТС Тойота №138",
+"product_idx": 7,
+"id": "9d3ea9fa-b16c-11ec-80e2-005056aa1736",
 "type": 0,
-"remain_day": 4,
-"reserve": 0
+"remain_day": 0,
+"reserve": 0,
+"div": 2
 },
 {
 "idx": 19,
-"name": "ТС Тойота №28",
-"product_idx": 29,
-"id": "fbc4c386-8087-11ea-80cc-005056aab926",
+"name": "ТС Тойота №139",
+"product_idx": 0,
+"id": "a4477be2-b16c-11ec-80e2-005056aa1736",
 "type": 0,
-"remain_day": 2,
-"reserve": 0
+"remain_day": 0,
+"reserve": 0,
+"div": 2
 },
 {
 "idx": 20,
-"name": "ТС Тойота №30",
-"product_idx": 28,
-"id": "fbc4c388-8087-11ea-80cc-005056aab926",
-"type": 0,
-"remain_day": 4,
-"reserve": 0
+"name": "ТС Тойота №140",
+"product_idx": 21,
+"id": "a4477be3-b16c-11ec-80e2-005056aa1736",
+"type": 1,
+"remain_day": 0,
+"reserve": 0,
+"div": 2
 },
 {
 "idx": 21,
-"name": "ТС Тойота №33",
-"product_idx": 16,
-"id": "fbc4c38b-8087-11ea-80cc-005056aab926",
-"type": 0,
-"remain_day": 4,
-"reserve": 0
+"name": "ТС Тойота №141",
+"product_idx": 21,
+"id": "ab27292b-b16c-11ec-80e2-005056aa1736",
+"type": 1,
+"remain_day": 0,
+"reserve": 0,
+"div": 2
 },
 {
 "idx": 22,
-"name": "ТС Тойота №35",
-"product_idx": 19,
-"id": "fbc4c38d-8087-11ea-80cc-005056aab926",
+"name": "ТС Тойота №20",
+"product_idx": 14,
+"id": "fbc4c37e-8087-11ea-80cc-005056aab926",
 "type": 0,
-"remain_day": 12,
-"reserve": 0
+"remain_day": 0,
+"reserve": 0,
+"div": 1
 },
 {
 "idx": 23,
-"name": "ТС Тойота №36",
-"product_idx": 3,
-"id": "fbc4c38e-8087-11ea-80cc-005056aab926",
+"name": "ТС Тойота №34",
+"product_idx": 14,
+"id": "fbc4c38c-8087-11ea-80cc-005056aab926",
 "type": 0,
-"remain_day": 8,
-"reserve": 0
+"remain_day": 0,
+"reserve": 0,
+"div": 1
 },
 {
 "idx": 24,
-"name": "ТС Тойота №45",
-"product_idx": 19,
-"id": "fbc4c397-8087-11ea-80cc-005056aab926",
+"name": "ТС Тойота №35",
+"product_idx": 20,
+"id": "fbc4c38d-8087-11ea-80cc-005056aab926",
 "type": 0,
-"remain_day": 3,
-"reserve": 0
+"remain_day": 0,
+"reserve": 0,
+"div": 1
 },
 {
 "idx": 25,
 "name": "ТС Тойота №53",
-"product_idx": 9,
+"product_idx": 22,
 "id": "fbc4c39f-8087-11ea-80cc-005056aab926",
 "type": 0,
-"remain_day": 4,
-"reserve": 0
+"remain_day": 0,
+"reserve": 0,
+"div": 1
 },
 {
 "idx": 26,
-"name": "ТС Тойота №54",
-"product_idx": 9,
-"id": "fbc4c3a0-8087-11ea-80cc-005056aab926",
+"name": "ТС Тойота №6",
+"product_idx": 15,
+"id": "fbc4c370-8087-11ea-80cc-005056aab926",
 "type": 0,
-"remain_day": 6,
-"reserve": 0
+"remain_day": 0,
+"reserve": 0,
+"div": 1
 },
 {
 "idx": 27,
-"name": "ТС Тойота №55",
-"product_idx": 29,
-"id": "fbc4c3a1-8087-11ea-80cc-005056aab926",
+"name": "ТС Тойота №61",
+"product_idx": 9,
+"id": "fbc4c3a7-8087-11ea-80cc-005056aab926",
 "type": 0,
-"remain_day": 1,
-"reserve": 0
+"remain_day": 0,
+"reserve": 0,
+"div": 1
 },
 {
 "idx": 28,
-"name": "ТС Тойота №57",
-"product_idx": 19,
-"id": "fbc4c3a3-8087-11ea-80cc-005056aab926",
+"name": "ТС Тойота №68",
+"product_idx": 23,
+"id": "fbc4c3ae-8087-11ea-80cc-005056aab926",
 "type": 0,
-"remain_day": 3,
-"reserve": 0
+"remain_day": 0,
+"reserve": 0,
+"div": 1
 },
 {
 "idx": 29,
-"name": "ТС Тойота №6",
-"product_idx": 9,
-"id": "fbc4c370-8087-11ea-80cc-005056aab926",
+"name": "ТС Тойота №7",
+"product_idx": 23,
+"id": "fbc4c371-8087-11ea-80cc-005056aab926",
 "type": 0,
-"remain_day": 3,
-"reserve": 0
+"remain_day": 0,
+"reserve": 0,
+"div": 1
 },
 {
 "idx": 30,
-"name": "ТС Тойота №61",
-"product_idx": 19,
-"id": "fbc4c3a7-8087-11ea-80cc-005056aab926",
+"name": "ТС Тойота №70",
+"product_idx": 22,
+"id": "fbc4c3b0-8087-11ea-80cc-005056aab926",
 "type": 0,
-"remain_day": 16,
-"reserve": 0
+"remain_day": 0,
+"reserve": 0,
+"div": 1
 },
 {
 "idx": 31,
-"name": "ТС Тойота №66",
-"product_idx": 18,
-"id": "fbc4c3ac-8087-11ea-80cc-005056aab926",
+"name": "ТС Тойота №72",
+"product_idx": 23,
+"id": "fbc4c3b2-8087-11ea-80cc-005056aab926",
 "type": 0,
-"remain_day": 6,
-"reserve": 0
+"remain_day": 0,
+"reserve": 0,
+"div": 1
 },
 {
 "idx": 32,
-"name": "ТС Тойота №7",
-"product_idx": 9,
-"id": "fbc4c371-8087-11ea-80cc-005056aab926",
+"name": "ТС Тойота №73",
+"product_idx": 0,
+"id": "fbc4c3b3-8087-11ea-80cc-005056aab926",
 "type": 0,
-"remain_day": 2,
-"reserve": 0
+"remain_day": 0,
+"reserve": 0,
+"div": 1
 },
 {
 "idx": 33,
-"name": "ТС Тойота №70",
-"product_idx": 9,
-"id": "fbc4c3b0-8087-11ea-80cc-005056aab926",
-"type": 0,
-"remain_day": 8,
-"reserve": 0
-},
-{
-"idx": 34,
 "name": "ТС Тойота №77",
-"product_idx": 4,
+"product_idx": 16,
 "id": "fbc4c3b7-8087-11ea-80cc-005056aab926",
 "type": 1,
 "remain_day": 0,
-"reserve": 0
+"reserve": 0,
+"div": 1
+},
+{
+"idx": 34,
+"name": "ТС Тойота №78",
+"product_idx": 0,
+"id": "fbc4c3b8-8087-11ea-80cc-005056aab926",
+"type": 0,
+"remain_day": 0,
+"reserve": 0,
+"div": 1
 },
 {
 "idx": 35,
@@ -322,115 +357,188 @@
 "id": "fbc4c3b9-8087-11ea-80cc-005056aab926",
 "type": 0,
 "remain_day": 0,
-"reserve": 0
+"reserve": 0,
+"div": 1
 },
 {
 "idx": 36,
 "name": "ТС Тойота №8",
-"product_idx": 1,
+"product_idx": 0,
 "id": "fbc4c372-8087-11ea-80cc-005056aab926",
 "type": 0,
-"remain_day": 2,
-"reserve": 0
+"remain_day": 0,
+"reserve": 0,
+"div": 1
 },
 {
 "idx": 37,
-"name": "ТС Тойота №82",
-"product_idx": 28,
-"id": "fbc4c3bc-8087-11ea-80cc-005056aab926",
+"name": "ТС Тойота №80",
+"product_idx": 0,
+"id": "fbc4c3ba-8087-11ea-80cc-005056aab926",
 "type": 0,
-"remain_day": 2,
-"reserve": 0
+"remain_day": 0,
+"reserve": 0,
+"div": 1
 },
 {
 "idx": 38,
-"name": "ТС Тойота №85",
-"product_idx": 29,
-"id": "fbc4c3bf-8087-11ea-80cc-005056aab926",
+"name": "ТС Тойота №81",
+"product_idx": 0,
+"id": "fbc4c3bb-8087-11ea-80cc-005056aab926",
 "type": 0,
-"remain_day": 3,
-"reserve": 0
+"remain_day": 0,
+"reserve": 0,
+"div": 1
 },
 {
 "idx": 39,
-"name": "ТС Тойота №88",
-"product_idx": 29,
-"id": "fbc4c3c2-8087-11ea-80cc-005056aab926",
-"type": 1,
-"remain_day": 2,
-"reserve": 0
+"name": "ТС Тойота №84",
+"product_idx": 0,
+"id": "fbc4c3be-8087-11ea-80cc-005056aab926",
+"type": 0,
+"remain_day": 0,
+"reserve": 0,
+"div": 1
 },
 {
 "idx": 40,
-"name": "ТС Тойота №89",
-"product_idx": 28,
-"id": "fbc4c3c3-8087-11ea-80cc-005056aab926",
-"type": 1,
-"remain_day": 6,
-"reserve": 0
+"name": "ТС Тойота №85",
+"product_idx": 0,
+"id": "fbc4c3bf-8087-11ea-80cc-005056aab926",
+"type": 0,
+"remain_day": 0,
+"reserve": 0,
+"div": 1
 },
 {
 "idx": 41,
-"name": "ТС Тойота №91",
-"product_idx": 28,
-"id": "fbc4c3c5-8087-11ea-80cc-005056aab926",
-"type": 1,
-"remain_day": 21,
-"reserve": 0
+"name": "ТС Тойота №87",
+"product_idx": 0,
+"id": "fbc4c3c1-8087-11ea-80cc-005056aab926",
+"type": 0,
+"remain_day": 0,
+"reserve": 0,
+"div": 1
 },
 {
 "idx": 42,
-"name": "ТС Тойота №92",
-"product_idx": 7,
-"id": "fbc4c3c6-8087-11ea-80cc-005056aab926",
-"type": 1,
-"remain_day": 7,
-"reserve": 0
+"name": "ТС Тойота №88",
+"product_idx": 0,
+"id": "fbc4c3c2-8087-11ea-80cc-005056aab926",
+"type": 0,
+"remain_day": 0,
+"reserve": 0,
+"div": 1
 },
 {
 "idx": 43,
-"name": "ТС Тойота №93",
-"product_idx": 7,
-"id": "fbc4c3c7-8087-11ea-80cc-005056aab926",
-"type": 0,
-"remain_day": 12,
-"reserve": 0
+"name": "ТС Тойота №89",
+"product_idx": 10,
+"id": "fbc4c3c3-8087-11ea-80cc-005056aab926",
+"type": 1,
+"remain_day": 0,
+"reserve": 0,
+"div": 1
 },
 {
 "idx": 44,
-"name": "ТС Тойота №94",
-"product_idx": 7,
-"id": "fbc4c3c8-8087-11ea-80cc-005056aab926",
-"type": 1,
-"remain_day": 8,
-"reserve": 0
+"name": "ТС Тойота №9",
+"product_idx": 0,
+"id": "fbc4c373-8087-11ea-80cc-005056aab926",
+"type": 0,
+"remain_day": 0,
+"reserve": 0,
+"div": 1
 },
 {
 "idx": 45,
+"name": "ТС Тойота №90",
+"product_idx": 0,
+"id": "fbc4c3c4-8087-11ea-80cc-005056aab926",
+"type": 0,
+"remain_day": 0,
+"reserve": 0,
+"div": 1
+},
+{
+"idx": 46,
+"name": "ТС Тойота №91",
+"product_idx": 10,
+"id": "fbc4c3c5-8087-11ea-80cc-005056aab926",
+"type": 1,
+"remain_day": 0,
+"reserve": 0,
+"div": 1
+},
+{
+"idx": 47,
+"name": "ТС Тойота №92",
+"product_idx": 0,
+"id": "fbc4c3c6-8087-11ea-80cc-005056aab926",
+"type": 0,
+"remain_day": 0,
+"reserve": 0,
+"div": 1
+},
+{
+"idx": 48,
+"name": "ТС Тойота №93",
+"product_idx": 0,
+"id": "fbc4c3c7-8087-11ea-80cc-005056aab926",
+"type": 0,
+"remain_day": 0,
+"reserve": 0,
+"div": 1
+},
+{
+"idx": 49,
+"name": "ТС Тойота №94",
+"product_idx": 0,
+"id": "fbc4c3c8-8087-11ea-80cc-005056aab926",
+"type": 0,
+"remain_day": 0,
+"reserve": 0,
+"div": 1
+},
+{
+"idx": 50,
 "name": "ТС Тойота №95",
 "product_idx": 28,
 "id": "450b8a00-abfa-11ec-80e0-005056aac628",
 "type": 1,
-"remain_day": 2,
-"reserve": 0
+"remain_day": 0,
+"reserve": 0,
+"div": 2
 },
 {
-"idx": 46,
+"idx": 51,
+"name": "ТС Тойота №96",
+"product_idx": 0,
+"id": "53bec441-abfa-11ec-80e0-005056aac628",
+"type": 0,
+"remain_day": 0,
+"reserve": 0,
+"div": 2
+},
+{
+"idx": 52,
 "name": "ТС Тойота №97",
-"product_idx": 8,
+"product_idx": 0,
 "id": "5af9b5d8-abfa-11ec-80e0-005056aac628",
-"type": 1,
-"remain_day": 2,
-"reserve": 0
+"type": 0,
+"remain_day": 0,
+"reserve": 0,
+"div": 2
 },
 {
-"idx": 47,
-"name": "ТС Тойота №99",
-"product_idx": 17,
-"id": "6166f3dc-abfa-11ec-80e0-005056aac628",
-"type": 1,
-"remain_day": 15,
-"reserve": 0
+"idx": 53,
+"name": "ТС Тойота №98",
+"product_idx": 0,
+"id": "5af9b5d9-abfa-11ec-80e0-005056aac628",
+"type": 0,
+"remain_day": 0,
+"reserve": 0,
+"div": 2
 }
 ],
 "products": [
@@ -445,741 +553,573 @@
 "src_root": -1,
 "qty_minus_min": 0,
 "sr": 0,
-"strategy": "="
+"strategy": "=",
+"div": null
 },
 {
 "idx": 1,
-"name": "ст87024t1 ",
+"name": "ст78425t П, 17, 1, П2",
 "qty": 0,
-"id": "0c5eae76-082c-4965-b11d-64a62fc1750b",
+"id": "20a0e9a9-76ac-4984-974d-178538f39578",
 "machine_type": 0,
 "qty_minus": 0,
-"lday": 2,
+"lday": 0,
 "src_root": -1,
 "qty_minus_min": 0,
 "sr": 0,
-"strategy": "--"
+"strategy": "--",
+"div": 2
 },
 {
 "idx": 2,
-"name": "ст16764t3 ",
+"name": "ст78425t П, 11, 2, П2",
 "qty": 0,
-"id": "a57b7641-50ed-4f94-8339-e2af83f10b98",
+"id": "670b57aa-c4c5-4794-991f-830294f9ce6e",
 "machine_type": 0,
 "qty_minus": 0,
-"lday": 7,
+"lday": 0,
 "src_root": -1,
 "qty_minus_min": 0,
 "sr": 0,
-"strategy": "--"
+"strategy": "--",
+"div": 2
 },
 {
 "idx": 3,
-"name": "ст38404t1 ",
+"name": "ст60406амt21 ",
 "qty": 0,
-"id": "f7469e74-20f3-43af-8df8-888eada9a5bb",
+"id": "79a0007f-7c78-4e8d-8061-e2067525fa6f",
 "machine_type": 0,
 "qty_minus": 0,
-"lday": 8,
+"lday": 0,
 "src_root": -1,
 "qty_minus_min": 0,
 "sr": 0,
-"strategy": "--"
+"strategy": "--",
+"div": 2
 },
 {
 "idx": 4,
-"name": "ст76004t2 П, 0, 2, П2",
+"name": "ст10427амRSt2 ",
 "qty": 0,
-"id": "f36bacf5-ad2e-465e-abb6-f0638dc00808",
+"id": "d8771927-7fcf-4526-a0e8-c66304b5663c",
 "machine_type": 0,
 "qty_minus": 0,
-"lday": 10,
+"lday": 0,
 "src_root": -1,
 "qty_minus_min": 0,
 "sr": 0,
-"strategy": "--"
+"strategy": "--",
+"div": 2
 },
 {
 "idx": 5,
-"name": "ст16169t12 ",
+"name": "ст60405амt15 П, 0, 24, П2",
 "qty": 0,
-"id": "a3ab33c6-3f0f-4daf-80f4-edda7a676a61",
+"id": "5b6bcb9f-a15a-4d0e-b801-f094d7cd360a",
 "machine_type": 0,
 "qty_minus": 0,
-"lday": 25,
+"lday": 0,
 "src_root": -1,
 "qty_minus_min": 0,
 "sr": 0,
-"strategy": "--"
+"strategy": "--",
+"div": 2
 },
 {
 "idx": 6,
-"name": "ст16764t3 П, 0, red (красный), П2",
-"qty": 8,
-"id": "f55cdf39-38d7-4909-a5bc-0e29261af824",
+"name": "ст78426t П, 0, 6, П2",
+"qty": 0,
+"id": "4b06acf3-5e9c-4912-b89f-842dce684f79",
 "machine_type": 0,
-"qty_minus": false,
-"lday": 17,
+"qty_minus": 0,
+"lday": 0,
 "src_root": -1,
 "qty_minus_min": 0,
-"sr": true,
-"strategy": "--"
+"sr": 0,
+"strategy": "--",
+"div": 2
 },
 {
 "idx": 7,
-"name": "ст37018t1 П, 0, 8",
-"qty": 26,
-"id": "b4d9d61a-3b86-4d82-a96b-b8d137a78f4f",
+"name": "ст10428t ",
+"qty": 0,
+"id": "f79d1c98-5fae-4fa8-9aa5-eab3e6660451",
 "machine_type": 0,
-"qty_minus": false,
-"lday": 16,
-"src_root": 0,
+"qty_minus": 0,
+"lday": 0,
+"src_root": -1,
 "qty_minus_min": 0,
-"sr": true,
-"strategy": "--"
+"sr": 0,
+"strategy": "--",
+"div": 2
 },
 {
 "idx": 8,
-"name": "стХП55-019МВДt1 ",
-"qty": 27,
-"id": "95f4312e-00b5-48ac-95c9-b494a18b3275",
+"name": "ст60405амt15 ",
+"qty": 42,
+"id": "1a2f272b-9aeb-4f19-af16-7a7ec4b0d512",
 "machine_type": 1,
-"qty_minus": true,
-"lday": 13,
-"src_root": 1,
+"qty_minus": false,
+"lday": 19,
+"src_root": -1,
 "qty_minus_min": 0,
 "sr": false,
-"strategy": "="
+"strategy": "--",
+"div": 2
 },
 {
 "idx": 9,
-"name": "ст87021t4 ",
-"qty": 24,
-"id": "f36900a7-493d-4d72-a3cc-1564d4974b66",
-"machine_type": 0,
-"qty_minus": true,
-"lday": 11,
-"src_root": 2,
+"name": "ст18310t1 ",
+"qty": 50,
+"id": "da5701fc-27cd-4e6c-8b04-7f2583d06f09",
+"machine_type": 1,
+"qty_minus": false,
+"lday": 20,
+"src_root": 0,
 "qty_minus_min": 0,
 "sr": false,
-"strategy": "="
+"strategy": "=",
+"div": 1
 },
 {
 "idx": 10,
-"name": "стПВ73-045МВДt1 ",
-"qty": 40,
-"id": "81458391-73ae-47dd-8f8a-679d9de553b8",
+"name": "ст87416t1 ",
+"qty": 48,
+"id": "c8b86df4-4944-420b-9977-bb48dc116b82",
 "machine_type": 0,
 "qty_minus": false,
-"lday": 16,
-"src_root": 3,
+"lday": 23,
+"src_root": 1,
 "qty_minus_min": 0,
 "sr": false,
-"strategy": "="
+"strategy": "+",
+"div": 1
 },
 {
 "idx": 11,
-"name": "ст60301t7 ",
-"qty": 50,
-"id": "e547e330-a7c7-4c8b-a02b-2788ef30c0ef",
-"machine_type": 0,
-"qty_minus": true,
-"lday": 16,
-"src_root": -1,
-"qty_minus_min": 0,
-"sr": false,
-"strategy": "="
-},
-{
-"idx": 12,
-"name": "ст10005амt5 ",
-"qty": 67,
-"id": "c8b04614-b699-4a90-8247-fc14985d17dc",
-"machine_type": 1,
-"qty_minus": true,
-"lday": 26,
-"src_root": -1,
-"qty_minus_min": 0,
-"sr": false,
-"strategy": "--"
-},
-{
-"idx": 13,
-"name": "ст18317t3 ",
-"qty": 73,
-"id": "0fb6c8dd-e6f3-41db-bfa8-713b343bb21c",
+"name": "ст78425t ",
+"qty": 48,
+"id": "08a69c4f-46ed-49bd-821b-7f0ba5fd3a10",
 "machine_type": 0,
 "qty_minus": false,
 "lday": 18,
 "src_root": -1,
 "qty_minus_min": 0,
 "sr": false,
-"strategy": "--"
+"strategy": "+",
+"div": 2
+},
+{
+"idx": 12,
+"name": "ст10417RSt ",
+"qty": 41,
+"id": "3d3d69ba-d0e5-4ef4-93da-d9de31e2a230",
+"machine_type": 0,
+"qty_minus": false,
+"lday": 10,
+"src_root": 2,
+"qty_minus_min": 0,
+"sr": false,
+"strategy": "++",
+"div": 1
+},
+{
+"idx": 13,
+"name": "ст60410t2 ",
+"qty": 57,
+"id": "559e6a36-1708-44cf-863d-526d8a91b643",
+"machine_type": 0,
+"qty_minus": false,
+"lday": 19,
+"src_root": -1,
+"qty_minus_min": 0,
+"sr": false,
+"strategy": "--",
+"div": 0
 },
 {
 "idx": 14,
-"name": "ст60405амt15 П, 0, 25, П2",
-"qty": 75,
-"id": "2c36e0f1-dd2c-4fee-83ab-84189a28b40e",
-"machine_type": 1,
-"qty_minus": true,
-"lday": 19,
-"src_root": -1,
+"name": "ст18317t3 ",
+"qty": 64,
+"id": "8b48448d-bb3e-43d4-b65a-d9e5accc6f98",
+"machine_type": 0,
+"qty_minus": false,
+"lday": 18,
+"src_root": 3,
 "qty_minus_min": 0,
 "sr": false,
-"strategy": "="
+"strategy": "--",
+"div": 1
 },
 {
 "idx": 15,
-"name": "ст60406амt22 П, 0, 25, П2",
-"qty": 71,
-"id": "4d32ab5b-70d7-4b21-a27f-b7abfeb02ebe",
+"name": "ст87315t ",
+"qty": 39,
+"id": "32f0ca8b-2573-40b6-a510-961220474e53",
 "machine_type": 0,
-"qty_minus": true,
+"qty_minus": false,
+"lday": 13,
+"src_root": 4,
+"qty_minus_min": 0,
+"sr": false,
+"strategy": "++",
+"div": 1
+},
+{
+"idx": 16,
+"name": "ст81433t8 ",
+"qty": 71,
+"id": "f83891f3-69a8-4023-9ea3-f1d4a99e8615",
+"machine_type": 0,
+"qty_minus": false,
+"lday": 17,
+"src_root": 5,
+"qty_minus_min": 0,
+"sr": false,
+"strategy": "+",
+"div": 1
+},
+{
+"idx": 17,
+"name": "ст87027t ",
+"qty": 58,
+"id": "c2e59c26-ae9b-4ce7-8b5f-0a7a6480daa0",
+"machine_type": 0,
+"qty_minus": false,
+"lday": 14,
+"src_root": 6,
+"qty_minus_min": 0,
+"sr": false,
+"strategy": "++",
+"div": 1
+},
+{
+"idx": 18,
+"name": "ст18316t4 ",
+"qty": 94,
+"id": "da6bd0b4-e555-4a25-878c-b05934f5db8b",
+"machine_type": 0,
+"qty_minus": false,
 "lday": 19,
 "src_root": -1,
 "qty_minus_min": 0,
 "sr": false,
-"strategy": "="
-},
-{
-"idx": 16,
-"name": "ст87314t1 ",
-"qty": 76,
-"id": "53aa997a-3ab0-408f-847e-09769cde62d9",
-"machine_type": 0,
-"qty_minus": false,
-"lday": 21,
-"src_root": 4,
-"qty_minus_min": 0,
-"sr": false,
-"strategy": "="
-},
-{
-"idx": 17,
-"name": "ст18450амt4 ",
-"qty": 80,
-"id": "358f7869-7c1a-462d-a668-6876b7ae89fa",
-"machine_type": 1,
-"qty_minus": true,
-"lday": 23,
-"src_root": 5,
-"qty_minus_min": 0,
-"sr": false,
-"strategy": "="
-},
-{
-"idx": 18,
-"name": "ст10417RSt ",
-"qty": 77,
-"id": "a0ef1a70-a388-4bae-b311-b86c7c17a84e",
-"machine_type": 0,
-"qty_minus": true,
-"lday": 10,
-"src_root": 6,
-"qty_minus_min": 0,
-"sr": false,
-"strategy": "="
+"strategy": "=",
+"div": 1
 },
 {
 "idx": 19,
-"name": "ст18308t1 ",
-"qty": 83,
-"id": "b6737649-084b-4608-be30-1f3f18959899",
-"machine_type": 1,
-"qty_minus": true,
+"name": "ст60301t7 ",
+"qty": 86,
+"id": "ea40fef3-9024-4923-87fd-96cbef4cfc07",
+"machine_type": 0,
+"qty_minus": false,
+"lday": 16,
+"src_root": -1,
+"qty_minus_min": 0,
+"sr": false,
+"strategy": "++",
+"div": 2
+},
+{
+"idx": 20,
+"name": "стПВ73-045МВДt1 ",
+"qty": 78,
+"id": "4168a85a-155e-4679-8198-31ce433d08b4",
+"machine_type": 0,
+"qty_minus": false,
 "lday": 16,
 "src_root": 7,
 "qty_minus_min": 0,
 "sr": false,
-"strategy": "="
+"strategy": "++",
+"div": 1
 },
 {
-"idx": 20,
+"idx": 21,
 "name": "ст15406aмRSt2 ",
-"qty": 85,
-"id": "fdcb7076-1c19-49ed-a740-ed277a626f69",
+"qty": 78,
+"id": "597f9216-20eb-45d6-a610-e504468b431d",
 "machine_type": 1,
-"qty_minus": true,
+"qty_minus": false,
 "lday": 12,
 "src_root": 8,
 "qty_minus_min": 0,
 "sr": false,
-"strategy": "="
-},
-{
-"idx": 21,
-"name": "ст18422ахмt6 ",
-"qty": 97,
-"id": "41e58a22-7766-4735-b129-0d6524229c10",
-"machine_type": 1,
-"qty_minus": true,
-"lday": 16,
-"src_root": 9,
-"qty_minus_min": 0,
-"sr": false,
-"strategy": "="
+"strategy": "-",
+"div": 2
 },
 {
 "idx": 22,
-"name": "ст38002t1 ",
-"qty": 126,
-"id": "7d59bbb8-1d9b-4da5-9a3c-a33c6c49632e",
+"name": "ст87021t4 ",
+"qty": 64,
+"id": "54b62698-1782-4d75-8453-c64e2671c0e7",
 "machine_type": 0,
-"qty_minus": true,
-"lday": 25,
-"src_root": 10,
+"qty_minus": false,
+"lday": 11,
+"src_root": 9,
 "qty_minus_min": 0,
 "sr": false,
-"strategy": "="
+"strategy": "+",
+"div": 1
 },
 {
 "idx": 23,
-"name": "ст87315t ",
-"qty": 113,
-"id": "31bbe2cd-ea5c-459e-9cec-90d837dfe54a",
+"name": "ст15306t4 ",
+"qty": 110,
+"id": "d2ca65df-4d35-4da3-aed2-cde279e9ad19",
 "machine_type": 0,
-"qty_minus": true,
-"lday": 13,
-"src_root": 11,
+"qty_minus": false,
+"lday": 14,
+"src_root": 10,
 "qty_minus_min": 0,
 "sr": false,
-"strategy": "="
+"strategy": "=",
+"div": 1
 },
 {
 "idx": 24,
-"name": "ст87001t1 ",
-"qty": 193,
-"id": "46ec2adb-3979-44ef-abee-bc9a81f04fae",
+"name": "ст60410t3 ",
+"qty": 138,
+"id": "1d0e8c6a-dfd7-4887-acce-46a8d0e36aee",
 "machine_type": 0,
-"qty_minus": true,
-"lday": 28,
-"src_root": 12,
+"qty_minus": false,
+"lday": 18,
+"src_root": -1,
 "qty_minus_min": 0,
 "sr": false,
-"strategy": "="
+"strategy": "-",
+"div": 2
 },
 {
 "idx": 25,
-"name": "ст18310t1 ",
-"qty": 248,
-"id": "27d53234-2675-4ea5-a07e-de9a8ce465a4",
+"name": "ст10005амt5 ",
+"qty": 137,
+"id": "112703d1-ea87-4e68-ae97-51db797cf27b",
 "machine_type": 1,
-"qty_minus": true,
+"qty_minus": false,
+"lday": 26,
+"src_root": 11,
+"qty_minus_min": 0,
+"sr": false,
+"strategy": "+",
+"div": 2
+},
+{
+"idx": 26,
+"name": "ст87024t1 ",
+"qty": 156,
+"id": "ba961a28-e80f-4dcf-b55b-42eb15aa5b33",
+"machine_type": 0,
+"qty_minus": false,
 "lday": 20,
 "src_root": -1,
 "qty_minus_min": 0,
 "sr": false,
-"strategy": "="
-},
-{
-"idx": 26,
-"name": "ст31301амt18 ",
-"qty": 223,
-"id": "3c6972f0-4ad8-40b0-9f7d-68b1eebca3c0",
-"machine_type": 0,
-"qty_minus": true,
-"lday": 15,
-"src_root": -1,
-"qty_minus_min": 0,
-"sr": false,
-"strategy": "="
+"strategy": "+",
+"div": 1
 },
 {
 "idx": 27,
 "name": "ст11022амt6 ",
-"qty": 318,
-"id": "f915776a-bbfc-4e36-a826-c7400e5ea542",
+"qty": 230,
+"id": "e3dfe11a-bcb3-4e97-ab19-0a352d309fd7",
 "machine_type": 1,
 "qty_minus": true,
 "lday": 16,
-"src_root": 13,
-"qty_minus_min": 0,
+"src_root": 12,
+"qty_minus_min": 39,
 "sr": false,
-"strategy": "="
+"strategy": "=",
+"div": 2
 },
 {
 "idx": 28,
-"name": "ст87416t1 ",
-"qty": 305,
-"id": "49bb002d-cdfa-4476-9768-f80ce0d2be51",
+"name": "ст3211t1 ",
+"qty": 238,
+"id": "fcc01438-728d-47ac-99bd-5a7b1c62e282",
 "machine_type": 0,
 "qty_minus": true,
-"lday": 24,
-"src_root": 14,
-"qty_minus_min": 51,
+"lday": 19,
+"src_root": 13,
+"qty_minus_min": 80,
 "sr": false,
-"strategy": "="
+"strategy": "=",
+"div": 2
 },
 {
 "idx": 29,
-"name": "ст15306t4 ",
-"qty": 285,
-"id": "3d8d6a3f-fbca-4191-8ae1-22547a02ff48",
-"machine_type": 0,
+"name": "ст18422ахмt6 ",
+"qty": 263,
+"id": "1154391c-95a7-43bd-963b-e0d6c9c37b98",
+"machine_type": 1,
 "qty_minus": true,
-"lday": 21,
-"src_root": 15,
-"qty_minus_min": 54,
+"lday": 16,
+"src_root": 14,
+"qty_minus_min": 30,
 "sr": false,
-"strategy": "="
+"strategy": "+",
+"div": 2
 },
 {
 "idx": 30,
+"name": "ст18308t1 ",
+"qty": 241,
+"id": "435ebe00-9073-4c69-95ad-a7f1eaac88d7",
+"machine_type": 1,
+"qty_minus": false,
+"lday": 12,
+"src_root": 15,
+"qty_minus_min": 0,
+"sr": false,
+"strategy": "=",
+"div": 2
+},
+{
+"idx": 31,
 "name": "ст87026t ",
-"qty": 365,
-"id": "83a5f825-bd64-4897-aec0-238c22d4f778",
+"qty": 434,
+"id": "68bbe1f9-9972-4f15-9638-7128fe65a47f",
 "machine_type": 0,
 "qty_minus": true,
 "lday": 15,
 "src_root": 16,
-"qty_minus_min": 0,
+"qty_minus_min": 341,
 "sr": false,
-"strategy": "="
+"strategy": "+",
+"div": 1
+},
+{
+"idx": 32,
+"name": "ст60411t13 ",
+"qty": 593,
+"id": "2add7ea1-937f-4377-8e7c-dec4bb2f6ba7",
+"machine_type": 0,
+"qty_minus": true,
+"lday": 19,
+"src_root": -1,
+"qty_minus_min": 453,
+"sr": false,
+"strategy": "-",
+"div": 2
 }
 ],
 "remains": [
-[
-[
-18
-],
-[
-17,
-14,
-13
-],
-[
-15,
-16,
-17,
-11,
-17,
-17,
-17,
-15,
-16
-],
-[
-22,
-22,
-16,
-23,
-6,
-22,
-18,
-18,
-18,
-18,
-19,
-18,
-19,
-18,
-18,
-19,
-18,
-19,
-18,
-19,
-18,
-19,
-18
-],
-[
-34,
-23,
-34,
-34,
-9,
-9,
-34,
-5,
-32,
-5,
-32,
-32,
-32,
-32,
-33,
-34,
-33,
-33,
-5,
-34,
-33,
-23,
-23,
-21,
-21,
-23
-],
-[
-20,
-20,
-20,
-20,
-20,
-20,
-20,
-20,
-18,
-20,
-20,
-20,
-20,
-20,
-20,
-20,
-20,
-20,
-20,
-20,
-20,
-20,
-20,
-20,
-21,
-21,
-17
-],
-[
-10,
-10,
-10,
-10,
-10,
-10,
-10,
-10,
-10,
-10,
-10
-],
-[
-17,
-17,
-14,
-17,
-16,
-17,
-18,
-17,
-17,
-17,
-18,
-17,
-17,
-17,
-17,
-17,
-17,
-17,
-17,
-15,
-17,
-14,
-17,
-17
-],
-[
-17,
-17,
-17,
-17,
-17,
-17,
-17,
-16,
-16,
-17,
-17,
-17,
-13,
-12,
-16,
-12,
-17,
-17,
-17,
-16,
-17,
-15,
-17,
-12,
-12,
-13,
-17,
-16,
-17
-],
-[
-14,
-16,
-16,
-2,
-13,
-15,
-16,
-16,
-16,
-16,
-15,
-15,
-16,
-16
-],
-[
-41,
-41,
-31
-],
-[
-17,
-16,
-16,
-18,
-18,
-18,
-17,
-18,
-18,
-18,
-13,
-13,
-12,
-12,
-13,
-13
-],
-[
-36,
-36,
-20,
-34,
-36,
-34,
-36,
-36,
-34,
-36,
-36,
-34
-],
-[
-21,
-13,
-22
-],
-[
-31,
-31,
-26,
-26,
-17,
-32,
-32,
-32,
-27,
-32,
-26,
-26,
-24,
-26,
-26,
-17,
-26,
-26,
-7,
-26,
-26,
-25,
-26,
-26,
-26,
-26,
-26,
-26,
-26,
-25,
-13,
-26,
-26,
-26,
-25,
-26,
-253,
-19,
-25,
-19,
-20,
-20,
-14,
-21,
-6,
-13,
-11,
-13,
-26,
-26,
-26,
-26,
-26,
-8,
-26,
-26,
-26,
-26,
-26,
-26,
-26
-],
-[
-23,
-23,
-16,
-23,
-22,
-23,
-20,
-22,
-22,
-23,
-23,
-23,
-23,
-23,
-23,
-23,
-17,
-23,
-17,
-17,
-23,
-23,
-17,
-23,
-26,
-23,
-15,
-23,
-21,
-23,
-23,
-23,
-19
-],
-[
-23
-]
-]
+[]
 ],
 "cleans": [
 {
-"day_idx": 27,
-"machine_idx": 29
+"day_idx": 6,
+"machine_idx": 50
+},
+{
+"day_idx": 6,
+"machine_idx": 51
+},
+{
+"day_idx": 6,
+"machine_idx": 52
+},
+{
+"day_idx": 6,
+"machine_idx": 53
+},
+{
+"day_idx": 6,
+"machine_idx": 0
+},
+{
+"day_idx": 6,
+"machine_idx": 1
+},
+{
+"day_idx": 6,
+"machine_idx": 2
+},
+{
+"day_idx": 6,
+"machine_idx": 3
+},
+{
+"day_idx": 6,
+"machine_idx": 4
+},
+{
+"day_idx": 6,
+"machine_idx": 5
+},
+{
+"day_idx": 6,
+"machine_idx": 6
+},
+{
+"day_idx": 6,
+"machine_idx": 7
+},
+{
+"day_idx": 6,
+"machine_idx": 8
+},
+{
+"day_idx": 6,
+"machine_idx": 9
+},
+{
+"day_idx": 6,
+"machine_idx": 10
+},
+{
+"day_idx": 6,
+"machine_idx": 11
+},
+{
+"day_idx": 6,
+"machine_idx": 12
+},
+{
+"day_idx": 6,
+"machine_idx": 13
+},
+{
+"day_idx": 6,
+"machine_idx": 14
+},
+{
+"day_idx": 6,
+"machine_idx": 15
+},
+{
+"day_idx": 6,
+"machine_idx": 16
+},
+{
+"day_idx": 6,
+"machine_idx": 17
+},
+{
+"day_idx": 6,
+"machine_idx": 18
+},
+{
+"day_idx": 6,
+"machine_idx": 19
+},
+{
+"day_idx": 6,
+"machine_idx": 20
+},
+{
+"day_idx": 6,
+"machine_idx": 21
 },
 {
 "day_idx": 27,
-"machine_idx": 32
+"machine_idx": 26
+},
+{
+"day_idx": 27,
+"machine_idx": 29
 },
 {
 "day_idx": 27,
@@ -1187,39 +1127,7 @@
 },
 {
 "day_idx": 27,
-"machine_idx": 1
-},
-{
-"day_idx": 27,
-"machine_idx": 5
-},
-{
-"day_idx": 27,
-"machine_idx": 15
-},
-{
-"day_idx": 27,
-"machine_idx": 16
-},
-{
-"day_idx": 27,
-"machine_idx": 17
-},
-{
-"day_idx": 27,
-"machine_idx": 18
-},
-{
-"day_idx": 27,
-"machine_idx": 19
-},
-{
-"day_idx": 27,
-"machine_idx": 20
-},
-{
-"day_idx": 27,
-"machine_idx": 21
+"machine_idx": 44
 },
 {
 "day_idx": 27,
@@ -1239,10 +1147,6 @@
 },
 {
 "day_idx": 27,
-"machine_idx": 26
-},
-{
-"day_idx": 27,
 "machine_idx": 27
 },
 {
@@ -1256,6 +1160,10 @@
 {
 "day_idx": 27,
 "machine_idx": 31
+},
+{
+"day_idx": 27,
+"machine_idx": 32
 },
 {
 "day_idx": 27,
@@ -1299,7 +1207,131 @@
 },
 {
 "day_idx": 27,
-"machine_idx": 44
+"machine_idx": 45
+},
+{
+"day_idx": 27,
+"machine_idx": 46
+},
+{
+"day_idx": 27,
+"machine_idx": 47
+},
+{
+"day_idx": 27,
+"machine_idx": 48
+},
+{
+"day_idx": 27,
+"machine_idx": 49
+},
+{
+"day_idx": 48,
+"machine_idx": 50
+},
+{
+"day_idx": 48,
+"machine_idx": 51
+},
+{
+"day_idx": 48,
+"machine_idx": 52
+},
+{
+"day_idx": 48,
+"machine_idx": 53
+},
+{
+"day_idx": 48,
+"machine_idx": 0
+},
+{
+"day_idx": 48,
+"machine_idx": 1
+},
+{
+"day_idx": 48,
+"machine_idx": 2
+},
+{
+"day_idx": 48,
+"machine_idx": 3
+},
+{
+"day_idx": 48,
+"machine_idx": 4
+},
+{
+"day_idx": 48,
+"machine_idx": 5
+},
+{
+"day_idx": 48,
+"machine_idx": 6
+},
+{
+"day_idx": 48,
+"machine_idx": 7
+},
+{
+"day_idx": 48,
+"machine_idx": 8
+},
+{
+"day_idx": 48,
+"machine_idx": 9
+},
+{
+"day_idx": 48,
+"machine_idx": 10
+},
+{
+"day_idx": 48,
+"machine_idx": 11
+},
+{
+"day_idx": 48,
+"machine_idx": 12
+},
+{
+"day_idx": 48,
+"machine_idx": 13
+},
+{
+"day_idx": 48,
+"machine_idx": 14
+},
+{
+"day_idx": 48,
+"machine_idx": 15
+},
+{
+"day_idx": 48,
+"machine_idx": 16
+},
+{
+"day_idx": 48,
+"machine_idx": 17
+},
+{
+"day_idx": 48,
+"machine_idx": 18
+},
+{
+"day_idx": 48,
+"machine_idx": 19
+},
+{
+"day_idx": 48,
+"machine_idx": 20
+},
+{
+"day_idx": 48,
+"machine_idx": 21
+},
+{
+"day_idx": 69,
+"machine_idx": 26
 },
 {
 "day_idx": 69,
@@ -1307,47 +1339,11 @@
 },
 {
 "day_idx": 69,
-"machine_idx": 32
-},
-{
-"day_idx": 69,
 "machine_idx": 36
 },
 {
 "day_idx": 69,
-"machine_idx": 1
-},
-{
-"day_idx": 69,
-"machine_idx": 5
-},
-{
-"day_idx": 69,
-"machine_idx": 15
-},
-{
-"day_idx": 69,
-"machine_idx": 16
-},
-{
-"day_idx": 69,
-"machine_idx": 17
-},
-{
-"day_idx": 69,
-"machine_idx": 18
-},
-{
-"day_idx": 69,
-"machine_idx": 19
-},
-{
-"day_idx": 69,
-"machine_idx": 20
-},
-{
-"day_idx": 69,
-"machine_idx": 21
+"machine_idx": 44
 },
 {
 "day_idx": 69,
@@ -1367,10 +1363,6 @@
 },
 {
 "day_idx": 69,
-"machine_idx": 26
-},
-{
-"day_idx": 69,
 "machine_idx": 27
 },
 {
@@ -1384,6 +1376,10 @@
 {
 "day_idx": 69,
 "machine_idx": 31
+},
+{
+"day_idx": 69,
+"machine_idx": 32
 },
 {
 "day_idx": 69,
@@ -1427,140 +1423,28 @@
 },
 {
 "day_idx": 69,
-"machine_idx": 44
-},
-{
-"day_idx": 6,
 "machine_idx": 45
 },
 {
-"day_idx": 6,
+"day_idx": 69,
 "machine_idx": 46
 },
 {
-"day_idx": 6,
+"day_idx": 69,
 "machine_idx": 47
 },
 {
-"day_idx": 6,
-"machine_idx": 0
+"day_idx": 69,
+"machine_idx": 48
 },
 {
-"day_idx": 6,
-"machine_idx": 2
-},
-{
-"day_idx": 6,
-"machine_idx": 3
-},
-{
-"day_idx": 6,
-"machine_idx": 4
-},
-{
-"day_idx": 6,
-"machine_idx": 6
-},
-{
-"day_idx": 6,
-"machine_idx": 7
-},
-{
-"day_idx": 6,
-"machine_idx": 8
-},
-{
-"day_idx": 6,
-"machine_idx": 9
-},
-{
-"day_idx": 6,
-"machine_idx": 11
-},
-{
-"day_idx": 6,
-"machine_idx": 10
-},
-{
-"day_idx": 6,
-"machine_idx": 12
-},
-{
-"day_idx": 6,
-"machine_idx": 13
-},
-{
-"day_idx": 6,
-"machine_idx": 14
-},
-{
-"day_idx": 48,
-"machine_idx": 45
-},
-{
-"day_idx": 48,
-"machine_idx": 46
-},
-{
-"day_idx": 48,
-"machine_idx": 47
-},
-{
-"day_idx": 48,
-"machine_idx": 0
-},
-{
-"day_idx": 48,
-"machine_idx": 2
-},
-{
-"day_idx": 48,
-"machine_idx": 3
-},
-{
-"day_idx": 48,
-"machine_idx": 4
-},
-{
-"day_idx": 48,
-"machine_idx": 6
-},
-{
-"day_idx": 48,
-"machine_idx": 7
-},
-{
-"day_idx": 48,
-"machine_idx": 8
-},
-{
-"day_idx": 48,
-"machine_idx": 9
-},
-{
-"day_idx": 48,
-"machine_idx": 11
-},
-{
-"day_idx": 48,
-"machine_idx": 10
-},
-{
-"day_idx": 48,
-"machine_idx": 12
-},
-{
-"day_idx": 48,
-"machine_idx": 13
-},
-{
-"day_idx": 48,
-"machine_idx": 14
+"day_idx": 69,
+"machine_idx": 49
 }
 ],
 "max_daily_prod_zero": 3,
 "count_days": 84,
-"dt_begin": "2025-12-01T00:00:00",
+"dt_begin": "2026-03-02T00:00:00",
 "apply_qty_minys": "false",
 "apply_index_up": "false"
 }

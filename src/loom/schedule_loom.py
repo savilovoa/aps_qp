@@ -131,6 +131,9 @@ def create_schedule_init(machines: list[dict], products: list[dict], cleans: lis
     """
     machines_df = pd.DataFrame(machines)
     products_df = pd.DataFrame(products)
+    # Сохраняем исходный план qty до масштабирования, чтобы использовать в метриках.
+    if "qty" in products_df.columns and "qty_orig" not in products_df.columns:
+        products_df["qty_orig"] = products_df["qty"].astype(int)
     num_machines = len(machines_df)
     num_products = len(products_df)
 
@@ -144,19 +147,23 @@ def create_schedule_init(machines: list[dict], products: list[dict], cleans: lis
     def can_run_product_on_machine(p_idx: int, m_idx: int) -> bool:
         """Проверка совместимости типа продукта и типа машины.
 
-        - продукты с типом 1 -> только на машинах с type=1;
-        - продукты с типом 0 -> на любых машинах;
-        - PRODUCT_ZERO (0) и None не проверяем.
+        Новая договорённость:
+        - type машин и machine_type продуктов жёстко 1 или 2 (цех 1 / цех 2);
+        - если machine_type в продукте > 0, то продукт можно ставить только на машины с таким же type;
+        - если machine_type = 0 (старые данные) — допускаем любой тип машины.
+        PRODUCT_ZERO (0) и None не проверяем.
         """
         if p_idx == 0:
             return True
         p_type = int(product_type_map.get(p_idx, 0))
-        if p_type == 1:
+        # machine_type=1 или 2 -> требуем точного совпадения с type машины.
+        if p_type > 0:
             try:
                 m_type = int(machines_df.at[m_idx, "type"])
             except Exception:
                 m_type = 0
-            return m_type == 1
+            return m_type == p_type
+        # machine_type=0: продукт допускается на любых машинах (режим совместимости со старыми данными).
         return True
 
     schedule = [[None for _ in range(count_days)] for _ in range(num_machines)]
@@ -649,12 +656,15 @@ def create_schedule_init(machines: list[dict], products: list[dict], cleans: lis
                     row[0], row[d] = row[d], row[0]
                     break
 
-    # Выводим получившийся жадный план в отдельный лог-файл (по сменам в строках).
+    # Выводим получившийся жадный план и диагностические метрики в лог-файлы.
     try:
         from pathlib import Path
+        import math
 
         log_dir = Path("log")
         log_dir.mkdir(parents=True, exist_ok=True)
+
+        # 1) Структура смен по машинам (как раньше).
         greedy_log_path = log_dir / "greedy_schedule_init.log"
         with greedy_log_path.open("w", encoding="utf-8") as f:
             for m_idx, row in enumerate(schedule):
@@ -671,8 +681,121 @@ def create_schedule_init(machines: list[dict], products: list[dict], cleans: lis
                     else:
                         codes.append(f"{int(val):02d}")
                 f.write(f"m={m_idx:02d}\ttype={m_type}\tinit={init_p:02d}\t" + ",".join(codes) + "\n")
+
+        # 2) Диагностические метрики по машинам и продуктам для анализа LONG.
+        metrics_path = log_dir / "greedy_metrics.log"
+        cleans_set = {(c["machine_idx"], c["day_idx"]) for c in cleans}
+        num_weeks = max(1, math.ceil(count_days / 21))
+
+        # Быстрый доступ к имени/плану продукта по idx.
+        name_by_idx: dict[int, str] = {}
+        plan_by_idx: dict[int, int] = {}
+        for _, row in products_df.iterrows():
+            p_idx = int(row.get("idx", 0))
+            if p_idx == 0:
+                continue
+            name_by_idx[p_idx] = str(row.get("name", f"p{p_idx}"))
+            # Используем исходный план qty_orig, если есть, иначе текущий qty.
+            if "qty_orig" in row.index and not pd.isna(row["qty_orig"]):
+                plan_val = int(row["qty_orig"])
+            else:
+                plan_val = int(row.get("qty", 0))
+            plan_by_idx[p_idx] = plan_val
+
+        with metrics_path.open("w", encoding="utf-8") as f:
+            # --- MACHINE_STATS ---
+            f.write("=== MACHINE_STATS ===\n")
+            for m_idx, row in enumerate(schedule):
+                m_name = str(machines_df.at[m_idx, "name"]) if "name" in machines_df.columns else f"m{m_idx}"
+                m_type = int(machines_df.at[m_idx, "type"]) if "type" in machines_df.columns else 0
+                init_p = int(machines_df.at[m_idx, "product_idx"]) if "product_idx" in machines_df.columns else -1
+                init_name = name_by_idx.get(init_p, "-") if init_p > 0 else "-"
+
+                # Рабочие дни без чисток.
+                work_days_idx: list[int] = [
+                    d for d in range(count_days)
+                    if (m_idx, d) not in cleans_set
+                ]
+                work_days_total = len(work_days_idx)
+
+                # Распределение по продуктам на машине.
+                counts_by_p: dict[int, int] = {}
+                for d in work_days_idx:
+                    val = row[d]
+                    if isinstance(val, list):
+                        val = val[0] if val else None
+                    if val is None or val in (-2, 0):
+                        continue
+                    p_idx = int(val)
+                    counts_by_p[p_idx] = counts_by_p.get(p_idx, 0) + 1
+
+                num_products_on_machine = len([p for p, c in counts_by_p.items() if c > 0])
+                dominant_p = None
+                dominant_cnt = 0
+                for p_idx, c in counts_by_p.items():
+                    if c > dominant_cnt:
+                        dominant_cnt = c
+                        dominant_p = p_idx
+                if work_days_total > 0 and dominant_p is not None:
+                    dominant_share = dominant_cnt / work_days_total
+                else:
+                    dominant_share = 0.0
+
+                dominant_name = name_by_idx.get(dominant_p, "-") if dominant_p is not None else "-"
+
+                f.write(
+                    f"m={m_idx:02d}\tname={m_name}\ttype={m_type}\tinit_idx={init_p}\tinit_name={init_name}"
+                    f"\twork_days={work_days_total}\tdominant_idx={dominant_p if dominant_p is not None else -1}"
+                    f"\tdominant_name={dominant_name}\tdominant_share={dominant_share:.3f}"
+                    f"\tnum_products={num_products_on_machine}\n"
+                )
+
+            # --- PRODUCT_STATS ---
+            f.write("\n=== PRODUCT_STATS ===\n")
+            # Подсчёт фактических дней по продуктам и разбивка по неделям.
+            fact_days_by_p: dict[int, int] = {p_idx: 0 for p_idx in plan_by_idx.keys()}
+            fact_days_by_p_week: dict[int, list[int]] = {
+                p_idx: [0 for _ in range(num_weeks)] for p_idx in plan_by_idx.keys()
+            }
+
+            for m_idx, row in enumerate(schedule):
+                for d in range(count_days):
+                    val = row[d]
+                    if isinstance(val, list):
+                        val = val[0] if val else None
+                    if val is None or val in (-2, 0):
+                        continue
+                    p_idx = int(val)
+                    if p_idx <= 0 or p_idx not in plan_by_idx:
+                        continue
+                    fact_days_by_p[p_idx] = fact_days_by_p.get(p_idx, 0) + 1
+                    w = min(num_weeks - 1, d // 21)  # индекс недели по 21 фактической смене
+                    fact_days_by_p_week[p_idx][w] += 1
+
+            for p_idx, plan_qty in plan_by_idx.items():
+                name = name_by_idx.get(p_idx, f"p{p_idx}")
+                fact_days = fact_days_by_p.get(p_idx, 0)
+                weeks = fact_days_by_p_week.get(p_idx, [0 for _ in range(num_weeks)])
+                # Кол-во машин, на которых продукт реально стоит в greedy.
+                machines_used = 0
+                for m_idx, row in enumerate(schedule):
+                    used_here = False
+                    for d in range(count_days):
+                        val = row[d]
+                        if isinstance(val, list):
+                            val = val[0] if val else None
+                        if val == p_idx:
+                            used_here = True
+                            break
+                    if used_here:
+                        machines_used += 1
+
+                f.write(
+                    f"p_idx={p_idx}\tname={name}\tplan_qty={plan_qty}\tfact_days={fact_days}"
+                    f"\tmachines_used={machines_used}\tweeks={weeks}\n"
+                )
     except Exception as e:
-        logger.error(f"Не удалось записать жадный план в лог-файл: {e}")
+        logger.error(f"Не удалось записать жадный план или метрики в лог-файлы: {e}")
 
     return schedule, objective_value, deviation_proportion, count_product_zero
 
@@ -681,6 +804,13 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
                        count_days: int, data: dict) -> LoomPlansOut:
 
     def MachinesDFToArray(machines_in: pd.DataFrame) -> list[(str, int, str, int, int)]:
+        """Преобразуем DataFrame машин в кортежи для расчёта.
+
+        Сейчас в кортеже храним только поля, которые реально используются в
+        CP-моделях: (name, product_idx, id, type, remain_day). Цех (div)
+        передаётся отдельно в виде массива machine_divs, чтобы не ломать
+        существующие распаковки кортежей.
+        """
         result = []
         idx = 0
         for index, item in machines_in.iterrows():
@@ -693,7 +823,12 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
     def ProductsDFToArray(products_in: pd.DataFrame) -> list[tuple]:
         """Преобразуем DataFrame продуктов в кортежи той же структуры, что и ProductsModelToArray.
 
-        (name, qty, id, machine_type, qty_minus, lday, src_root, qty_minus_min, sr, strategy)
+        Базовая структура кортежа (без div):
+        (name, qty, id, machine_type, qty_minus, lday, src_root,
+         qty_minus_min, sr, strategy)
+
+        Поле div (цех) передаём отдельно массивом product_divs, чтобы не
+        менять позиционную индексацию по существующему коду.
         """
         result = []
         first = True
@@ -866,7 +1001,9 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
         name, qty, pid, machine_type, qty_minus, lday_val = p[:6]
         # p_idx нам не нужен для логики, но полезен для сообщения об ошибке — возьмём его из исходного списка.
         p_idx = products.index(p)
-        if p_idx > 0 and lday_val <= 0:
+        # Проверяем только "живые" продукты с qty>0; для служебных/нулевых
+        # позиций (qty=0) lday может быть 0.
+        if p_idx > 0 and qty > 0 and lday_val <= 0:
             invalid_products.append((p_idx, name, lday_val))
 
     if invalid_products:
@@ -886,8 +1023,20 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
             "error_str": error_msg,
         }
 
+    # В режиме LONG_SIMPLE интерпретируем count_days как количество КАЛЕНДАРНЫХ
+    # дней, где каждые 3 смены исходного горизонта образуют один день.
+    # Преобразуем day_idx в cleans из смен в дни и сокращаем горизонт.
+    horizon_mode_local = getattr(settings, "HORIZON_MODE", "FULL").upper()
+    if horizon_mode_local == "LONG_SIMPLE":
+        shifts_per_day = 3  # 84 смены / 3 = 28 календарных дней
+        count_days_days = (count_days + shifts_per_day - 1) // shifts_per_day
+        if not clean_df.empty:
+            clean_df = clean_df.copy()
+            clean_df["day_idx"] = (clean_df["day_idx"] // shifts_per_day).astype(int)
+            clean_df = clean_df.drop_duplicates(subset=["machine_idx", "day_idx"]).reset_index(drop=True)
+        count_days = count_days_days
+
     # Для LONG-режима агрегируем горизонт: 2 реальные смены = 1 модельный день.
-    # ВРЕМЕННО ОТКЛЮЧЕНО (and False) ДЛЯ ПОИСКА ПРИЧИНЫ КРЭША OR-Tools.
     if long_mode and False:
         step = 2
         count_days_long = (orig_count_days + step - 1) // step
@@ -913,10 +1062,13 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
 
     product_id = products_df["id"]
     machines_df["product_id"] = machines_df["product_idx"].map(product_id)
+    # Приводим типы машин к типам продуктов для старых данных:
+    # если type=0, а у стартового продукта machine_type > 0,
+    # то считаем, что машина принадлежит этому цеху (1 или 2).
     product_type = products_df["machine_type"]
-    mapped_machine_types = machines_df['product_idx'].map(product_type)
-    condition = (machines_df['type'] == 0) & (mapped_machine_types == 1)
-    machines_df.loc[condition, 'type'] = 1
+    mapped_machine_types = machines_df["product_idx"].map(product_type)
+    condition = (machines_df["type"] == 0) & (mapped_machine_types > 0)
+    machines_df.loc[condition, "type"] = mapped_machine_types[condition]
     product_zero = products_df[products_df["idx"] == 0]
 
     # Пересортируем продукты один раз на весь период, без разбивки по неделям.
@@ -933,21 +1085,50 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
     id_to_new_idx_map = products_df_new.set_index('id')['idx']
     machines_df['product_idx'] = machines_df['product_id'].map(id_to_new_idx_map)
 
+    # Цеха по машинам/продуктам: div=1 или 2 – фиксированный цех, 0 –
+    # "плавающий" продукт (можно в любом цехе), None/отсутствие – игнорируем.
+    if "div" in products_df_new.columns:
+        product_divs = (
+            products_df_new["div"].fillna(0).astype(int).tolist()
+        )
+    else:
+        product_divs = [0 for _ in range(len(products_df_new))]
+
+    if "div" in machines_df.columns:
+        machine_divs = machines_df["div"].fillna(1).astype(int).tolist()
+    else:
+        machine_divs = [1 for _ in range(len(machines_df))]
+
     products_new = ProductsDFToArray(products_df_new)
     machines_new = MachinesDFToArray(machines_df)
     cleans_new = CleansDFToArray(clean_df)
 
     solver = cp_model.CpSolver()
+    solver.parameters.log_search_progress = True
+    # solver.parameters.debug_crash_on_bad_hint = True
 
-    long_mode = getattr(settings, "HORIZON_MODE", "FULL").upper() == "LONG"
+    horizon_mode = getattr(settings, "HORIZON_MODE", "FULL").upper()
+    long_mode = horizon_mode == "LONG"
 
-    if long_mode:
+    if horizon_mode == "LONG":
         (model, jobs, product_counts, proportion_objective_terms, total_products_count, prev_lday, start_batch,
          batch_end_complite, days_in_batch, completed_transition, pred_start_batch, same_as_prev,
          strategy_penalty_terms) = create_model_long(
             remains=remains, products=products_new, machines=machines_new, cleans=cleans_new,
             max_daily_prod_zero=max_daily_prod_zero, count_days=count_days,
             dedicated_machines=dedicated_machines,
+            product_divs=product_divs,
+            machine_divs=machine_divs,
+        )
+    elif horizon_mode == "LONG_SIMPLE":
+        (model, jobs, product_counts, proportion_objective_terms, total_products_count, prev_lday, start_batch,
+         batch_end_complite, days_in_batch, completed_transition, pred_start_batch, same_as_prev,
+         strategy_penalty_terms) = create_model_simple(
+            remains=remains, products=products_new, machines=machines_new, cleans=cleans_new,
+            max_daily_prod_zero=max_daily_prod_zero, count_days=count_days,
+            dedicated_machines=dedicated_machines,
+            product_divs=product_divs,
+            machine_divs=machine_divs,
         )
     else:
         (model, jobs, product_counts, proportion_objective_terms, total_products_count, prev_lday, start_batch,
@@ -956,6 +1137,8 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
             remains=remains, products=products_new, machines=machines_new, cleans=cleans_new,
             max_daily_prod_zero=max_daily_prod_zero, count_days=count_days,
             dedicated_machines=dedicated_machines,
+            product_divs=product_divs,
+            machine_divs=machine_divs,
         )
 
     # Если есть жадный план и включён USE_GREEDY_HINT, используем его как hint для jobs[m,d].
@@ -1125,17 +1308,33 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
 
 def create_model_long(remains: list, products: list, machines: list, cleans: list,
                       max_daily_prod_zero: int, count_days: int,
-                      dedicated_machines: list[int] | None = None):
-    """Упрощённая модель для длинного горизонта (84 смены).
+                      dedicated_machines: list[int] | None = None,
+                      product_divs: list[int] | None = None,
+                      machine_divs: list[int] | None = None):
+    """Упрощённая модель для длинного горизонта.
 
-    - Не учитывает lday и remain_day.
-    - Строит только jobs[m,d], product_counts[p], ограничения по нулям, типам машин,
-      пропорциональную цель и стратегии.
-    - Использует мастер-флаг APPLY_TRANSITION_BUSINESS_LOGIC только для запрета тройного нуля.
+    Новая схема: 1 модельная смена соответствует 2 фактическим сменам.
+    Переход (две фактические смены простоя 0,0) моделируется одной
+    модельной сменой с PRODUCT_ZERO без чисток.
+
+    - lday и remain_day не учитываются.
+    - Строятся только jobs[m,d], product_counts[p], ограничения по нулям,
+      типам машин, упрощённая пропорциональная цель и стратегии.
     """
-    num_days = count_days
+    # Реальное количество фактических смен (из входных данных)
+    num_days_real = count_days
+    # Количество агрегированных модельных смен (по 2 фактические на одну)
+    num_days = (num_days_real + 1) // 2
+
     num_machines = len(machines)
     num_products = len(products)
+
+    # Нормализуем div по продуктам/машинам: product_divs[p] = 1/2 — фиксированный цех,
+    # 0 — можно в любом (но только в одном), иначе/отсутствует — игнорируем.
+    if product_divs is None:
+        product_divs = [0 for _ in range(num_products)]
+    if machine_divs is None:
+        machine_divs = [1 for _ in range(num_machines)]
 
     dedicated_set = set(dedicated_machines or [])
 
@@ -1145,24 +1344,41 @@ def create_model_long(remains: list, products: list, machines: list, cleans: lis
 
     PRODUCT_ZERO = 0
 
+    # Множество фактических чисток для построения флага has_clean[m,d]
+    cleans_set = {(m_idx, d_idx) for (m_idx, d_idx) in cleans}
+
+    # has_clean[m,d] = True, если в одной из двух фактических смен,
+    # соответствующих модельной смене d, есть чистка.
+    has_clean: dict[tuple[int, int], bool] = {}
+    for m in all_machines:
+        for d in all_days:
+            day1 = 2 * d
+            day2 = 2 * d + 1
+            flag = False
+            if (m, day1) in cleans_set:
+                flag = True
+            if day2 < num_days_real and (m, day2) in cleans_set:
+                flag = True
+            has_clean[m, d] = flag
+
     model = cp_model.CpModel()
 
-    # Рабочие дни и переменные jobs[m,d]
+    # Рабочие дни и переменные jobs[m,d] (все модельные дни считаются рабочими).
     jobs: dict[tuple[int, int], cp_model.IntVar] = {}
     work_days: list[tuple[int, int]] = []
 
     for m in all_machines:
         for d in all_days:
-            if (m, d) not in cleans:
-                work_days.append((m, d))
-                jobs[(m, d)] = model.NewIntVar(0, num_products - 1, f"job_{m}_{d}")
-                if m in dedicated_set:
-                    fixed_product = machines[m][1]  # product_idx из tuples machines: (name, product_idx, id, type, remain_day)
-                    model.Add(jobs[(m, d)] == fixed_product)
+            work_days.append((m, d))
+            jobs[(m, d)] = model.NewIntVar(0, num_products - 1, f"job_{m}_{d}")
+            if m in dedicated_set:
+                # fixed_product = product_idx из tuples machines: (name, product_idx, id, type, remain_day)
+                fixed_product = machines[m][1]
+                model.Add(jobs[(m, d)] == fixed_product)
 
     logger.debug(
-        f"create_model_long: num_machines={num_machines}, num_days={num_days}, "
-        f"work_days={len(work_days)}, max_daily_prod_zero={max_daily_prod_zero}"
+        f"create_model_long: num_machines={num_machines}, num_days_model={num_days}, "
+        f"num_days_real={num_days_real}, work_days={len(work_days)}, max_daily_prod_zero={max_daily_prod_zero}"
     )
 
     # Булевы переменные "производится продукт p на (m,d)".
@@ -1174,7 +1390,7 @@ def create_model_long(remains: list, products: list, machines: list, cleans: lis
             model.Add(jobs[m, d] == p).OnlyEnforceIf(b)
             model.Add(jobs[m, d] != p).OnlyEnforceIf(b.Not())
 
-    # Подсчёт количества смен каждого продукта (в модельных днях).
+    # Подсчёт количества смен каждого продукта (в агрегированных модельных днях).
     product_counts: list[cp_model.IntVar] = [
         model.NewIntVar(0, num_machines * num_days, f"count_prod_{p}") for p in all_products
     ]
@@ -1186,94 +1402,137 @@ def create_model_long(remains: list, products: list, machines: list, cleans: lis
         for d in all_days:
             daily_zero = []
             for m in all_machines:
-                if (m, d) in work_days:
-                    daily_zero.append(product_produced_bools[PRODUCT_ZERO, m, d])
+                daily_zero.append(product_produced_bools[PRODUCT_ZERO, m, d])
             model.Add(sum(daily_zero) <= max_daily_prod_zero)
 
     if settings.APPLY_DOWNTIME_LIMITS and settings.APPLY_ZERO_PER_MACHINE_LIMIT:
-        weeks = max(1, count_days // 21)
+        # weeks по-прежнему считаем по фактическим сменам
+        weeks = max(1, num_days_real // 21)
         max_zero_per_machine = 2 * weeks
         for m in all_machines:
             zeros_m = []
             for d in all_days:
-                if (m, d) in work_days:
-                    zeros_m.append(product_produced_bools[PRODUCT_ZERO, m, d])
+                zeros_m.append(product_produced_bools[PRODUCT_ZERO, m, d])
             model.Add(sum(zeros_m) <= max_zero_per_machine)
 
-    # Ограничения по типам машин.
+    # Ограничения по типам машин и по цехам (div).
     for p in all_products:
         prod_type = products[p][3]
-        if prod_type == 1:
-            for m in all_machines:
-                if machines[m][3] != 1:
-                    for d in all_days:
-                        if (m, d) in work_days:
-                            model.Add(jobs[m, d] != p)
+        prod_div = product_divs[p] if 0 <= p < len(product_divs) else 0
 
-    # Упрощённая логика переходов: смена ненулевого продукта возможна только
-    # через завершённый двухдневный простой (два PRODUCT_ZERO подряд).
+        for m in all_machines:
+            m_type = machines[m][3]
+            m_div = machine_divs[m] if 0 <= m < len(machine_divs) else 1
+
+            # Тип: если machine_type продукта > 0 (1 или 2), то только на машинах того же type.
+            type_incompatible = (prod_type > 0 and m_type != prod_type)
+            # Цех: если div продукта = 1/2, то только на машинах этого цеха.
+            div_incompatible = (prod_div in (1, 2) and m_div != prod_div)
+
+            if type_incompatible or div_incompatible:
+                for d in all_days:
+                    model.Add(jobs[m, d] != p)
+
+    # Вариант B для продуктов с div = 0: выбор единственного цеха в модели.
+    # Для каждого такого продукта p вводим y[p,1], y[p,2] с y[p,1] + y[p,2] = 1,
+    # и требуем: если p стоит на машине m (div=m_div), то y[p,m_div] = 1.
+    flex_products = [
+        p for p in all_products
+        if (0 <= p < len(product_divs) and product_divs[p] == 0 and p != 0)
+    ]
+
+    y_div: dict[tuple[int, int], cp_model.BoolVar] = {}
+    for p in flex_products:
+        y1 = model.NewBoolVar(f"y_div1_long_p{p}")
+        y2 = model.NewBoolVar(f"y_div2_long_p{p}")
+        model.Add(y1 + y2 == 1)
+        y_div[p, 1] = y1
+        y_div[p, 2] = y2
+
+    for p in flex_products:
+        for m in all_machines:
+            m_div = machine_divs[m] if 0 <= m < len(machine_divs) else 1
+            if m_div not in (1, 2):
+                # Неподдерживаемый div – на всякий случай запрещаем p на этой машине.
+                for d in all_days:
+                    model.Add(jobs[m, d] != p)
+                continue
+            y_pm = y_div[p, m_div]
+            for d in all_days:
+                b = product_produced_bools[p, m, d]
+                model.AddImplication(b, y_pm)
+
+    # --------- Переходы и clean-дни в агрегированном LONG-режиме ---------
+
+    # Для удобства: список рабочих модельных дней по каждой машине.
+    work_days_by_machine: dict[int, list[int]] = {m: [] for m in all_machines}
+    for m, d in work_days:
+        work_days_by_machine[m].append(d)
+
+    # Флаги is_zero[m,d] для упрощения логики.
+    is_zero: dict[tuple[int, int], cp_model.BoolVar] = {}
+    for m in all_machines:
+        for d in work_days_by_machine[m]:
+            b = model.NewBoolVar(f"is_zero_long_{m}_{d}")
+            is_zero[m, d] = b
+            model.Add(jobs[m, d] == PRODUCT_ZERO).OnlyEnforceIf(b)
+            model.Add(jobs[m, d] != PRODUCT_ZERO).OnlyEnforceIf(b.Not())
+
+    # На агрегированных днях с чистками запрещаем чистый простой (PRODUCT_ZERO),
+    # чтобы переходный день не содержал clean.
+    for m in all_machines:
+        for d in work_days_by_machine[m]:
+            if has_clean[m, d]:
+                model.Add(jobs[m, d] != PRODUCT_ZERO)
+
     same_as_prev: dict[tuple[int, int], cp_model.BoolVar] = {}
-    is_not_zero: dict[tuple[int, int], cp_model.BoolVar] = {}
-    prev_is_not_zero: dict[tuple[int, int], cp_model.BoolVar] = {}
-    completed_transition: dict[tuple[int, int], cp_model.BoolVar] = {}
 
     if settings.APPLY_TRANSITION_BUSINESS_LOGIC:
-        # Создаём переменные completed_transition для всех рабочих дней.
         for m in all_machines:
-            for d in all_days:
-                if (m, d) in work_days:
-                    completed_transition[m, d] = model.NewBoolVar(f"two_day_zero_long_{m}_{d}")
-
-        for m in all_machines:
-            for d in range(0, num_days):
-
-                if d == 0:
-                    job_pred = machines[m][1]
-                    completed_transition[m, 0] = 0
-                else:
-                    job_pred = jobs[m, d - 1]
-                    model.Add(job_pred == PRODUCT_ZERO).OnlyEnforceIf(completed_transition[m, d-1])
-                    model.Add(job_pred != PRODUCT_ZERO).OnlyEnforceIf(completed_transition[m, d-1].Not())
+            wds = work_days_by_machine[m]
+            for idx in range(1, len(wds)):
+                d = wds[idx]
+                prev_d = wds[idx - 1]
 
                 # Булевы флаги для текущего и предыдущего дня.
                 same = model.NewBoolVar(f"same_as_prev_long_{m}_{d}")
                 same_as_prev[m, d] = same
-                model.Add(jobs[m, d] == job_pred).OnlyEnforceIf(same)
-                model.Add(jobs[m, d] != job_pred).OnlyEnforceIf(same.Not())
+                model.Add(jobs[m, d] == jobs[m, prev_d]).OnlyEnforceIf(same)
+                model.Add(jobs[m, d] != jobs[m, prev_d]).OnlyEnforceIf(same.Not())
 
-                inz = model.NewBoolVar(f"is_not_zero_long_{m}_{d}")
-                is_not_zero[m, d] = inz
-                model.Add(jobs[m, d] != PRODUCT_ZERO).OnlyEnforceIf(inz)
-                model.Add(jobs[m, d] == PRODUCT_ZERO).OnlyEnforceIf(inz.Not())
+                is_zero_prev = is_zero[m, prev_d]
+                is_zero_cur = is_zero[m, d]
 
-                prev_inz = model.NewBoolVar(f"prev_is_not_zero_long_{m}_{d}")
-                prev_is_not_zero[m, d] = prev_inz
-                model.Add(job_pred != PRODUCT_ZERO).OnlyEnforceIf(prev_inz)
-                model.Add(job_pred == PRODUCT_ZERO).OnlyEnforceIf(prev_inz.Not())
-
-                # completed_transition[m,d] = 1 <=> и pred_idx, и d — нули.
-                model.AddBoolAnd([prev_inz.Not(), inz.Not()]).OnlyEnforceIf(completed_transition[m, d])
-                model.AddBoolOr([prev_inz, inz]).OnlyEnforceIf(completed_transition[m, d].Not())
-
-                # Основное правило:
+                # Основное правило смены продукта:
                 # - если текущий день ненулевой и продукт отличается от предыдущего,
-                #   то к этому моменту должен быть завершён двухдневный простой
-                #   (completed_transition на предыдущем рабочем дне).
-                model.AddBoolOr([
-                    inz.Not(),                # текущий день — ноль, всегда допустимо
-                    same,                     # тот же продукт, что и на предыдущем рабочем дне
-                    completed_transition[m, d - 1],  # завершён двухдневный переход перед сменой продукта
-                ])
+                #   то предыдущий день должен быть нулевым БЕЗ clean.
+                if has_clean[m, prev_d]:
+                    # День с clean не может быть переходным: смена только через тот же продукт или ноль.
+                    model.AddBoolOr([
+                        is_zero_cur,  # текущий день — ноль
+                        same,         # или тот же продукт, что и на предыдущем дне
+                    ])
+                else:
+                    # Разрешаем смену продукта через нулевой день без clean.
+                    model.AddBoolOr([
+                        is_zero_cur,   # текущий день — ноль
+                        same,          # или тот же продукт
+                        is_zero_prev,  # или на предыдущем дне был чистый ноль без clean
+                    ])
 
-        # Запрет тройного нуля подряд на одной машине.
+                # Запрет двух нулей подряд в агрегированных днях:
+                # один нулевой день уже моделирует (0,0) в фактическом времени.
+                model.Add(is_zero_prev + is_zero_cur <= 1)
+
+    # Упрощённое ограничение INDEX_UP в LONG:
+    # при включённом APPLY_INDEX_UP требуем неубывающий индекс продукта по агрегированным дням.
+    if settings.APPLY_INDEX_UP:
         for m in all_machines:
-            for d in range(1, num_days):
-                if (m, d) in work_days in work_days:
-                    model.Add(
-                        product_produced_bools[PRODUCT_ZERO, m, d - 1]
-                        + product_produced_bools[PRODUCT_ZERO, m, d]
-                        <= 1
-                    )
+            wds = work_days_by_machine[m]
+            for idx in range(1, len(wds)):
+                d = wds[idx]
+                prev_d = wds[idx - 1]
+                model.Add(jobs[m, d] >= jobs[m, prev_d])
 
     # Пропорциональная цель и стратегии (по аналогии с create_model, но без lday).
     proportions_input = [p[1] for p in products]
@@ -1281,50 +1540,117 @@ def create_model_long(remains: list, products: list, machines: list, cleans: lis
     total_products_count = model.NewIntVar(0, num_machines * num_days, "total_products_count")
     model.Add(total_products_count == sum(product_counts[p] for p in range(1, num_products)))
 
+    # В LONG-режиме используем облегчённый PROP:
+    # - для qty_minus=0: верхние ограничения (fact_real <= plan + 6);
+    # - для qty_minus=1: линейный штраф за отклонение от агрегированного плана.
     proportion_objective_terms: list[cp_model.IntVar] = []
     total_input_quantity = 0
     total_input_max = 0
-    if settings.APPLY_PROP_OBJECTIVE:
-        # В LONG-режиме усиливаем PROP, но без тяжёлых произведений из FULL-модели.
-        # Для qty_minus=0 оставляем только верхний предел (как раньше).
-        # Для qty_minus=1 добавляем мягкий штраф за |product_counts[p] - planned_qty|.
+
+    max_count = num_machines * num_days
+
+    # Два варианта цели:
+    # 1) APPLY_OVERPENALTY_INSTEAD_OF_PROP=True: линейный штраф за превышение плана
+    #    в агрегированных модельных днях (без пропорций).
+    # 2) Иначе – исходная облегчённая пропорциональная логика LONG (односторонний shortfall).
+
+    if settings.APPLY_PROP_OBJECTIVE and settings.APPLY_OVERPENALTY_INSTEAD_OF_PROP:
+        for p in range(1, num_products):
+            planned_qty = int(proportions_input[p])  # план в сменах
+            if planned_qty <= 0:
+                continue
+
+            qty_minus_flag = products[p][4] if len(products[p]) > 4 else 0
+
+            # Перевод плана в агрегированные модельные дни (2 смены = 1 день).
+            plan_model_days = (planned_qty + 1) // 2  # ceil(plan/2)
+
+            if qty_minus_flag == 0:
+                # Для строгих продуктов запрещаем перепроизводство.
+                model.Add(product_counts[p] <= plan_model_days)
+                continue
+
+            # over = max(0, fact - plan_model_days)
+            diff = model.NewIntVar(-max_count, max_count, f"over_long_diff_{p}")
+            model.Add(diff == product_counts[p] - plan_model_days)
+            zero = model.NewConstant(0)
+            over = model.NewIntVar(0, max_count, f"over_long_{p}")
+            model.AddMaxEquality(over, [diff, zero])
+
+            proportion_objective_terms.append(over)
+
+    elif settings.APPLY_PROP_OBJECTIVE:
         total_input_quantity = sum(proportions_input)
         total_input_max = max(proportions_input) if proportions_input else 0
-
-        max_count = num_machines * num_days
 
         for p in range(1, num_products):
             planned_qty = int(proportions_input[p])
             if planned_qty <= 0:
                 continue
 
-            # products[p]: (name, qty, id, machine_type, qty_minus, lday, src_root, qty_minus_min, sr, strategy)
             qty_minus_flag = products[p][4] if len(products[p]) > 4 else 0
+            qty_minus_min = products[p][7] if len(products[p]) > 7 else 0
+            product_name = products[p][0] if len(products[p]) > 0 else ""
+            product_id = products[p][2] if len(products[p]) > 2 else None
 
             if qty_minus_flag == 0:
                 # qty_minus = 0: "жёсткий" продукт.
                 # Нижняя граница: не меньше 0 смен.
                 model.Add(product_counts[p] >= 0)
-                # Верхняя граница: не более planned_qty + 6 смен (и не больше общего горизонта).
-                upper = min(max_count, planned_qty + 3)
+                # Верхняя граница по фактическим сменам: fact_real <= planned_qty + 6.
+                # При 2 фактических сменах на одну модельную: 2 * count_model <= planned_qty + 6
+                # => count_model <= ceil((planned_qty + 6) / 2).
+                upper_model = (planned_qty + 6 + 1) // 2
+                upper = min(max_count, upper_model)
                 model.Add(product_counts[p] <= upper)
-                continue
+            else:
+                # qty_minus = 1: в LONG-режиме по умолчанию не накладываем жёстких
+                # нижних границ. Для большинства продуктов нет и верхнего потолка,
+                # но для нескольких "жирных" артикулов ограничим перекос сверху.
+                plan_model = (planned_qty + 1) // 2
 
-            # qty_minus = 1: мягкий штраф за отклонение от планового количества.
-            target = min(planned_qty, max_count)
-            diff_var = model.NewIntVar(-max_count, max_count, f"prop_long_diff_{p}")
-            model.Add(diff_var == product_counts[p] - target)
-            abs_diff_var = model.NewIntVar(0, max_count, f"prop_long_absdiff_{p}")
-            model.AddAbsEquality(abs_diff_var, diff_var)
-            proportion_objective_terms.append(abs_diff_var)
-    else:
-        total_input_max = max(proportions_input) if proportions_input else 0
+                # Локальные верхние лимиты на явные перекосы только для нескольких
+                # проблемных продуктов (по их GUID id из входных данных).
+                heavy_overprod_ids = {
+                    "83a5f825-bd64-4897-aec0-238c22d4f778",  # ст87026t
+                    "f915776a-bbfc-4e36-a826-c7400e5ea542",  # ст11022амt6
+                    "49bb002d-cdfa-4476-9768-f80ce0d2be51",  # ст87416t1
+                }
+                if product_id in heavy_overprod_ids and planned_qty > 0:
+                    # Разрешаем до ~2x от плана в реальных сменах.
+                    # fact_real ≈ 2 * product_counts[p] <= 2 * planned_qty
+                    # => product_counts[p] <= planned_qty.
+                    upper_model = planned_qty
+                    upper = min(max_count, max(upper_model, 1))
+                    model.Add(product_counts[p] <= upper)
+
+                # Целевой агрегированный план: ~ plan_qty / 2 смен.
+                # Штрафуем ТОЛЬКО недобор (односторонний shortfall), переизбыток не штрафуем в LONG.
+                target_model = min(max_count, max(0, plan_model))
+                diff = model.NewIntVar(-max_count, max_count, f"prop_long_diff_{p}")
+                model.Add(diff == target_model - product_counts[p])
+                zero = model.NewConstant(0)
+                shortfall = model.NewIntVar(0, max_count, f"prop_long_shortfall_{p}")
+                model.AddMaxEquality(shortfall, [diff, zero])
+
+                # Усиливаем штраф за недобор для ключевых продуктов.
+                important_shortfall_ids = {
+                    "3c6972f0-4ad8-40b0-9f7d-68b1eebca3c0",  # ст31301амt18
+                    "46ec2adb-3979-44ef-abee-bc9a81f04fae",  # ст87001t1
+                    "27d53234-2675-4ea5-a07e-de9a8ce465a4",  # ст18310t1
+                    "31bbe2cd-ea5c-459e-9cec-90d837dfe54a",  # ст87315t
+                }
+                prop_weight = 3 if product_id in important_shortfall_ids else 1
+                proportion_objective_terms.append(shortfall * prop_weight)
 
     # Стратегии (переносим существующую логику без lday).
+    # В LONG масштабы штрафов по стратегиям держим малыми (1-2 на единицу),
+    # чтобы они были слабее, чем пропорции и простои.
     strategy_objective_terms: list[cp_model.IntVar] = []
     strategy_penalty_terms: list[cp_model.IntVar] = [
         model.NewIntVar(0, 0, f"strategy_penalty_long_{p}") for p in range(num_products)
     ]
+    strategy_base_weight = 1
 
     for p in range(1, num_products):
         if len(products[p]) < 10:
@@ -1349,7 +1675,7 @@ def create_model_long(remains: list, products: list, machines: list, cleans: lis
         else:
             model.Add(count_end == 0)
 
-        weight = total_input_max
+        weight = strategy_base_weight
         pen: cp_model.IntVar | None = None
 
         if strategy == "--":
@@ -1357,7 +1683,7 @@ def create_model_long(remains: list, products: list, machines: list, cleans: lis
             pen = model.NewIntVar(0, max_penalty, f"strategy_penalty_long_{p}")
             model.Add(pen == weight * count_end)
         elif strategy == "-":
-            weight = total_input_max
+            weight = strategy_base_weight
             diff = model.NewIntVar(-num_machines, num_machines, f"strategy_diff_long_{p}")
             model.Add(diff == count_end - count_start)
             zero = model.NewConstant(0)
@@ -1367,7 +1693,7 @@ def create_model_long(remains: list, products: list, machines: list, cleans: lis
             pen = model.NewIntVar(0, max_penalty, f"strategy_penalty_long_{p}")
             model.Add(pen == weight * pos_diff)
         elif strategy == "=":
-            weight = total_input_max * 2
+            weight = strategy_base_weight * 2
             diff = model.NewIntVar(-num_machines, num_machines, f"strategy_diff_long_{p}")
             model.Add(diff == count_end - count_start)
             abs_diff = model.NewIntVar(0, num_machines, f"strategy_absdiff_long_{p}")
@@ -1376,7 +1702,7 @@ def create_model_long(remains: list, products: list, machines: list, cleans: lis
             pen = model.NewIntVar(0, max_penalty, f"strategy_penalty_long_{p}")
             model.Add(pen == weight * abs_diff)
         elif strategy == "+":
-            weight = total_input_max
+            weight = strategy_base_weight
             diff = model.NewIntVar(-num_machines, num_machines, f"strategy_diff_long_{p}")
             model.Add(diff == count_start - count_end)
             zero = model.NewConstant(0)
@@ -1386,7 +1712,7 @@ def create_model_long(remains: list, products: list, machines: list, cleans: lis
             pen = model.NewIntVar(0, max_penalty, f"strategy_penalty_long_{p}")
             model.Add(pen == weight * pos_diff)
         elif strategy == "++":
-            weight = total_input_max * 2
+            weight = strategy_base_weight * 2
             diff = model.NewIntVar(-num_machines, num_machines + 1, f"strategy_diff_long_{p}")
             model.Add(diff == (count_start + 1) - count_end)
             zero = model.NewConstant(0)
@@ -1401,9 +1727,9 @@ def create_model_long(remains: list, products: list, machines: list, cleans: lis
             if settings.APPLY_STRATEGY_PENALTY:
                 strategy_objective_terms.append(pen)
 
-    downtime_penalty = round(total_input_max * settings.KFZ_DOWNTIME_PENALTY)
-    if downtime_penalty < 2:
-        downtime_penalty = 2
+    # В LONG фиксируем штраф за простой в масштабе настроечного параметра,
+    # без умножения на объём плана, чтобы он был понятным: 1 простой ≈ 10.
+    downtime_penalty = max(2, settings.KFZ_DOWNTIME_PENALTY)
 
     objective_terms: list[cp_model.LinearExpr] = []
     if settings.APPLY_PROP_OBJECTIVE and proportion_objective_terms:
@@ -1423,7 +1749,381 @@ def create_model_long(remains: list, products: list, machines: list, cleans: lis
     batch_end_complite: dict = {}
     days_in_batch: dict = {}
     pred_start_batch: dict = {}
-    # completed_transition и same_as_prev здесь содержат только упрощённую логику переходов.
+    # В LONG-режиме упрощённые переходы: возвращаем пустые словари.
+    completed_transition: dict = {}
+    same_as_prev: dict = {}
+
+    return (
+        model,
+        jobs,
+        product_counts,
+        proportion_objective_terms,
+        total_products_count,
+        prev_lday,
+        start_batch,
+        batch_end_complite,
+        days_in_batch,
+        completed_transition,
+        pred_start_batch,
+        same_as_prev,
+        strategy_penalty_terms,
+    )
+
+
+def create_model_simple(remains: list, products: list, machines: list, cleans: list,
+                       max_daily_prod_zero: int, count_days: int,
+                       dedicated_machines: list[int] | None = None,
+                       product_divs: list[int] | None = None,
+                       machine_divs: list[int] | None = None):
+    """Упрощённая модель по станкам для длинного горизонта.
+
+    Особенности:
+    - работаем по реальным дням (без агрегирования 2x1);
+    - жёсткое начальное состояние: в день 0 на каждой машине стоит её initial product;
+    - жёсткое ограничение на количество переходов (смен продуктов) в день:
+      не более ``max_daily_prod_zero`` смен по всем машинам;
+    - учитываем разделение по типам машин/продуктов (цех 1 / цех 2);
+    - пропорции и стратегии берём в упрощённом виде, как в основной модели.
+
+    Остатки партий, lday и детальная логика двухдневного перехода не учитываются.
+    """
+    num_days = count_days
+    num_machines = len(machines)
+    num_products = len(products)
+
+    dedicated_set = set(dedicated_machines or [])
+
+    all_machines = range(num_machines)
+    all_days = range(num_days)
+    all_products = range(num_products)
+
+    proportions_input = [p[1] for p in products]
+
+    # Нормализуем div по продуктам/машинам.
+    # product_divs[p]: 1 или 2 — фиксированный цех;
+    #                  0 — можно в любом цехе (но только в одном);
+    #                 иначе / отсутствует — не используем div.
+    if product_divs is None:
+        product_divs = [0 for _ in range(num_products)]
+    if machine_divs is None:
+        machine_divs = [1 for _ in range(num_machines)]
+
+    # Стартовые продукты на машинах
+    initial_products: list[int] = []
+    for (_, product_idx, m_id, t, remain_day) in machines:
+        initial_products.append(product_idx)
+
+    # Продукты с планом qty=0 (по текущему горизонту) — кандидаты на "технические" стартовые коды.
+    zero_plan_products: set[int] = set()
+    for p_idx in range(1, num_products):
+        try:
+            if int(proportions_input[p_idx]) == 0:
+                zero_plan_products.add(p_idx)
+        except Exception:
+            continue
+
+    # Машины, стартующие на таких продуктах.
+    zero_plan_machines: set[int] = set(
+        m_idx for m_idx, p0 in enumerate(initial_products) if p0 in zero_plan_products
+    )
+
+    model = cp_model.CpModel()
+
+    jobs: dict[tuple[int, int], cp_model.IntVar] = {}
+    work_days: list[tuple[int, int]] = []
+
+    # В SIMPLE все дни считаются рабочими (чистки не исключают день из горизонта).
+    # Чистки будем учитывать позже при перерасчёте смен/объёмов, но не в домене переменных.
+    for m in all_machines:
+        for d in all_days:
+            work_days.append((m, d))
+            # В SIMPLE не используем PRODUCT_ZERO: домен только 1..num_products-1.
+            jobs[m, d] = model.NewIntVar(1, num_products - 1, f"job_simple_{m}_{d}")
+            # Для dedicated-машин фиксируем исходный продукт на всех днях,
+            # но только если стартовый продукт не равен 0 (PRODUCT_ZERO в LONG).
+            if m in dedicated_set:
+                fixed_product = initial_products[m]
+                if fixed_product > 0:
+                    model.Add(jobs[m, d] == fixed_product)
+
+    # Жёсткое начальное состояние: в день 0 машина стоит на своём initial product,
+    # если этот продукт > 0. Стартовое PRODUCT_ZERO в SIMPLE не фиксируем
+    # (машина свободна выбрать любой реальный продукт с первого дня).
+    for m in all_machines:
+        init_p = initial_products[m]
+        if init_p > 0:
+            model.Add(jobs[m, 0] == init_p)
+
+    # Для продуктов с планом qty=0, которые стоят только как начальные,
+    # запрещаем их использование только ПОСЛЕ некоторого дня d_max, рассчитанного
+    # из ограничения не более 3-х переходов в день. Это избегает конфликта с
+    # ограничением по переходам и позволяет постепенно выводить такие продукты.
+    if zero_plan_machines:
+        # Общее количество машин, стартующих на продуктах с планом 0.
+        total_zero_start_machines = len(zero_plan_machines)
+        # Максимальный день, после которого такие продукты больше не допускаются.
+        # Формула пользователя: d_max = (N_zero / 3) - 1 (с округлением вверх и ограничением по горизонту).
+        d_max_raw = (total_zero_start_machines + 3 - 1) // 3 - 1
+        d_max = max(0, min(num_days - 1, d_max_raw))
+
+        for m in zero_plan_machines:
+            p0 = initial_products[m]
+            for d in all_days:
+                if d <= d_max:
+                    continue
+                model.Add(jobs[m, d] != p0)
+
+    # ------------ Подсчёт общего количества каждого продукта ------------
+    product_produced_bools: dict[tuple[int, int, int], cp_model.BoolVar] = {}
+    # В SIMPLE не используем продукт 0, поэтому считаем только p >= 1.
+    for p in range(1, num_products):
+        for m, d in work_days:
+            b = model.NewBoolVar(f"prod_simple_{p}_{m}_{d}")
+            product_produced_bools[p, m, d] = b
+            model.Add(jobs[m, d] == p).OnlyEnforceIf(b)
+            model.Add(jobs[m, d] != p).OnlyEnforceIf(b.Not())
+
+    product_counts: list[cp_model.IntVar] = [
+        model.NewIntVar(0, num_machines * num_days, f"count_prod_simple_{p}") for p in all_products
+    ]
+    for p in range(1, num_products):
+        model.Add(product_counts[p] == sum(
+            product_produced_bools[p, m, d] for m, d in work_days
+        ))
+
+    # Минимальные объёмы по qty_minus / qty_minus_min (как в create_model),
+    # с учётом того, что в SIMPLE product_counts[p] считаются в ДНЯХ, а qty и
+    # qty_minus_min заданы в СМЕНАХ. Предполагаем 3 смены в день.
+    if settings.APPLY_QTY_MINUS:
+        shifts_per_day = 3
+        for p in range(1, num_products):
+            qty_shifts = int(products[p][1])
+            if qty_shifts <= 0:
+                continue
+            qty_minus_flag = products[p][4]
+            qty_minus_min_shifts = int(products[p][7]) if len(products[p]) > 7 else 0
+
+            # Переводим смены в минимальное количество дней: ceil(x / shifts_per_day).
+            plan_days = (qty_shifts + shifts_per_day - 1) // shifts_per_day
+            min_days = (qty_minus_min_shifts + shifts_per_day - 1) // shifts_per_day if qty_minus_min_shifts > 0 else 0
+
+            if qty_minus_flag == 0:
+                # "Строгий" продукт: требуем не меньше планового объёма в днях.
+                # Не навязываем верхнюю границу здесь, чтобы не получать невыполнимость
+                # из-за округлений и ограничений по мощностям.
+                model.Add(product_counts[p] >= plan_days)
+            else:
+                if min_days > 0:
+                    model.Add(product_counts[p] >= min_days)
+
+    # Ограничение по типам машин (machine_type) и по цехам (div)
+    for p in all_products:
+        product_machine_type_req = products[p][3]
+        prod_div = product_divs[p] if 0 <= p < len(product_divs) else 0
+
+        for m in all_machines:
+            machine_type = machines[m][3]
+            m_div = machine_divs[m] if 0 <= m < len(machine_divs) else 1
+
+            # Ограничение по типу машины
+            type_incompatible = (product_machine_type_req > 0 and machine_type != product_machine_type_req)
+            # Ограничение по цеху для фиксированных продуктов
+            div_incompatible = (prod_div in (1, 2) and m_div != prod_div)
+
+            if type_incompatible or div_incompatible:
+                for d in all_days:
+                    if (m, d) in work_days:
+                        model.Add(jobs[m, d] != p)
+
+    # Вариант B для продуктов с div = 0: выбор единственного цеха в модели.
+    # Для каждого такого продукта p вводим y[p,1], y[p,2] с y[p,1] + y[p,2] = 1,
+    # и требуем: если p стоит на машине m (div=m_div), то y[p,m_div] = 1.
+    flex_products = [p for p in all_products if (0 <= p < len(product_divs) and product_divs[p] == 0 and p != 0)]
+
+    y_div: dict[tuple[int, int], cp_model.BoolVar] = {}
+    for p in flex_products:
+        y1 = model.NewBoolVar(f"y_div1_p{p}")
+        y2 = model.NewBoolVar(f"y_div2_p{p}")
+        model.Add(y1 + y2 == 1)
+        y_div[p, 1] = y1
+        y_div[p, 2] = y2
+
+    for p in flex_products:
+        for m in all_machines:
+            m_div = machine_divs[m] if 0 <= m < len(machine_divs) else 1
+            if m_div not in (1, 2):
+                # Неподдерживаемый div – на всякий случай запрещаем p на этой машине.
+                for d in all_days:
+                    if (m, d) in work_days:
+                        model.Add(jobs[m, d] != p)
+                continue
+            y_pm = y_div[p, m_div]
+            for d in all_days:
+                if (m, d) not in work_days:
+                    continue
+                b = product_produced_bools[p, m, d]
+                # Если p стоит на (m,d), соответствующий y[p,div] обязан быть 1.
+                model.AddImplication(b, y_pm)
+
+    # Жёсткое ограничение на количество переходов (смен продуктов) в день.
+    # Переход считаем, если на машине m в день d продукт отличается от дня d-1.
+    change_bools: dict[tuple[int, int], cp_model.BoolVar] = {}
+    for m in all_machines:
+        for d in range(1, num_days):
+            ch = model.NewBoolVar(f"change_simple_{m}_{d}")
+            change_bools[m, d] = ch
+            # Определяем факт смены продукта между днями d-1 и d.
+            model.Add(jobs[m, d] != jobs[m, d - 1]).OnlyEnforceIf(ch)
+            model.Add(jobs[m, d] == jobs[m, d - 1]).OnlyEnforceIf(ch.Not())
+            # Бизнес-логика "индекс только вверх": при переходе индекс продукта
+            # должен увеличиваться (как в LONG-модели).
+            if settings.APPLY_INDEX_UP:
+                model.Add(jobs[m, d] > jobs[m, d - 1]).OnlyEnforceIf(ch)
+
+    for d in all_days:
+        day_changes = [ch for (m, dd), ch in change_bools.items() if dd == d]
+        if not day_changes:
+            continue
+        model.Add(sum(day_changes) <= max_daily_prod_zero)
+
+    # Считаем общее количество переходов по всем машинам и дням, чтобы
+    # при необходимости штрафовать их в целевой функции.
+    if change_bools:
+        max_changes = num_machines * max(0, num_days - 1)
+        total_changes = model.NewIntVar(0, max_changes, "total_changes_simple")
+        model.Add(total_changes == sum(change_bools[m_d] for m_d in change_bools))
+    else:
+        total_changes = None
+
+    # Для совместимости с интерфейсом возвращаем total_products_count,
+    # но в упрощённой модели SIMPLE он не участвует в целевой функции.
+    total_products_count = model.NewIntVar(0, num_machines * num_days, "total_products_count_simple")
+    model.Add(total_products_count == sum(product_counts[p] for p in range(1, len(products))))
+
+    # Внутреннюю пропорциональную цель в SIMPLE не используем: вся оценка по пропорциям
+    # выполняется внешне (в tools/compare_long_vs_simple.py).
+    proportion_objective_terms: list[cp_model.IntVar] = []
+    total_input_quantity = 0
+    total_input_max = max(proportions_input) if proportions_input else 0
+
+    # ------------ Стратегии по продуктам (по аналогии с create_model_long) ------------
+    strategy_objective_terms: list[cp_model.IntVar] = []
+    strategy_penalty_terms: list[cp_model.IntVar] = [
+        model.NewIntVar(0, 0, f"strategy_penalty_simple_{p}") for p in range(num_products)
+    ]
+    # В SIMPLE держим штрафы по стратегиям малыми (1–2 на единицу),
+    # чтобы они не доминировали над пропорциями и простоями.
+    strategy_base_weight = 1
+
+    for p in range(1, len(products)):
+        if len(products[p]) < 10:
+            continue
+        strategy = products[p][9]
+        if not strategy:
+            continue
+
+        count_start = model.NewIntVar(0, num_machines, f"machines_start_simple_{p}")
+        count_end = model.NewIntVar(0, num_machines, f"machines_end_simple_{p}")
+
+        start_bools = [product_produced_bools[p, m, d] for (m, d) in work_days if d == 0]
+        end_bools = [product_produced_bools[p, m, d] for (m, d) in work_days if d == num_days - 1]
+
+        if start_bools:
+            model.Add(count_start == sum(start_bools))
+        else:
+            model.Add(count_start == 0)
+
+        if end_bools:
+            model.Add(count_end == sum(end_bools))
+        else:
+            model.Add(count_end == 0)
+
+        weight = strategy_base_weight
+        pen: cp_model.IntVar | None = None
+
+        if strategy == "--":
+            max_penalty = num_machines * weight
+            pen = model.NewIntVar(0, max_penalty, f"strategy_penalty_simple_{p}")
+            model.Add(pen == weight * count_end)
+        elif strategy == "-":
+            diff = model.NewIntVar(-num_machines, num_machines, f"strategy_diff_simple_{p}")
+            model.Add(diff == count_end - count_start)
+            zero = model.NewConstant(0)
+            pos_diff = model.NewIntVar(0, num_machines, f"strategy_posdiff_simple_{p}")
+            model.AddMaxEquality(pos_diff, [diff, zero])
+            max_penalty = num_machines * weight
+            pen = model.NewIntVar(0, max_penalty, f"strategy_penalty_simple_{p}")
+            model.Add(pen == weight * pos_diff)
+        elif strategy == "=":
+            weight2 = strategy_base_weight * 2
+            diff = model.NewIntVar(-num_machines, num_machines, f"strategy_diff_simple_{p}")
+            model.Add(diff == count_end - count_start)
+            abs_diff = model.NewIntVar(0, num_machines, f"strategy_absdiff_simple_{p}")
+            model.AddAbsEquality(abs_diff, diff)
+            max_penalty = num_machines * weight2
+            pen = model.NewIntVar(0, max_penalty, f"strategy_penalty_simple_{p}")
+            model.Add(pen == weight2 * abs_diff)
+        elif strategy == "+":
+            diff = model.NewIntVar(-num_machines, num_machines, f"strategy_diff_simple_{p}")
+            model.Add(diff == count_start - count_end)
+            zero = model.NewConstant(0)
+            pos_diff = model.NewIntVar(0, num_machines, f"strategy_posdiff_simple_{p}")
+            model.AddMaxEquality(pos_diff, [diff, zero])
+            max_penalty = num_machines * weight
+            pen = model.NewIntVar(0, max_penalty, f"strategy_penalty_simple_{p}")
+            model.Add(pen == weight * pos_diff)
+        elif strategy == "++":
+            weight2 = strategy_base_weight * 2
+            diff = model.NewIntVar(-num_machines, num_machines + 1, f"strategy_diff_simple_{p}")
+            model.Add(diff == (count_start + 1) - count_end)
+            zero = model.NewConstant(0)
+            pos_diff = model.NewIntVar(0, num_machines + 1, f"strategy_posdiff_simple_{p}")
+            model.AddMaxEquality(pos_diff, [diff, zero])
+            max_penalty = (num_machines + 1) * weight2
+            pen = model.NewIntVar(0, max_penalty, f"strategy_penalty_simple_{p}")
+            model.Add(pen == weight2 * pos_diff)
+
+        if pen is not None:
+            strategy_penalty_terms[p] = pen
+            if settings.APPLY_STRATEGY_PENALTY:
+                strategy_objective_terms.append(pen)
+
+    # В SIMPLE используем такой же масштаб штрафа за простой, как и в LONG:
+    # без умножения на объём плана, чтобы "1 простой" имел понятный вес.
+    downtime_penalty = max(2, settings.KFZ_DOWNTIME_PENALTY)
+
+    objective_terms: list[cp_model.LinearExpr] = []
+    # В SIMPLE пропорциональную часть в целевой функции не используем:
+    # proportion_objective_terms всегда пустой, оценка пропорций выполняется внешне.
+
+    # Штраф за переходы: каждое изменение продукта считается примерно как
+    # простой, но вес делаем мягче, чем KFZ_DOWNTIME_PENALTY, чтобы пропорции
+    # не ломались слишком сильно. Берём половину KFZ (минимум 1).
+    if 'total_changes' in locals() and total_changes is not None:
+        transitions_weight = max(1, settings.KFZ_DOWNTIME_PENALTY // 2)
+        objective_terms.append(total_changes * transitions_weight)
+
+    # В текущей версии SIMPLE не штрафуем отдельный PRODUCT_ZERO: простои
+    # будут учитываться внешними метриками и стратегиями. Внутри модели
+    # оставляем только стратегические штрафы (по необходимости).
+    if settings.APPLY_STRATEGY_PENALTY and strategy_objective_terms:
+        objective_terms.append(sum(strategy_objective_terms))
+
+    # Если штрафов нет, минимизируем константу 0, чтобы модель была чисто
+    # выполнимостной.
+    if objective_terms:
+        model.Minimize(sum(objective_terms))
+    else:
+        model.Minimize(0)
+
+    # Для совместимости с solver_result возвращаем пустые словари для lday/переходов.
+    prev_lday: dict = {}
+    start_batch: dict = {}
+    batch_end_complite: dict = {}
+    days_in_batch: dict = {}
+    completed_transition: dict = {}
+    pred_start_batch: dict = {}
+    same_as_prev: dict = {}
 
     return (
         model,
@@ -1444,7 +2144,9 @@ def create_model_long(remains: list, products: list, machines: list, cleans: lis
 
 def create_model(remains: list, products: list, machines: list, cleans: list,
                  max_daily_prod_zero: int, count_days: int,
-                 dedicated_machines: list[int] | None = None):
+                 dedicated_machines: list[int] | None = None,
+                 product_divs: list[int] | None = None,
+                 machine_divs: list[int] | None = None):
     # products: [ # ("idx, "name", "qty", "id", "machine_type", "qty_minus", "lday")
     #     ("", 0, "", 0, 0),
     #     ("ст87017t3", 42, "7ec17dc8-f3bd-4384-9738-7538ab3dc315", 0, 1, 13),
@@ -1501,7 +2203,12 @@ def create_model(remains: list, products: list, machines: list, cleans: list,
         # Иные форматы (например, список моделей Remain) пока не используем для расчёта lday.
 
     for p_idx, p in enumerate(products):
+        # p: (name, qty, id, machine_type, qty_minus, lday, ...)
         base_lday = p[5]
+        qty_val = p[1]
+        # Временное правило: если lday=0 для "живого" продукта, используем 10.
+        if not long_mode and qty_val > 0 and base_lday <= 0:
+            base_lday = 10
         lday_eff = base_lday
         src_root = p[6] if len(p) > 6 else -1
         if (not long_mode
@@ -1640,22 +2347,23 @@ def create_model(remains: list, products: list, machines: list, cleans: list,
             model.Add(sum(daily_prod_zero_on_machines) <= max_daily_prod_zero)
 
     # Ограничение по типам машин ###
-    # Продукты с типом 1 могут производиться только на машинах с типом 1.
-    # Продукты с типом 0 могут производиться на любых машинах.
+    # Новая договорённость: станки жёстко разделены по цехам (type=1 или 2),
+    # а продукты имеют machine_type=1 или 2. Продукт с machine_type>0 можно
+    # производить только на машинах с таким же type. machine_type=0 трактуем
+    # как "можно на любых" (для совместимости со старыми данными).
     for p in all_products:
         # Индекс 3 в кортеже продукта - это 'machine_type'
         product_machine_type_req = products[p][3]
-        if product_machine_type_req == 1:
+        if product_machine_type_req > 0:
             for m in all_machines:
                 # Индекс 3 в кортеже машины - это 'type'
                 machine_type = machines[m][3]
-                if machine_type != 1:
+                if machine_type != product_machine_type_req:
                     # Эта машина не может производить данный продукт.
                     # Запрещаем назначение этого продукта на эту машину во все дни.
                     for d in all_days:
                         if (m, d) in work_days:
                             model.Add(jobs[m, d] != p)
-
     # Основная переменная состояния: отслеживает день внутри текущей партии
     days_in_batch = {}
     for m in all_machines:
@@ -2050,6 +2758,16 @@ def solver_result(
 ):
 
     long_mode = getattr(settings, "HORIZON_MODE", "FULL").upper() == "LONG"
+    simple_mode = getattr(settings, "HORIZON_MODE", "FULL").upper() == "LONG_SIMPLE"
+
+    # Для SIMPLE-модели (LONG_SIMPLE) очищаем влияние чисток при восстановлении
+    # расписания: все дни считаются рабочими.
+    cleans_set = set(cleans)
+
+    def is_clean_day(m: int, d: int) -> bool:
+        if simple_mode:
+            return False
+        return (m, d) in cleans_set
 
     def find_machine_id_old(machine_idx: int):
         for i, machine in enumerate(machines_old):
@@ -2068,12 +2786,20 @@ def solver_result(
 
     if status != cp_model.OPTIMAL and status != cp_model.FEASIBLE:
         return
+
+    # В LONG-режиме jobs[m,d] определены по агрегированным дням (1 модельная смена = 2 фактическим).
+    # Для восстановления посменного расписания отображаем фактический день d_real в
+    # модельный день d_model = d_real // 2.
     for m in range(num_machines):
         m_old = find_machine_id_old(m)
         logger.debug(f"Loom {m_old}")
         for d in range(count_days):
-            if not (m, d) in cleans:
-                p = solver.value(jobs[m, d])
+            if not is_clean_day(m, d):
+                if long_mode:
+                    d_model = d // 2
+                    p = solver.value(jobs[m, d_model])
+                else:
+                    p = solver.value(jobs[m, d])
                 p_old, p_id = find_product_id_old(p)
                 if not long_mode and (m, d) in days_in_batch and (m, d) in prev_lday:
                     db_v = solver.value(days_in_batch[m, d])
@@ -2105,17 +2831,35 @@ def solver_result(
         if p > 0:
             # Подсчитаем количество машин с продуктом p в первый и последний день.
             for m in range(num_machines):
-                if (m, 0) not in cleans and solver.Value(jobs[m, 0]) == p:
-                    machines_start += 1
-                if (m, count_days - 1) not in cleans and solver.Value(jobs[m, count_days - 1]) == p:
-                    machines_end += 1
+                if long_mode:
+                    # LONG: jobs заданы по агрегированным дням (1 модельная смена = 2 фактическим).
+                    # Для первого дня используем jobs[m, 0], для последнего — jobs[m, last_model].
+                    first_model = 0
+                    last_model = (count_days - 1) // 2
+                    if not is_clean_day(m, 0) and solver.Value(jobs[m, first_model]) == p:
+                        machines_start += 1
+                    if not is_clean_day(m, count_days - 1) and solver.Value(jobs[m, last_model]) == p:
+                        machines_end += 1
+                else:
+                    if not is_clean_day(m, 0) and solver.Value(jobs[m, 0]) == p:
+                        machines_start += 1
+                    if not is_clean_day(m, count_days - 1) and solver.Value(jobs[m, count_days - 1]) == p:
+                        machines_end += 1
             if strategy_penalty_terms is not None and p < len(strategy_penalty_terms):
                 penalty_strategy = solver.Value(strategy_penalty_terms[p])
 
         diff_all += penalty_prop
-        qty = solver.Value(product_counts[p])
+        qty_model = solver.Value(product_counts[p])
+        # В LONG-режиме каждая модельная смена представляет 2 фактические,
+        # поэтому для статистики умножаем qty на 2 (приближённо, без учёта clean).
+        if long_mode:
+            qty = qty_model * 2
+        else:
+            qty = qty_model
+
         p_old, p_id = find_product_id_old(p)
         plan_qty = products_old[p_old][1]
+
         products_schedule.append(
             {
                 "product_idx": p_old,
