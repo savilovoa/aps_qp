@@ -67,6 +67,26 @@ class Settings(BaseSettings):
         description="В LONG_SIMPLE использовать алгоритм пропорций с умножением вместо линейного штрафа",
     )
 
+    # Отладка эвристик начального плана H1–H3 в LONG_SIMPLE.
+    SIMPLE_DEBUG_H_START: bool = Field(
+        default=False,
+        description="Включить отладочный режим управления эвристиками H1–H3 в LONG_SIMPLE",
+    )
+    SIMPLE_DEBUG_H_MODE: str | None = Field(
+        default=None,
+        description=(
+            "Комбинация эвристик H1–H3 в debug-режиме: NONE, H1, H2, H3, H12, H123. "
+            "В production-режиме (SIMPLE_DEBUG_H_START=False) игнорируется."
+        ),
+    )
+
+    # Отладочный фильтр для блока APPLY_QTY_MINUS в LONG_SIMPLE: если задан, то
+    # нижние границы по qty_minus применяются только к этим индексам продуктов.
+    SIMPLE_QTY_MINUS_SUBSET: set[int] | None = Field(
+        default=None,
+        description="Подмножество индексов продуктов для применения qty_minus в LONG_SIMPLE (отладка)",
+    )
+
 settings = Settings()
 
 log_path = settings.BASE_DIR + "/log"

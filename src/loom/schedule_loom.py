@@ -1073,17 +1073,26 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
 
     # Пересортируем продукты один раз на весь период, без разбивки по неделям.
     products_df_new = products_df.tail(-1)
-    products_df_new = products_df_new.sort_values(by=['qty'])
+    products_df_new = products_df_new.sort_values(by=["qty"])
     products_df_new = pd.concat([product_zero, products_df_new])
 
+    # Убираем из products_df_new продукты с qty=0, которые нигде не стоят на
+    # машинах на начало, и гарантируем уникальные id перед построением
+    # отображения id->idx.
     products_df_zero = products_df[products_df["qty"] == 0]
-    for index, p in products_df_zero.iterrows():
-        if index > 0 and len(machines_df[machines_df["product_id"] == p["id"]]) == 0:
-            products_df_new.drop(index)
+    for _, p in products_df_zero.iterrows():
+        pid = p["id"]
+        # Если продукт с таким id нигде не используется как стартовый, выпиливаем
+        # его из products_df_new полностью (по id, а не по исходному index).
+        if len(machines_df[machines_df["product_id"] == pid]) == 0:
+            products_df_new = products_df_new[products_df_new["id"] != pid]
 
-    products_df_new['idx'] = range(len(products_df_new))
-    id_to_new_idx_map = products_df_new.set_index('id')['idx']
-    machines_df['product_idx'] = machines_df['product_id'].map(id_to_new_idx_map)
+    # На всякий случай удаляем возможные дубликаты id, оставляя первую запись.
+    products_df_new = products_df_new.drop_duplicates(subset=["id"], keep="first").reset_index(drop=True)
+
+    products_df_new["idx"] = range(len(products_df_new))
+    id_to_new_idx_map = products_df_new.set_index("id")["idx"].to_dict()
+    machines_df["product_idx"] = machines_df["product_id"].map(id_to_new_idx_map)
 
     # Цеха по машинам/продуктам: div=1 или 2 – фиксированный цех, 0 –
     # "плавающий" продукт (можно в любом цехе), None/отсутствие – игнорируем.
@@ -1791,6 +1800,58 @@ def create_model_simple(remains: list, products: list, machines: list, cleans: l
     num_machines = len(machines)
     num_products = len(products)
 
+    # Локальные флаги для поэтапной отладки эвристик начального плана H1–H3.
+    # В production-режиме (SIMPLE_DEBUG_H_START=False) считаем, что все
+    # эвристики H1, H2, H3 включены как бизнес-логика SIMPLE.
+    # При SIMPLE_DEBUG_H_START=True используем SIMPLE_DEBUG_H_MODE, чтобы
+    # точечно включать/выключать эвристики для поиска конфликтов.
+    debug_h_start = getattr(settings, "SIMPLE_DEBUG_H_START", False)
+    debug_h_mode = getattr(settings, "SIMPLE_DEBUG_H_MODE", None)
+
+    if not debug_h_start:
+        # Обычный режим: все эвристики включены.
+        ENABLE_SIMPLE_ZERO_PLAN_START_LIMIT = True   # H1
+        ENABLE_SIMPLE_SMALL_START_HEURISTIC = True   # H2
+        ENABLE_SIMPLE_BIG_START_HEURISTIC = True     # H3
+    else:
+        mode = (debug_h_mode or "").upper()
+        # Режимы отладки:
+        #   "NONE" — все H1–H3 выключены
+        #   "H1"   — только H1
+        #   "H2"   — только H2
+        #   "H3"   — только H3
+        #   "H12"  — H1 и H2
+        #   "H123" — H1, H2 и H3 (эквивалент обычного режима)
+        if mode == "NONE":
+            ENABLE_SIMPLE_ZERO_PLAN_START_LIMIT = False
+            ENABLE_SIMPLE_SMALL_START_HEURISTIC = False
+            ENABLE_SIMPLE_BIG_START_HEURISTIC = False
+        elif mode == "H1":
+            ENABLE_SIMPLE_ZERO_PLAN_START_LIMIT = True
+            ENABLE_SIMPLE_SMALL_START_HEURISTIC = False
+            ENABLE_SIMPLE_BIG_START_HEURISTIC = False
+        elif mode == "H2":
+            ENABLE_SIMPLE_ZERO_PLAN_START_LIMIT = False
+            ENABLE_SIMPLE_SMALL_START_HEURISTIC = True
+            ENABLE_SIMPLE_BIG_START_HEURISTIC = False
+        elif mode == "H3":
+            ENABLE_SIMPLE_ZERO_PLAN_START_LIMIT = False
+            ENABLE_SIMPLE_SMALL_START_HEURISTIC = False
+            ENABLE_SIMPLE_BIG_START_HEURISTIC = True
+        elif mode == "H12":
+            ENABLE_SIMPLE_ZERO_PLAN_START_LIMIT = True
+            ENABLE_SIMPLE_SMALL_START_HEURISTIC = True
+            ENABLE_SIMPLE_BIG_START_HEURISTIC = False
+        elif mode == "H123":
+            ENABLE_SIMPLE_ZERO_PLAN_START_LIMIT = True
+            ENABLE_SIMPLE_SMALL_START_HEURISTIC = True
+            ENABLE_SIMPLE_BIG_START_HEURISTIC = True
+        else:
+            # По умолчанию в debug-режиме включаем все эвристики.
+            ENABLE_SIMPLE_ZERO_PLAN_START_LIMIT = True
+            ENABLE_SIMPLE_SMALL_START_HEURISTIC = True
+            ENABLE_SIMPLE_BIG_START_HEURISTIC = True
+
     dedicated_set = set(dedicated_machines or [])
 
     all_machines = range(num_machines)
@@ -1798,6 +1859,14 @@ def create_model_simple(remains: list, products: list, machines: list, cleans: l
     all_products = range(num_products)
 
     proportions_input = [p[1] for p in products]
+
+    # Отслеживаем, какие продукты подпадают под эвристики H1-H3, чтобы
+    # при включённом APPLY_QTY_MINUS не накладывать на них дополнительные
+    # нижние/верхние границы объёма из блока qty_minus (во избежание
+    # дублирования/конфликтов).
+    h1_products: set[int] = set()
+    h2_products: set[int] = set()
+    h3_products: set[int] = set()
 
     # Нормализуем div по продуктам/машинам.
     # product_divs[p]: 1 или 2 — фиксированный цех;
@@ -1813,6 +1882,12 @@ def create_model_simple(remains: list, products: list, machines: list, cleans: l
     for (_, product_idx, m_id, t, remain_day) in machines:
         initial_products.append(product_idx)
 
+    # Флаг: когда включён APPLY_QTY_MINUS, нижние/верхние границы по объёму
+    # задаются через блок qty_minus. В этом случае не накладываем дополнительные
+    # product-уровневые ограничения по H2/H3 (фиксированные объёмы и cap'ы),
+    # чтобы избежать дублирования и жёстких конфликтов.
+    use_qty_minus = bool(getattr(settings, "APPLY_QTY_MINUS", False))
+
     # Продукты с планом qty=0 (по текущему горизонту) — кандидаты на "технические" стартовые коды.
     zero_plan_products: set[int] = set()
     for p_idx in range(1, num_products):
@@ -1826,6 +1901,13 @@ def create_model_simple(remains: list, products: list, machines: list, cleans: l
     zero_plan_machines: set[int] = set(
         m_idx for m_idx, p0 in enumerate(initial_products) if p0 in zero_plan_products
     )
+
+    # Карта: продукт -> список машин, на которых он стоит на начало (день 0).
+    product_to_initial_machines: dict[int, list[int]] = {}
+    for m_idx, p0 in enumerate(initial_products):
+        if p0 <= 0:
+            continue
+        product_to_initial_machines.setdefault(p0, []).append(m_idx)
 
     model = cp_model.CpModel()
 
@@ -1854,24 +1936,279 @@ def create_model_simple(remains: list, products: list, machines: list, cleans: l
         if init_p > 0:
             model.Add(jobs[m, 0] == init_p)
 
-    # Для продуктов с планом qty=0, которые стоят только как начальные,
-    # запрещаем их использование только ПОСЛЕ некоторого дня d_max, рассчитанного
-    # из ограничения не более 3-х переходов в день. Это избегает конфликта с
-    # ограничением по переходам и позволяет постепенно выводить такие продукты.
-    if zero_plan_machines:
-        # Общее количество машин, стартующих на продуктах с планом 0.
+    # 1) Продукты с планом qty=0, которые стоят только как начальные.
+    # Разрешаем их только в первые 1-2 дня, далее на этих машинах продукт
+    # использовать нельзя ("работаем до ближайшей перезаправки").
+    if ENABLE_SIMPLE_ZERO_PLAN_START_LIMIT and zero_plan_machines:
+        # Количество машин с продуктами qty=0 на старте.
         total_zero_start_machines = len(zero_plan_machines)
-        # Максимальный день, после которого такие продукты больше не допускаются.
-        # Формула пользователя: d_max = (N_zero / 3) - 1 (с округлением вверх и ограничением по горизонту).
-        d_max_raw = (total_zero_start_machines + 3 - 1) // 3 - 1
-        d_max = max(0, min(num_days - 1, d_max_raw))
+        # Разрешённое число дней для таких продуктов на каждой машине:
+        # ceil(N_zero / max_daily_prod_zero). Так мы гарантируем, что
+        # суммарного лимита переходов по дням достаточно, чтобы вывести
+        # все машины со стартовых qty=0 продуктов.
+        if max_daily_prod_zero > 0:
+            max_zero_days_per_machine = (total_zero_start_machines + max_daily_prod_zero - 1) // max_daily_prod_zero
+        else:
+            max_zero_days_per_machine = num_days
+        max_zero_days_per_machine = min(num_days, max_zero_days_per_machine)
 
-        for m in zero_plan_machines:
+        # Диагностика для H1: логируем какие именно продукты и машины попадают
+        # под ограничение и каков горизонт.
+        try:
+            logger.info(
+                "SIMPLE H1: zero-plan start products: max_zero_days=%d, num_days=%d, N_zero=%d, max_daily_prod_zero=%d, machines=%s",
+                max_zero_days_per_machine,
+                num_days,
+                total_zero_start_machines,
+                max_daily_prod_zero,
+                list(zero_plan_machines),
+            )
+        except Exception:
+            pass
+
+        for m in sorted(zero_plan_machines):
             p0 = initial_products[m]
-            for d in all_days:
-                if d <= d_max:
-                    continue
+            name_p0 = products[p0][0] if 0 <= p0 < len(products) else f"p{p0}"
+            plan_shifts_p0 = int(proportions_input[p0]) if p0 < len(proportions_input) else 0
+
+            # Проверяем, существует ли вообще хотя бы один совместимый продукт
+            # с индексом > p0 для этой машины. Если нет, то запрещать p0 после
+            # 1-2 дней нельзя, иначе домен станет пустым из-за INDEX_UP/типов/div.
+            has_higher_compatible = False
+            try:
+                machine_type = machines[m][3]
+                m_div = machine_divs[m] if 0 <= m < len(machine_divs) else 1
+                for p in range(p0 + 1, num_products):
+                    product_machine_type_req = products[p][3]
+                    prod_div = product_divs[p] if 0 <= p < len(product_divs) else 0
+                    type_incompatible = (
+                        product_machine_type_req > 0 and machine_type != product_machine_type_req
+                    )
+                    div_incompatible = (
+                        prod_div in (1, 2) and m_div != prod_div
+                    )
+                    if not (type_incompatible or div_incompatible):
+                        has_higher_compatible = True
+                        break
+            except Exception:
+                # В случае ошибки безопаснее не применять жёсткое ограничение.
+                has_higher_compatible = False
+
+            try:
+                logger.info(
+                    "  H1: machine=%d, start_product_idx=%d (%s), plan_shifts=%d, has_higher_compatible=%s",
+                    m,
+                    p0,
+                    name_p0,
+                    plan_shifts_p0,
+                    has_higher_compatible,
+                )
+            except Exception:
+                pass
+
+            if not has_higher_compatible:
+                # Оставляем p0 без ограничения по дням на этой машине.
+                continue
+
+            # Продукт p0 попадает под эвристику H1 (zero-plan start product).
+            h1_products.add(p0)
+
+            # Запрещаем p0 на машине m, начиная с дня max_zero_days_per_machine.
+            for d in range(max_zero_days_per_machine, num_days):
                 model.Add(jobs[m, d] != p0)
+
+    # 2) и 3) Продукты с планом qty>0 и особыми условиями на стартовых станках.
+    # Используем план в сменах и переводим его в дни.
+    small_caps: dict[int, int] = {}
+    shifts_per_day = 3
+    for p in range(1, num_products):
+        plan_shifts = int(proportions_input[p])
+        if plan_shifts <= 0:
+            continue
+        plan_days = (plan_shifts + shifts_per_day - 1) // shifts_per_day
+        machines_for_p = product_to_initial_machines.get(p, [])
+        if not machines_for_p:
+            continue
+
+        # Берём первую машину, на которой продукт стоит на начало.
+        m0 = machines_for_p[0]
+        capacity_days_m0 = num_days
+
+        qty_minus_flag = products[p][4]
+        strategy = products[p][9] if len(products[p]) > 9 else ""
+
+        # 2) Если продукт стартует ровно на одном станке и его план меньше
+        # длины горизонта этого станка, то планируем его только в начале на
+        # этом станке. Для строгих продуктов (qty_minus=0) фиксируем первые
+        # plan_days дней и запрещаем продукт на других станках.
+        #
+        # При включённом APPLY_QTY_MINUS (use_qty_minus=True) дополнительные
+        # product-уровневые нижние/верхние границы по объёмам задаёт блок
+        # qty_minus, поэтому эвристику H2 отключаем, чтобы не дублировать
+        # ограничения и не создавать конфликтов с INDEX_UP и другими лимитами.
+        if (
+            ENABLE_SIMPLE_SMALL_START_HEURISTIC
+            and len(machines_for_p) == 1
+            and plan_days < capacity_days_m0
+        ):
+            # Продукт p подпадает под эвристику H2.
+            h2_products.add(p)
+            # Диагностика для H2: логируем параметры продукта и машины.
+            try:
+                name_p = products[p][0]
+                # Список всех машин, где p стоит на начало
+                m_list = list(machines_for_p)
+                # Подбор всех продуктов, совместимых с m0 по type/div
+                compat_indices: list[int] = []
+                machine_type = machines[m0][3]
+                m_div = machine_divs[m0] if 0 <= m0 < len(machine_divs) else 1
+                for pp in range(1, num_products):
+                    product_machine_type_req = products[pp][3]
+                    prod_div = product_divs[pp] if 0 <= pp < len(product_divs) else 0
+                    type_incompatible = (
+                        product_machine_type_req > 0 and machine_type != product_machine_type_req
+                    )
+                    div_incompatible = (
+                        prod_div in (1, 2) and m_div != prod_div
+                    )
+                    if not (type_incompatible or div_incompatible):
+                        compat_indices.append(pp)
+
+                init_p_m0 = initial_products[m0]
+                compat_lt = [pp for pp in compat_indices if pp < p]
+                compat_eq = [pp for pp in compat_indices if pp == p]
+                compat_gt = [pp for pp in compat_indices if pp > p]
+
+                logger.info(
+                    "SIMPLE H2: small-start candidate p=%d (%s), plan_shifts=%d, plan_days=%d, "
+                    "m0=%d, init_p_m0=%d, machines_for_p=%s, capacity_days_m0=%d, qty_minus_flag=%d, strategy=%s, "
+                    "compat_lt=%s, compat_eq=%s, compat_gt=%s",
+                    p,
+                    name_p,
+                    plan_shifts,
+                    plan_days,
+                    m0,
+                    init_p_m0,
+                    m_list,
+                    capacity_days_m0,
+                    qty_minus_flag,
+                    strategy,
+                    compat_lt,
+                    compat_eq,
+                    compat_gt,
+                )
+            except Exception:
+                pass
+
+            # Строгий продукт: фиксируем первые plan_days дней на m0 ровно p
+            # и запрещаем p на остальных машинах. При этом НЕ запрещаем p на
+            # m0 после plan_days, ограничивая его только через верхний cap
+            # по product_counts[p]. Это уменьшает риск конфликтов с INDEX_UP
+            # и другими ограничениями.
+            if qty_minus_flag == 0:
+                for d in range(min(plan_days, num_days)):
+                    model.Add(jobs[m0, d] == p)
+                for m in all_machines:
+                    if m == m0:
+                        continue
+                    for d in all_days:
+                        model.Add(jobs[m, d] != p)
+
+            # Если план по дням существенно меньше половины горизонта станка,
+            # ограничиваем сверху общее количество дней для p (чтобы избежать
+            # чрезмерной перепланировки). Верхняя граница ~2*plan_days.
+            # Сам cap по product_counts[p] накладывается ниже, после того как
+            # будут созданы переменные product_counts.
+            if plan_days * 2 <= capacity_days_m0:
+                cap_small = max(1, plan_days * 2)
+                try:
+                    logger.info(
+                        "  H2: apply cap for p=%d (%s): cap_small=%d (plan_days=%d, capacity_days_m0=%d)",
+                        p,
+                        products[p][0],
+                        cap_small,
+                        plan_days,
+                        capacity_days_m0,
+                    )
+                except Exception:
+                    pass
+                # Сохраняем кап в словарь, чтобы применить после создания product_counts.
+                small_caps[p] = max(small_caps.get(p, 0), cap_small)
+
+        # 3) Крупные продукты: если есть РОВНО ОДНА машина, на которой этот
+        # продукт стоит на начало (init_p == p), и его план в сменах велик
+        # (порядка >= 70 из 83, т.е. план по дням покрывает ~80% и более
+        # горизонта), и стратегия "=" или "+", то забиваем эту машину
+        # продуктом p на весь горизонт и исключаем p с других машин.
+        #
+        # При включённом APPLY_QTY_MINUS (use_qty_minus=True) объёмные
+        # ограничения реализованы через qty_minus, поэтому H3 (жёсткая
+        # фиксация всего горизонта под p и запрет p на других машинах)
+        # отключается, чтобы не дублировать/усиливать эти ограничения.
+        if (
+            ENABLE_SIMPLE_BIG_START_HEURISTIC
+            and len(machines_for_p) == 1
+            and initial_products[m0] == p
+            and plan_days * 5 >= capacity_days_m0 * 4  # ~80% горизонта
+            and strategy in ("=", "+")
+        ):
+            # Продукт p подпадает под эвристику H3.
+            h3_products.add(p)
+            # Диагностика для H3: логируем параметры продукта и машины и
+            # возможные индексы на m0 с учётом type/div.
+            try:
+                name_p = products[p][0]
+                m_list = list(machines_for_p)
+                compat_indices: list[int] = []
+                machine_type = machines[m0][3]
+                m_div = machine_divs[m0] if 0 <= m0 < len(machine_divs) else 1
+                for pp in range(1, num_products):
+                    product_machine_type_req = products[pp][3]
+                    prod_div = product_divs[pp] if 0 <= pp < len(product_divs) else 0
+                    type_incompatible = (
+                        product_machine_type_req > 0 and machine_type != product_machine_type_req
+                    )
+                    div_incompatible = (
+                        prod_div in (1, 2) and m_div != prod_div
+                    )
+                    if not (type_incompatible or div_incompatible):
+                        compat_indices.append(pp)
+
+                init_p_m0 = initial_products[m0]
+                compat_lt = [pp for pp in compat_indices if pp < p]
+                compat_eq = [pp for pp in compat_indices if pp == p]
+                compat_gt = [pp for pp in compat_indices if pp > p]
+
+                logger.info(
+                    "SIMPLE H3: big-start candidate p=%d (%s), plan_shifts=%d, plan_days=%d, "
+                    "m0=%d, init_p_m0=%d, machines_for_p=%s, capacity_days_m0=%d, qty_minus_flag=%d, strategy=%s, "
+                    "compat_lt=%s, compat_eq=%s, compat_gt=%s",
+                    p,
+                    name_p,
+                    plan_shifts,
+                    plan_days,
+                    m0,
+                    init_p_m0,
+                    m_list,
+                    capacity_days_m0,
+                    qty_minus_flag,
+                    strategy,
+                    compat_lt,
+                    compat_eq,
+                    compat_gt,
+                )
+            except Exception:
+                pass
+
+            # Полное заполнение m0 продуктом p на весь горизонт.
+            for d in all_days:
+                model.Add(jobs[m0, d] == p)
+            # Запрещаем p на других машинах.
+            for m in all_machines:
+                if m == m0:
+                    continue
+                for d in all_days:
+                    model.Add(jobs[m, d] != p)
 
     # ------------ Подсчёт общего количества каждого продукта ------------
     product_produced_bools: dict[tuple[int, int, int], cp_model.BoolVar] = {}
@@ -1890,13 +2227,36 @@ def create_model_simple(remains: list, products: list, machines: list, cleans: l
         model.Add(product_counts[p] == sum(
             product_produced_bools[p, m, d] for m, d in work_days
         ))
+        # Применяем накопленные сверху капы для "маленьких" продуктов, если есть.
+        cap = small_caps.get(p)
+        if cap is not None:
+            model.Add(product_counts[p] <= cap)
 
     # Минимальные объёмы по qty_minus / qty_minus_min (как в create_model),
     # с учётом того, что в SIMPLE product_counts[p] считаются в ДНЯХ, а qty и
     # qty_minus_min заданы в СМЕНАХ. Предполагаем 3 смены в день.
+    #
+    # Для отладки взаимодействия с H1–H3 поддерживаем необязательный фильтр
+    # SIMPLE_QTY_MINUS_SUBSET в settings: если он задан (итерируемое множество
+    # индексов продуктов), то нижние границы по qty_minus применяются только
+    # к этим продуктам.
     if settings.APPLY_QTY_MINUS:
         shifts_per_day = 3
+        debug_subset = getattr(settings, "SIMPLE_QTY_MINUS_SUBSET", None)
+
         for p in range(1, num_products):
+            # Для продуктов, которые уже жёстко ограничены эвристиками H1-H3,
+            # НЕ накладываем дополнительные нижние/верхние границы по объёму
+            # из блока qty_minus, чтобы избежать дублирования и возможных
+            # конфликтов.
+            if p in h1_products or p in h2_products or p in h3_products:
+                continue
+
+            # Если задан отладочный поднабор продуктов, применяем qty_minus
+            # только к нему.
+            if debug_subset is not None and p not in debug_subset:
+                continue
+
             qty_shifts = int(products[p][1])
             if qty_shifts <= 0:
                 continue

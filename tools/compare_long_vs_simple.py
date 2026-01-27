@@ -86,13 +86,13 @@ def main():
     input_path = settings.TEST_INPUT_FILE or base / "example" / "test_in.json"
     data, machines, products, cleans, remains = load_input(Path(input_path))
 
-    # Три сценария:
-    # 1) LONG + линейный штраф за превышение (OVER)
-    # 2) LONG_SIMPLE + линейный штраф за превышение (LS_OVER)
-    # 3) LONG_SIMPLE + пропорциональный алгоритм через умножение (LS_PROP)
+    # В этих экспериментах qty_minus явно включаем.
+    settings.APPLY_QTY_MINUS = True
+
+    # Два сценария:
+    # 1) LONG_SIMPLE + линейный штраф за превышение (LS_OVER)
+    # 2) LONG_SIMPLE + пропорциональный алгоритм через умножение (LS_PROP)
     scenarios = [
-        # LONG с линейным over-штрафом (оставляем для ориентира)
-        ("LONG_OVER", "LONG", {"APPLY_OVERPENALTY_INSTEAD_OF_PROP": True, "SIMPLE_USE_PROP_MULT": False}),
         # SIMPLE без внутренней пропорциональной цели (жёсткие верхние лимиты + простой + стратегии)
         ("LS_OVER", "LONG_SIMPLE", {"APPLY_OVERPENALTY_INSTEAD_OF_PROP": False, "SIMPLE_USE_PROP_MULT": False}),
         # SIMPLE с полной пропорциональной целью через умножение (для сравнения)
@@ -150,33 +150,13 @@ def main():
                 pen = per_prod_penalty.get(idx, 0)
                 print(f"{idx}\t{name}\t{plan}\t{fact}\t{pen}")
 
-    # Краткое сравнение по тем же индексам для первых двух сценариев (LONG_OVER vs LS_OVER)
-    print("\n=== Сравнение LONG_OVER vs LS_OVER (plan, fact_L, fact_LS, dL, dLS) ===")
-    print("idx\tname\tplan\tfact_L\tfact_LS\tdL\tdLS")
-    stats_L = all_stats.get("LONG_OVER", {}).get("stats", {})
-    stats_LS = all_stats.get("LS_OVER", {}).get("stats", {})
-    for idx, prod in enumerate(data["products"]):
-        if idx == 0:
-            continue
-        name = prod["name"]
-        sL = stats_L.get(idx)
-        sS = stats_LS.get(idx)
-        if not sL and not sS:
-            continue
-        plan = sL["plan"] if sL else (sS["plan"] if sS else 0)
-        fact_L = sL["fact"] if sL else 0
-        fact_S = sS["fact"] if sS else 0
-        dL = fact_L - plan
-        dS = fact_S - plan
-        print(f"{idx}\t{name}\t{plan}\t{fact_L}\t{fact_S}\t{dL}\t{dS}")
-
     # --- Вторая серия: только LS_OVER и LS_PROP с увеличенным лимитом времени ---
-    print("\n=== Повторный запуск LS_OVER и LS_PROP при LOOM_MAX_TIME=1800 ===")
-    settings.LOOM_MAX_TIME = 1800
+    print("\n=== Повторный запуск LS_OVER и LS_PROP при LOOM_MAX_TIME=600 ===")
+    settings.LOOM_MAX_TIME = 600
 
     ls_scenarios = [
-        ("LS_OVER_T1800", "LONG_SIMPLE", {"APPLY_OVERPENALTY_INSTEAD_OF_PROP": False, "SIMPLE_USE_PROP_MULT": False}),
-        ("LS_PROP_T1800", "LONG_SIMPLE", {"APPLY_OVERPENALTY_INSTEAD_OF_PROP": False, "SIMPLE_USE_PROP_MULT": True}),
+        ("LS_OVER_T600", "LONG_SIMPLE", {"APPLY_OVERPENALTY_INSTEAD_OF_PROP": False, "SIMPLE_USE_PROP_MULT": False}),
+        ("LS_PROP_T600", "LONG_SIMPLE", {"APPLY_OVERPENALTY_INSTEAD_OF_PROP": False, "SIMPLE_USE_PROP_MULT": True}),
     ]
 
     for label, horizon_mode, flags in ls_scenarios:
