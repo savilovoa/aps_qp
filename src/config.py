@@ -87,6 +87,16 @@ class Settings(BaseSettings):
         description="Подмножество индексов продуктов для применения qty_minus в LONG_SIMPLE (отладка)",
     )
 
+    # Отладка емкости для конкретного продукта в LONG_SIMPLE: если задан индекс,
+    # то в SIMPLE вместо обычной цели максимизируем product_counts[idx].
+    SIMPLE_DEBUG_MAXIMIZE_PRODUCT_IDX: int | None = Field(
+        default=None,
+        description=(
+            "Если не None, в LONG_SIMPLE используем цель Maximize(product_counts[idx]) "
+            "для оценки максимальной емкости по этому продукту."
+        ),
+    )
+
 settings = Settings()
 
 log_path = settings.BASE_DIR + "/log"

@@ -2243,6 +2243,7 @@ def create_model_simple(remains: list, products: list, machines: list, cleans: l
     if settings.APPLY_QTY_MINUS:
         shifts_per_day = 3
         debug_subset = getattr(settings, "SIMPLE_QTY_MINUS_SUBSET", None)
+        debug_max_idx = getattr(settings, "SIMPLE_DEBUG_MAXIMIZE_PRODUCT_IDX", None)
 
         for p in range(1, num_products):
             # Для продуктов, которые уже жёстко ограничены эвристиками H1-H3,
@@ -2255,6 +2256,13 @@ def create_model_simple(remains: list, products: list, machines: list, cleans: l
             # Если задан отладочный поднабор продуктов, применяем qty_minus
             # только к нему.
             if debug_subset is not None and p not in debug_subset:
+                continue
+
+            # Если мы в режиме отладки максимально допустимого объёма для
+            # конкретного продукта (SIMPLE_DEBUG_MAXIMIZE_PRODUCT_IDX), не
+            # накладываем на него нижнюю границу qty_minus, чтобы модель
+            # могла свободно выбирать объём и мы могли его максимизировать.
+            if debug_max_idx is not None and p == debug_max_idx:
                 continue
 
             qty_shifts = int(products[p][1])
@@ -2452,29 +2460,37 @@ def create_model_simple(remains: list, products: list, machines: list, cleans: l
     # без умножения на объём плана, чтобы "1 простой" имел понятный вес.
     downtime_penalty = max(2, settings.KFZ_DOWNTIME_PENALTY)
 
-    objective_terms: list[cp_model.LinearExpr] = []
-    # В SIMPLE пропорциональную часть в целевой функции не используем:
-    # proportion_objective_terms всегда пустой, оценка пропорций выполняется внешне.
-
-    # Штраф за переходы: каждое изменение продукта считается примерно как
-    # простой, но вес делаем мягче, чем KFZ_DOWNTIME_PENALTY, чтобы пропорции
-    # не ломались слишком сильно. Берём половину KFZ (минимум 1).
-    if 'total_changes' in locals() and total_changes is not None:
-        transitions_weight = max(1, settings.KFZ_DOWNTIME_PENALTY // 2)
-        objective_terms.append(total_changes * transitions_weight)
-
-    # В текущей версии SIMPLE не штрафуем отдельный PRODUCT_ZERO: простои
-    # будут учитываться внешними метриками и стратегиями. Внутри модели
-    # оставляем только стратегические штрафы (по необходимости).
-    if settings.APPLY_STRATEGY_PENALTY and strategy_objective_terms:
-        objective_terms.append(sum(strategy_objective_terms))
-
-    # Если штрафов нет, минимизируем константу 0, чтобы модель была чисто
-    # выполнимостной.
-    if objective_terms:
-        model.Minimize(sum(objective_terms))
+    # Отладка: если SIMPLE_DEBUG_MAXIMIZE_PRODUCT_IDX задан, вместо обычной
+    # цели минимизации штрафов максимизируем product_counts[idx], чтобы
+    # оценить максимально достижимый объём этого продукта при всех текущих
+    # ограничениях.
+    debug_max_idx = getattr(settings, "SIMPLE_DEBUG_MAXIMIZE_PRODUCT_IDX", None)
+    if debug_max_idx is not None and 0 <= debug_max_idx < len(product_counts):
+        model.Maximize(product_counts[debug_max_idx])
     else:
-        model.Minimize(0)
+        objective_terms: list[cp_model.LinearExpr] = []
+        # В SIMPLE пропорциональную часть в целевой функции не используем:
+        # proportion_objective_terms всегда пустой, оценка пропорций выполняется внешне.
+
+        # Штраф за переходы: каждое изменение продукта считается примерно как
+        # простой, но вес делаем мягче, чем KFZ_DOWNTIME_PENАЛTY, чтобы пропорции
+        # не ломались слишком сильно. Берём половину KFZ (минимум 1).
+        if 'total_changes' in locals() and total_changes is not None:
+            transitions_weight = max(1, settings.KFZ_DOWNTIME_PENALTY // 2)
+            objective_terms.append(total_changes * transitions_weight)
+
+        # В текущей версии SIMPLE не штрафуем отдельный PRODUCT_ZERO: простои
+        # будут учитываться внешними метриками и стратегиями. Внутри модели
+        # оставляем только стратегические штрафы (по необходимости).
+        if settings.APPLY_STRATEGY_PENALTY and strategy_objective_terms:
+            objective_terms.append(sum(strategy_objective_terms))
+
+        # Если штрафов нет, минимизируем константу 0, чтобы модель была чисто
+        # выполнимостной.
+        if objective_terms:
+            model.Minimize(sum(objective_terms))
+        else:
+            model.Minimize(0)
 
     # Для совместимости с solver_result возвращаем пустые словари для lday/переходов.
     prev_lday: dict = {}
