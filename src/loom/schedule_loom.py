@@ -1094,6 +1094,57 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
     id_to_new_idx_map = products_df_new.set_index("id")["idx"].to_dict()
     machines_df["product_idx"] = machines_df["product_id"].map(id_to_new_idx_map)
 
+    # Для режима LONG_SIMPLE внутренние индексы продуктов (0..num_products_new-1)
+    # могут отличаться от исходных idx в JSON. Для отладочных флагов, которые
+    # ссылаются на продукты по исходному индексу (SIMPLE_DEBUG_MAXIMIZE_PRODUCT_IDX,
+    # SIMPLE_DEBUG_PRODUCT_UPPER_CAPS), выполним переотображение idx_orig -> idx_internal
+    # через поле id продукта.
+    horizon_mode_local = getattr(settings, "HORIZON_MODE", "FULL").upper()
+    if horizon_mode_local == "LONG_SIMPLE":
+        # Строим карту: исходный idx -> id
+        orig_idx_to_id: dict[int, str] = {}
+        for _, row in products_df.iterrows():
+            try:
+                orig_idx = int(row["idx"])
+                pid = row["id"]
+            except Exception:
+                continue
+            orig_idx_to_id[orig_idx] = pid
+
+        # Обратная карта: id -> внутренний idx (уже есть в id_to_new_idx_map).
+        def orig_to_internal_idx(orig_idx: int) -> int | None:
+            pid = orig_idx_to_id.get(orig_idx)
+            if pid is None:
+                return None
+            return int(id_to_new_idx_map.get(pid)) if pid in id_to_new_idx_map else None
+
+        # Переотображаем SIMPLE_DEBUG_MAXIMIZE_PRODUCT_IDX, если задан.
+        dbg_max = getattr(settings, "SIMPLE_DEBUG_MAXIMIZE_PRODUCT_IDX", None)
+        if dbg_max is not None:
+            try:
+                dbg_max_int = int(dbg_max)
+            except Exception:
+                dbg_max_int = None
+            if dbg_max_int is not None:
+                internal = orig_to_internal_idx(dbg_max_int)
+                if internal is not None:
+                    settings.SIMPLE_DEBUG_MAXIMIZE_PRODUCT_IDX = internal
+
+        # Переотображаем SIMPLE_DEBUG_PRODUCT_UPPER_CAPS: ключи – исходные idx.
+        dbg_caps = getattr(settings, "SIMPLE_DEBUG_PRODUCT_UPPER_CAPS", None)
+        if dbg_caps is not None:
+            new_caps: dict[int, int] = {}
+            for orig_idx, cap in dbg_caps.items():
+                try:
+                    orig_idx_int = int(orig_idx)
+                except Exception:
+                    continue
+                internal = orig_to_internal_idx(orig_idx_int)
+                if internal is None:
+                    continue
+                new_caps[internal] = int(cap)
+            settings.SIMPLE_DEBUG_PRODUCT_UPPER_CAPS = new_caps
+
     # Цеха по машинам/продуктам: div=1 или 2 – фиксированный цех, 0 –
     # "плавающий" продукт (можно в любом цехе), None/отсутствие – игнорируем.
     if "div" in products_df_new.columns:
@@ -2020,7 +2071,20 @@ def create_model_simple(remains: list, products: list, machines: list, cleans: l
     # 2) и 3) Продукты с планом qty>0 и особыми условиями на стартовых станках.
     # Используем план в сменах и переводим его в дни.
     small_caps: dict[int, int] = {}
+    # Дополнительные капы для "маленьких" строгих продуктов (qty_minus=0,
+    # план < 0.5 машино-периода): ограничиваем сверху примерно план + 1 смена.
+    # Кап храним в ДНЯХ (product_counts[p]); связь с планом в сменах учитываем
+    # через округление по модулю shifts_per_day.
+    strict_small_caps_days: dict[int, int] = {}
+    # Глобальные капы для всех продуктов с небольшим планом (qty < 0.7 * машино-период):
+    # ограничиваем сверху plan_days + 2 дня (с учётом округлений и qty_minus_min).
+    global_small_caps_days: dict[int, int] = {}
+
     shifts_per_day = 3
+    half_machine_period_shifts = (num_days * shifts_per_day) // 2
+    capacity_shifts_one_machine = num_days * shifts_per_day
+    small_plan_threshold_shifts = int(0.7 * capacity_shifts_one_machine)
+
     for p in range(1, num_products):
         plan_shifts = int(proportions_input[p])
         if plan_shifts <= 0:
@@ -2036,6 +2100,22 @@ def create_model_simple(remains: list, products: list, machines: list, cleans: l
 
         qty_minus_flag = products[p][4]
         strategy = products[p][9] if len(products[p]) > 9 else ""
+
+        # Глобальный кап для всех продуктов с небольшим планом: qty < 0.7 * машино-период.
+        # Кап задаётся по дням как plan_days + 2, но не ниже, чем минимальный объём
+        # по qty_minus_min (если он есть), чтобы не создать противоречий с нижней границей.
+        if plan_shifts > 0 and plan_shifts < small_plan_threshold_shifts:
+            qty_minus_min_shifts = int(products[p][7]) if len(products[p]) > 7 else 0
+            if qty_minus_min_shifts > 0:
+                min_days_global = (qty_minus_min_shifts + shifts_per_day - 1) // shifts_per_day
+            else:
+                min_days_global = 0
+            cap_days_global = plan_days + 2
+            if min_days_global > 0 and cap_days_global < min_days_global:
+                cap_days_global = min_days_global
+            prev_cap_g = global_small_caps_days.get(p)
+            if prev_cap_g is None or cap_days_global < prev_cap_g:
+                global_small_caps_days[p] = cap_days_global
 
         # 2) Если продукт стартует ровно на одном станке и его план меньше
         # длины горизонта этого станка, то планируем его только в начале на
@@ -2053,6 +2133,21 @@ def create_model_simple(remains: list, products: list, machines: list, cleans: l
         ):
             # Продукт p подпадает под эвристику H2.
             h2_products.add(p)
+
+            # Для строгих продуктов с маленьким планом (qty_minus=0 и объём меньше
+            # половины машино-периода) закладываем общий верхний кап в сменах:
+            # fact_shifts <= plan_shifts + 1. Важно, что это сработает и тогда,
+            # когда H2 выключает ограничения qty_minus для этого продукта.
+            if qty_minus_flag == 0 and plan_shifts < half_machine_period_shifts:
+                # Переводим условие "план + 1 смена" в дни. При агрегировании 3 смен
+                # в 1 день точное ограничение по сменам может конфликтовать с
+                # округлением, поэтому берём верхнюю границу по дням:
+                #   max_days = plan_days (+1 день, если план ровно кратен 3 сменам).
+                extra_day = 1 if (plan_shifts % shifts_per_day == 0) else 0
+                cap_days = plan_days + extra_day
+                prev_cap = strict_small_caps_days.get(p)
+                if prev_cap is None or cap_days < prev_cap:
+                    strict_small_caps_days[p] = cap_days
             # Диагностика для H2: логируем параметры продукта и машины.
             try:
                 name_p = products[p][0]
@@ -2223,14 +2318,31 @@ def create_model_simple(remains: list, products: list, machines: list, cleans: l
     product_counts: list[cp_model.IntVar] = [
         model.NewIntVar(0, num_machines * num_days, f"count_prod_simple_{p}") for p in all_products
     ]
+
+    debug_upper_caps = getattr(settings, "SIMPLE_DEBUG_PRODUCT_UPPER_CAPS", None)
+
     for p in range(1, num_products):
         model.Add(product_counts[p] == sum(
             product_produced_bools[p, m, d] for m, d in work_days
         ))
-        # Применяем накопленные сверху капы для "маленьких" продуктов, если есть.
+        # Применяем накопленные сверху капы для "маленьких" продуктов (эвристика H2), если есть.
         cap = small_caps.get(p)
         if cap is not None:
             model.Add(product_counts[p] <= cap)
+        # Отладочные верхние границы для конкретных продуктов.
+        if debug_upper_caps is not None and p in debug_upper_caps:
+            cap_dbg = debug_upper_caps[p]
+            model.Add(product_counts[p] <= cap_dbg)
+        # Дополнительный кап для строгих маленьких продуктов (qty_minus=0, план < 0.5 машино-периода):
+        # фактический объём в ДНЯХ не должен превышать рассчитанный cap_days
+        # (приблизительно соответствует плану + 1 смена с учётом округления).
+        max_days_cap = strict_small_caps_days.get(p)
+        if max_days_cap is not None:
+            model.Add(product_counts[p] <= max_days_cap)
+        # Глобальный кап для всех продуктов с небольшим планом (qty < 0.7 * машино-период):
+        max_days_cap_global = global_small_caps_days.get(p)
+        if max_days_cap_global is not None:
+            model.Add(product_counts[p] <= max_days_cap_global)
 
     # Минимальные объёмы по qty_minus / qty_minus_min (как в create_model),
     # с учётом того, что в SIMPLE product_counts[p] считаются в ДНЯХ, а qty и
@@ -2336,6 +2448,8 @@ def create_model_simple(remains: list, products: list, machines: list, cleans: l
     # Жёсткое ограничение на количество переходов (смен продуктов) в день.
     # Переход считаем, если на машине m в день d продукт отличается от дня d-1.
     change_bools: dict[tuple[int, int], cp_model.BoolVar] = {}
+    simple_disable_index_up = getattr(settings, "SIMPLE_DISABLE_INDEX_UP", False)
+
     for m in all_machines:
         for d in range(1, num_days):
             ch = model.NewBoolVar(f"change_simple_{m}_{d}")
@@ -2345,7 +2459,7 @@ def create_model_simple(remains: list, products: list, machines: list, cleans: l
             model.Add(jobs[m, d] == jobs[m, d - 1]).OnlyEnforceIf(ch.Not())
             # Бизнес-логика "индекс только вверх": при переходе индекс продукта
             # должен увеличиваться (как в LONG-модели).
-            if settings.APPLY_INDEX_UP:
+            if settings.APPLY_INDEX_UP and not simple_disable_index_up:
                 model.Add(jobs[m, d] > jobs[m, d - 1]).OnlyEnforceIf(ch)
 
     for d in all_days:
@@ -2353,6 +2467,37 @@ def create_model_simple(remains: list, products: list, machines: list, cleans: l
         if not day_changes:
             continue
         model.Add(sum(day_changes) <= max_daily_prod_zero)
+
+    # --- Ограничение: на каждой машине каждый продукт может образовывать не
+    # более одного непрерывного блока (сегмента). Это запрещает паттерны
+    # p -> q -> p на одной машине, но не навязывает глобальный порядок индексов
+    # как INDEX_UP.
+    start_seg: dict[tuple[int, int, int], cp_model.BoolVar] = {}
+
+    for p in range(1, num_products):
+        for m in all_machines:
+            for d in all_days:
+                if d == 0:
+                    # start_seg[p,m,0] = (jobs[m,0] == p)
+                    b0 = product_produced_bools[p, m, 0]
+                    start_seg[p, m, 0] = b0
+                else:
+                    b_cur = product_produced_bools[p, m, d]
+                    b_prev = product_produced_bools[p, m, d - 1]
+                    s = model.NewBoolVar(f"start_seg_p{p}_m{m}_d{d}")
+                    start_seg[p, m, d] = s
+                    # s >= b_cur - b_prev
+                    model.Add(s >= b_cur - b_prev)
+                    # s <= b_cur
+                    model.Add(s <= b_cur)
+                    # s <= 1 - b_prev
+                    model.Add(s <= 1 - b_prev)
+
+            # На машине m для продукта p суммарное количество стартов сегментов не
+            # превышает 1.
+            seg_starts = [start_seg[p, m, d] for d in all_days]
+            if seg_starts:
+                model.Add(sum(seg_starts) <= 1)
 
     # Считаем общее количество переходов по всем машинам и дням, чтобы
     # при необходимости штрафовать их в целевой функции.
@@ -2368,11 +2513,51 @@ def create_model_simple(remains: list, products: list, machines: list, cleans: l
     total_products_count = model.NewIntVar(0, num_machines * num_days, "total_products_count_simple")
     model.Add(total_products_count == sum(product_counts[p] for p in range(1, len(products))))
 
-    # Внутреннюю пропорциональную цель в SIMPLE не используем: вся оценка по пропорциям
-    # выполняется внешне (в tools/compare_long_vs_simple.py).
+    # Внутренняя цель по пропорциям для LONG_SIMPLE (SIMPLE) в LS_OVER:
+    # линейный штраф за отклонение факта от плана по каждому продукту в ДНЯХ,
+    # |fact_days - plan_days|. План в сменах (qty) переводим в дни через ceil(qty/3).
+    #
+    # Цель включается, только если APPLY_PROP_OBJECTIVE=True и SIMPLE_USE_PROP_MULT=False
+    # (LS_OVER-сценарий). При SIMPLE_USE_PROP_MULT=True (LS_PROP) внутренняя
+    # пропорциональная цель в этой ветке не задаётся: пропорции оцениваются снаружи.
     proportion_objective_terms: list[cp_model.IntVar] = []
-    total_input_quantity = 0
     total_input_max = max(proportions_input) if proportions_input else 0
+
+    use_prop_objective = bool(getattr(settings, "APPLY_PROP_OBJECTIVE", False))
+    use_prop_mult = bool(getattr(settings, "SIMPLE_USE_PROP_MULT", False))
+
+    if use_prop_objective and not use_prop_mult:
+        shifts_per_day = 3
+        max_days = num_machines * num_days
+        # Создаём по одной переменной штрафа на каждый продукт p>=1;
+        # индекс в списке proportion_objective_terms совпадает с p-1, чтобы
+        # solver_result мог корректно восстановить penalty по p.
+        for p in range(1, num_products):
+            pen = model.NewIntVar(0, max_days, f"prop_simple_pen_{p}")
+            proportion_objective_terms.append(pen)
+
+            plan_shifts = int(proportions_input[p]) if p < len(proportions_input) else 0
+            if plan_shifts <= 0:
+                # Для продуктов без плана внутренний пропорциональный штраф = 0.
+                model.Add(pen == 0)
+                continue
+
+            plan_days = (plan_shifts + shifts_per_day - 1) // shifts_per_day
+            # diff = fact_days - plan_days
+            diff = model.NewIntVar(-max_days, max_days, f"prop_simple_diff_{p}")
+            model.Add(diff == product_counts[p] - plan_days)
+            # abs_diff = |diff| = |fact_days - plan_days|
+            abs_diff = model.NewIntVar(0, max_days, f"prop_simple_abs_{p}")
+            model.AddAbsEquality(abs_diff, diff)
+
+            # Пока используем единичный вес для всех продуктов; масштаб можно
+            # настраивать через KFZ_DOWNTIME_PENALTY (см. ниже при сборке цели).
+            model.Add(pen == abs_diff)
+    else:
+        # В режиме SIMPLE_USE_PROP_MULT (LS_PROP) внутренняя пропорциональная цель
+        # здесь не задаётся: proportion_objective_terms остаётся пустым, а
+        # внешний пропорциональный штраф считается в анализирующих скриптах.
+        proportion_objective_terms = []
 
     # ------------ Стратегии по продуктам (по аналогии с create_model_long) ------------
     strategy_objective_terms: list[cp_model.IntVar] = []
@@ -2469,11 +2654,14 @@ def create_model_simple(remains: list, products: list, machines: list, cleans: l
         model.Maximize(product_counts[debug_max_idx])
     else:
         objective_terms: list[cp_model.LinearExpr] = []
-        # В SIMPLE пропорциональную часть в целевой функции не используем:
-        # proportion_objective_terms всегда пустой, оценка пропорций выполняется внешне.
+
+        # Линейная цель LS_OVER по пропорциям: суммарный |fact_days - plan_days|
+        # по всем продуктам, если APPLY_PROP_OBJECTIVE=True и SIMPLE_USE_PROP_MULT=False.
+        if proportion_objective_terms:
+            objective_terms.append(sum(proportion_objective_terms))
 
         # Штраф за переходы: каждое изменение продукта считается примерно как
-        # простой, но вес делаем мягче, чем KFZ_DOWNTIME_PENАЛTY, чтобы пропорции
+        # простой, но вес делаем мягче, чем KFZ_DOWNTIME_PENALTY, чтобы пропорции
         # не ломались слишком сильно. Берём половину KFZ (минимум 1).
         if 'total_changes' in locals() and total_changes is not None:
             transitions_weight = max(1, settings.KFZ_DOWNTIME_PENALTY // 2)
@@ -3226,10 +3414,14 @@ def solver_result(
 
         diff_all += penalty_prop
         qty_model = solver.Value(product_counts[p])
-        # В LONG-режиме каждая модельная смена представляет 2 фактические,
-        # поэтому для статистики умножаем qty на 2 (приближённо, без учёта clean).
+        # Для статистики qty интерпретируем в СМЕНАХ:
+        # - в LONG: 1 модельный день = 2 фактическим сменам;
+        # - в LONG_SIMPLE: 1 модельный день = 3 фактическим сменам;
+        # - в FULL/SHORT: qty_model уже считается в фактических сменах.
         if long_mode:
             qty = qty_model * 2
+        elif simple_mode:
+            qty = qty_model * 3
         else:
             qty = qty_model
 

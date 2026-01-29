@@ -1,0 +1,1373 @@
+{
+"machines": [
+{
+"idx": 0,
+"name": "ТС Тойота №104",
+"product_idx": 25,
+"id": "798b5811-abfa-11ec-80e0-005056aac628",
+"type": 1,
+"remain_day": 0,
+"reserve": 0,
+"div": 2
+},
+{
+"idx": 1,
+"name": "ТС Тойота №105",
+"product_idx": 27,
+"id": "798b581c-abfa-11ec-80e0-005056aac628",
+"type": 1,
+"remain_day": 0,
+"reserve": 0,
+"div": 2
+},
+{
+"idx": 2,
+"name": "ТС Тойота №115",
+"product_idx": 25,
+"id": "b283054f-abfa-11ec-80e0-005056aac628",
+"type": 1,
+"remain_day": 0,
+"reserve": 0,
+"div": 2
+},
+{
+"idx": 3,
+"name": "ТС Тойота №116",
+"product_idx": 15,
+"id": "b2830550-abfa-11ec-80e0-005056aac628",
+"type": 0,
+"remain_day": 0,
+"reserve": 0,
+"div": 2
+},
+{
+"idx": 4,
+"name": "ТС Тойота №119",
+"product_idx": 7,
+"id": "c11b8cb5-abfa-11ec-80e0-005056aac628",
+"type": 0,
+"remain_day": 0,
+"reserve": 0,
+"div": 2
+},
+{
+"idx": 5,
+"name": "ТС Тойота №121",
+"product_idx": 23,
+"id": "c8696e59-abfa-11ec-80e0-005056aac628",
+"type": 1,
+"remain_day": 0,
+"reserve": 0,
+"div": 2
+},
+{
+"idx": 6,
+"name": "ТС Тойота №122",
+"product_idx": 8,
+"id": "c8696e5a-abfa-11ec-80e0-005056aac628",
+"type": 0,
+"remain_day": 0,
+"reserve": 0,
+"div": 2
+},
+{
+"idx": 7,
+"name": "ТС Тойота №123",
+"product_idx": 1,
+"id": "cf58caa2-abfa-11ec-80e0-005056aac628",
+"type": 0,
+"remain_day": 0,
+"reserve": 0,
+"div": 2
+},
+{
+"idx": 8,
+"name": "ТС Тойота №124",
+"product_idx": 1,
+"id": "cf58caa4-abfa-11ec-80e0-005056aac628",
+"type": 0,
+"remain_day": 0,
+"reserve": 0,
+"div": 2
+},
+{
+"idx": 9,
+"name": "ТС Тойота №125",
+"product_idx": 2,
+"id": "e05486a2-abfa-11ec-80e0-005056aac628",
+"type": 0,
+"remain_day": 0,
+"reserve": 0,
+"div": 2
+},
+{
+"idx": 10,
+"name": "ТС Тойота №126",
+"product_idx": 2,
+"id": "e05486a4-abfa-11ec-80e0-005056aac628",
+"type": 0,
+"remain_day": 0,
+"reserve": 0,
+"div": 2
+},
+{
+"idx": 11,
+"name": "ТС Тойота №127",
+"product_idx": 10,
+"id": "e8b7876d-abfa-11ec-80e0-005056aac628",
+"type": 0,
+"remain_day": 0,
+"reserve": 0,
+"div": 2
+},
+{
+"idx": 12,
+"name": "ТС Тойота №128",
+"product_idx": 10,
+"id": "e8b7876e-abfa-11ec-80e0-005056aac628",
+"type": 0,
+"remain_day": 0,
+"reserve": 0,
+"div": 2
+},
+{
+"idx": 13,
+"name": "ТС Тойота №133",
+"product_idx": 23,
+"id": "06dd754d-abfb-11ec-80e0-005056aac628",
+"type": 1,
+"remain_day": 0,
+"reserve": 0,
+"div": 2
+},
+{
+"idx": 14,
+"name": "ТС Тойота №134",
+"product_idx": 9,
+"id": "06dd754e-abfb-11ec-80e0-005056aac628",
+"type": 0,
+"remain_day": 0,
+"reserve": 0,
+"div": 2
+},
+{
+"idx": 15,
+"name": "ТС Тойота №135",
+"product_idx": 9,
+"id": "945d9886-b16c-11ec-80e2-005056aa1736",
+"type": 0,
+"remain_day": 0,
+"reserve": 0,
+"div": 2
+},
+{
+"idx": 16,
+"name": "ТС Тойота №137",
+"product_idx": 24,
+"id": "9d3ea9f9-b16c-11ec-80e2-005056aa1736",
+"type": 0,
+"remain_day": 0,
+"reserve": 0,
+"div": 2
+},
+{
+"idx": 17,
+"name": "ТС Тойота №139",
+"product_idx": 3,
+"id": "a4477be2-b16c-11ec-80e2-005056aa1736",
+"type": 0,
+"remain_day": 0,
+"reserve": 0,
+"div": 2
+},
+{
+"idx": 18,
+"name": "ТС Тойота №140",
+"product_idx": 6,
+"id": "a4477be3-b16c-11ec-80e2-005056aa1736",
+"type": 1,
+"remain_day": 0,
+"reserve": 0,
+"div": 2
+},
+{
+"idx": 19,
+"name": "ТС Тойота №141",
+"product_idx": 6,
+"id": "ab27292b-b16c-11ec-80e2-005056aa1736",
+"type": 1,
+"remain_day": 0,
+"reserve": 0,
+"div": 2
+},
+{
+"idx": 20,
+"name": "ТС Тойота №20",
+"product_idx": 13,
+"id": "fbc4c37e-8087-11ea-80cc-005056aab926",
+"type": 0,
+"remain_day": 0,
+"reserve": 0,
+"div": 1
+},
+{
+"idx": 21,
+"name": "ТС Тойота №29",
+"product_idx": 5,
+"id": "fbc4c387-8087-11ea-80cc-005056aab926",
+"type": 0,
+"remain_day": 0,
+"reserve": 0,
+"div": 1
+},
+{
+"idx": 22,
+"name": "ТС Тойота №34",
+"product_idx": 13,
+"id": "fbc4c38c-8087-11ea-80cc-005056aab926",
+"type": 0,
+"remain_day": 0,
+"reserve": 0,
+"div": 1
+},
+{
+"idx": 23,
+"name": "ТС Тойота №35",
+"product_idx": 17,
+"id": "fbc4c38d-8087-11ea-80cc-005056aab926",
+"type": 0,
+"remain_day": 0,
+"reserve": 0,
+"div": 1
+},
+{
+"idx": 24,
+"name": "ТС Тойота №57",
+"product_idx": 22,
+"id": "fbc4c3a3-8087-11ea-80cc-005056aab926",
+"type": 0,
+"remain_day": 0,
+"reserve": 0,
+"div": 1
+},
+{
+"idx": 25,
+"name": "ТС Тойота №6",
+"product_idx": 14,
+"id": "fbc4c370-8087-11ea-80cc-005056aab926",
+"type": 0,
+"remain_day": 0,
+"reserve": 0,
+"div": 1
+},
+{
+"idx": 26,
+"name": "ТС Тойота №70",
+"product_idx": 4,
+"id": "fbc4c3b0-8087-11ea-80cc-005056aab926",
+"type": 0,
+"remain_day": 0,
+"reserve": 0,
+"div": 1
+},
+{
+"idx": 27,
+"name": "ТС Тойота №95",
+"product_idx": 23,
+"id": "450b8a00-abfa-11ec-80e0-005056aac628",
+"type": 1,
+"remain_day": 0,
+"reserve": 0,
+"div": 2
+},
+{
+"idx": 28,
+"name": "ТС Тойота №96",
+"product_idx": 0,
+"id": "53bec441-abfa-11ec-80e0-005056aac628",
+"type": 0,
+"remain_day": 0,
+"reserve": 0,
+"div": 2
+},
+{
+"idx": 29,
+"name": "ТС Тойота №97",
+"product_idx": 0,
+"id": "5af9b5d8-abfa-11ec-80e0-005056aac628",
+"type": 0,
+"remain_day": 0,
+"reserve": 0,
+"div": 2
+},
+{
+"idx": 30,
+"name": "ТС Тойота №98",
+"product_idx": 0,
+"id": "5af9b5d9-abfa-11ec-80e0-005056aac628",
+"type": 0,
+"remain_day": 0,
+"reserve": 1,
+"div": 2
+}
+],
+"products": [
+{
+"idx": 0,
+"name": "",
+"qty": 0,
+"id": "",
+"machine_type": 0,
+"qty_minus": 0,
+"lday": 0,
+"src_root": -1,
+"qty_minus_min": 0,
+"sr": 0,
+"strategy": "=",
+"div": null
+},
+{
+"idx": 1,
+"name": "ст60406амt21 ",
+"qty": 0,
+"id": "18afd257-d956-493d-9318-bca08eeb94e2",
+"machine_type": 0,
+"qty_minus": 0,
+"lday": 0,
+"src_root": -1,
+"qty_minus_min": 0,
+"sr": 0,
+"strategy": "--",
+"div": 2
+},
+{
+"idx": 2,
+"name": "ст10427амRSt2 ",
+"qty": 0,
+"id": "f7e6e224-9d41-4b8d-82e1-4c74bbdb57b4",
+"machine_type": 0,
+"qty_minus": 0,
+"lday": 0,
+"src_root": -1,
+"qty_minus_min": 0,
+"sr": 0,
+"strategy": "--",
+"div": 2
+},
+{
+"idx": 3,
+"name": "ст10428t ",
+"qty": 0,
+"id": "305d112e-d6db-405f-b3c7-544a8e44bbf9",
+"machine_type": 0,
+"qty_minus": 0,
+"lday": 0,
+"src_root": -1,
+"qty_minus_min": 0,
+"sr": 0,
+"strategy": "--",
+"div": 2
+},
+{
+"idx": 4,
+"name": "ст87021t4 ",
+"qty": 4,
+"id": "37bae497-f93b-496b-b9d7-abc5647dbb10",
+"machine_type": 0,
+"qty_minus": false,
+"lday": 11,
+"src_root": 0,
+"qty_minus_min": 0,
+"sr": false,
+"strategy": "+",
+"div": 1
+},
+{
+"idx": 5,
+"name": "ст18316t4 ",
+"qty": 16,
+"id": "d8cca969-7216-474b-8860-643c88833c3d",
+"machine_type": 0,
+"qty_minus": false,
+"lday": 19,
+"src_root": -1,
+"qty_minus_min": 0,
+"sr": false,
+"strategy": "=",
+"div": 1
+},
+{
+"idx": 6,
+"name": "ст15406aмRSt2 ",
+"qty": 14,
+"id": "2eeb7488-eb99-41df-87fc-dbf3859bca9a",
+"machine_type": 1,
+"qty_minus": false,
+"lday": 12,
+"src_root": 1,
+"qty_minus_min": 0,
+"sr": false,
+"strategy": "-",
+"div": 2
+},
+{
+"idx": 7,
+"name": "ст78425t П, 17, 1, П2",
+"qty": 29,
+"id": "12da219c-3d43-49cd-b477-2913d07c3981",
+"machine_type": 0,
+"qty_minus": false,
+"lday": 18,
+"src_root": -1,
+"qty_minus_min": 0,
+"sr": false,
+"strategy": "+",
+"div": 2
+},
+{
+"idx": 8,
+"name": "ст78425t П, 11, 2, П2",
+"qty": 31,
+"id": "686116f6-1083-485d-a5db-6488ef5b9d4d",
+"machine_type": 0,
+"qty_minus": false,
+"lday": 18,
+"src_root": -1,
+"qty_minus_min": 0,
+"sr": false,
+"strategy": "+",
+"div": 2
+},
+{
+"idx": 9,
+"name": "ст78426t П, 0, 6, П2",
+"qty": 32,
+"id": "e2f75cf1-fefd-4585-bbdf-d5926fbf12d5",
+"machine_type": 0,
+"qty_minus": false,
+"lday": 17,
+"src_root": 2,
+"qty_minus_min": 0,
+"sr": false,
+"strategy": "+",
+"div": 2
+},
+{
+"idx": 10,
+"name": "ст60405амt15 П, 0, 24, П2",
+"qty": 43,
+"id": "2e570c35-f0b7-4802-8b29-ca9f4e4c3354",
+"machine_type": 1,
+"qty_minus": false,
+"lday": 19,
+"src_root": -1,
+"qty_minus_min": 0,
+"sr": false,
+"strategy": "--",
+"div": 2
+},
+{
+"idx": 11,
+"name": "ст10417RSt ",
+"qty": 41,
+"id": "c70e0bff-c1f8-4d6f-ab5d-7d6fc909a495",
+"machine_type": 0,
+"qty_minus": false,
+"lday": 10,
+"src_root": 3,
+"qty_minus_min": 0,
+"sr": false,
+"strategy": "++",
+"div": 1
+},
+{
+"idx": 12,
+"name": "ст60410t2 ",
+"qty": 57,
+"id": "c5c0762a-7f1e-4f0f-b409-83eb45bde950",
+"machine_type": 0,
+"qty_minus": false,
+"lday": 19,
+"src_root": -1,
+"qty_minus_min": 0,
+"sr": false,
+"strategy": "--",
+"div": 0
+},
+{
+"idx": 13,
+"name": "ст18317t3 ",
+"qty": 69,
+"id": "6a1a1ff3-ad7d-47d2-a829-228d12104d6c",
+"machine_type": 0,
+"qty_minus": false,
+"lday": 18,
+"src_root": 4,
+"qty_minus_min": 0,
+"sr": false,
+"strategy": "--",
+"div": 1
+},
+{
+"idx": 14,
+"name": "ст87315t ",
+"qty": 44,
+"id": "58b3f7fe-2efd-4a3a-bce4-340fb7de4645",
+"machine_type": 0,
+"qty_minus": false,
+"lday": 13,
+"src_root": 5,
+"qty_minus_min": 0,
+"sr": false,
+"strategy": "++",
+"div": 1
+},
+{
+"idx": 15,
+"name": "ст60410t3 ",
+"qty": 78,
+"id": "aa5365eb-4848-4b1e-8982-f7fea0601b06",
+"machine_type": 0,
+"qty_minus": false,
+"lday": 18,
+"src_root": -1,
+"qty_minus_min": 0,
+"sr": false,
+"strategy": "-",
+"div": 2
+},
+{
+"idx": 16,
+"name": "ст60301t7 ",
+"qty": 86,
+"id": "f80a7720-2edc-4e9e-b2cc-31463fb2b4c9",
+"machine_type": 0,
+"qty_minus": false,
+"lday": 16,
+"src_root": -1,
+"qty_minus_min": 0,
+"sr": false,
+"strategy": "++",
+"div": 2
+},
+{
+"idx": 17,
+"name": "стПВ73-045МВДt1 ",
+"qty": 78,
+"id": "662f9562-8d81-4b97-91f0-e51f7b0a9ffd",
+"machine_type": 0,
+"qty_minus": false,
+"lday": 16,
+"src_root": 6,
+"qty_minus_min": 0,
+"sr": false,
+"strategy": "++",
+"div": 1
+},
+{
+"idx": 18,
+"name": "ст87027t ",
+"qty": 67,
+"id": "025765d7-feb5-4eb5-8716-2bda3fe06eed",
+"machine_type": 0,
+"qty_minus": false,
+"lday": 14,
+"src_root": 7,
+"qty_minus_min": 0,
+"sr": false,
+"strategy": "++",
+"div": 1
+},
+{
+"idx": 19,
+"name": "ст10419амRSt2 ",
+"qty": 101,
+"id": "cbf52d6c-4057-4b70-9551-5229c40245a7",
+"machine_type": 1,
+"qty_minus": false,
+"lday": 16,
+"src_root": -1,
+"qty_minus_min": 0,
+"sr": false,
+"strategy": "--",
+"div": 2
+},
+{
+"idx": 20,
+"name": "ст10005амt5 ",
+"qty": 137,
+"id": "91470e6d-8a91-4096-8296-1c044f86a6f0",
+"machine_type": 1,
+"qty_minus": false,
+"lday": 26,
+"src_root": 8,
+"qty_minus_min": 0,
+"sr": false,
+"strategy": "+",
+"div": 2
+},
+{
+"idx": 21,
+"name": "ст87316t4 ",
+"qty": 97,
+"id": "cc6959bf-86da-498f-a5e9-1de1bac863a2",
+"machine_type": 0,
+"qty_minus": false,
+"lday": 13,
+"src_root": -1,
+"qty_minus_min": 0,
+"sr": false,
+"strategy": "=",
+"div": 2
+},
+{
+"idx": 22,
+"name": "ст87026t ",
+"qty": 124,
+"id": "b31e0c85-59d4-4317-b692-2573473dfa98",
+"machine_type": 0,
+"qty_minus": true,
+"lday": 15,
+"src_root": 9,
+"qty_minus_min": 30,
+"sr": false,
+"strategy": "+",
+"div": 1
+},
+{
+"idx": 23,
+"name": "ст3211t1 ",
+"qty": 182,
+"id": "bd5945fe-b1bc-423b-a3d4-c5850c6d3260",
+"machine_type": 0,
+"qty_minus": true,
+"lday": 19,
+"src_root": 10,
+"qty_minus_min": 23,
+"sr": false,
+"strategy": "=",
+"div": 2
+},
+{
+"idx": 24,
+"name": "ст60411t13 ",
+"qty": 214,
+"id": "0c9066da-99d5-45f9-aa70-4f2420098605",
+"machine_type": 0,
+"qty_minus": true,
+"lday": 19,
+"src_root": -1,
+"qty_minus_min": 73,
+"sr": false,
+"strategy": "-",
+"div": 0
+},
+{
+"idx": 24,
+"name": "ст60411t13 ",
+"qty": 0,
+"id": "0c9066da-99d5-45f9-aa70-4f2420098605",
+"machine_type": 0,
+"qty_minus": true,
+"lday": 19,
+"src_root": -1,
+"qty_minus_min": 73,
+"sr": false,
+"strategy": "-",
+"div": 2
+},
+{
+"idx": 25,
+"name": "ст11022амt6 ",
+"qty": 253,
+"id": "dfad333b-ed65-4f8a-904f-2e5b684decc3",
+"machine_type": 1,
+"qty_minus": true,
+"lday": 17,
+"src_root": 11,
+"qty_minus_min": 59,
+"sr": false,
+"strategy": "=",
+"div": 2
+},
+{
+"idx": 26,
+"name": "ст18308t1 ",
+"qty": 244,
+"id": "fd0119b4-369d-488f-b082-057c45dbd03f",
+"machine_type": 1,
+"qty_minus": false,
+"lday": 12,
+"src_root": 12,
+"qty_minus_min": 0,
+"sr": false,
+"strategy": "=",
+"div": 2
+},
+{
+"idx": 27,
+"name": "ст18422ахмt6 ",
+"qty": 285,
+"id": "5f25da47-b4d4-4057-a279-a4fcd17a6a5e",
+"machine_type": 1,
+"qty_minus": true,
+"lday": 16,
+"src_root": 13,
+"qty_minus_min": 49,
+"sr": false,
+"strategy": "+",
+"div": 2
+}
+],
+"remains": [
+[
+[],
+[
+12,
+17
+],
+[
+23,
+18,
+24
+],
+[
+10,
+10,
+10,
+10,
+10,
+10,
+10,
+10,
+10,
+10,
+10,
+10,
+10,
+10,
+10,
+10,
+10,
+4,
+10,
+10,
+10,
+10,
+10,
+10,
+10,
+10,
+10,
+10,
+10,
+10,
+10,
+10,
+9,
+2,
+10,
+10,
+10,
+10,
+10,
+6,
+5,
+10,
+11,
+11
+],
+[
+23,
+17
+],
+[
+16,
+18,
+18,
+12,
+13,
+13,
+13,
+12,
+13
+],
+[
+22,
+22,
+16,
+23,
+6,
+18,
+18,
+19,
+18,
+19,
+18,
+18,
+18,
+19,
+18,
+19,
+19,
+18,
+19,
+18
+],
+[
+18,
+19,
+11,
+16,
+17,
+16,
+21,
+17,
+16
+],
+[
+33,
+37,
+37,
+38
+],
+[
+22,
+22,
+15,
+22
+],
+[
+8,
+21,
+21
+],
+[
+21,
+21,
+21,
+20,
+21,
+21,
+20,
+21
+],
+[
+16,
+17,
+17,
+17,
+17,
+17,
+17,
+17,
+17,
+17,
+16,
+17,
+17,
+17,
+17,
+17,
+17,
+17,
+17,
+17,
+17,
+17,
+17,
+17,
+17,
+17,
+14,
+17,
+17,
+17,
+17,
+17,
+17,
+17,
+18,
+17,
+17,
+16,
+17,
+17,
+17,
+2,
+17,
+17,
+17,
+17,
+17,
+17,
+17,
+18,
+17,
+17,
+17,
+17,
+17,
+18,
+17,
+17,
+17,
+17,
+17,
+17,
+17,
+17,
+17,
+17,
+17,
+49,
+17,
+18,
+16,
+16,
+16,
+17,
+17,
+17,
+17,
+17,
+17,
+17,
+17,
+17,
+17,
+5,
+17,
+17,
+17,
+17,
+17,
+17,
+3,
+17,
+17,
+17,
+17,
+17,
+18,
+17,
+17,
+17,
+17,
+17,
+17,
+17,
+17,
+17,
+17,
+17,
+17,
+17,
+17,
+17,
+17,
+8,
+19,
+15,
+17,
+17,
+17,
+16,
+14,
+17,
+17,
+17,
+17,
+17,
+17,
+18,
+17,
+17,
+17,
+18,
+17,
+17,
+17,
+18,
+17,
+17,
+17,
+17,
+17,
+17,
+17,
+17,
+17,
+17,
+18,
+17,
+17,
+17,
+17,
+17,
+17,
+17,
+17,
+17,
+17,
+17,
+17,
+13,
+17,
+17,
+17,
+17,
+17,
+17,
+17,
+17,
+17,
+17,
+17,
+17,
+18,
+17,
+17,
+17,
+17,
+17,
+17,
+17,
+17,
+17,
+15,
+17,
+17,
+17,
+17,
+6,
+17,
+17
+],
+[
+8,
+15,
+15,
+13,
+15,
+12,
+15,
+15,
+15,
+15,
+14,
+15,
+15,
+13,
+8,
+15,
+15,
+15,
+15,
+14,
+15,
+15,
+15,
+15,
+15,
+4,
+14,
+15,
+15,
+8,
+15,
+15,
+15,
+15,
+15,
+15,
+15,
+15,
+15,
+14,
+15,
+15,
+15,
+15,
+30,
+15,
+15,
+15,
+14,
+15,
+15,
+14,
+15,
+15,
+15,
+15,
+14,
+15,
+15,
+15,
+12,
+12,
+12,
+12,
+15,
+15,
+15
+]
+]
+],
+"cleans": [
+{
+"day_idx": 6,
+"machine_idx": 27
+},
+{
+"day_idx": 6,
+"machine_idx": 28
+},
+{
+"day_idx": 6,
+"machine_idx": 29
+},
+{
+"day_idx": 6,
+"machine_idx": 30
+},
+{
+"day_idx": 6,
+"machine_idx": 0
+},
+{
+"day_idx": 6,
+"machine_idx": 1
+},
+{
+"day_idx": 6,
+"machine_idx": 2
+},
+{
+"day_idx": 6,
+"machine_idx": 3
+},
+{
+"day_idx": 6,
+"machine_idx": 4
+},
+{
+"day_idx": 6,
+"machine_idx": 5
+},
+{
+"day_idx": 6,
+"machine_idx": 6
+},
+{
+"day_idx": 6,
+"machine_idx": 7
+},
+{
+"day_idx": 6,
+"machine_idx": 8
+},
+{
+"day_idx": 6,
+"machine_idx": 9
+},
+{
+"day_idx": 6,
+"machine_idx": 10
+},
+{
+"day_idx": 6,
+"machine_idx": 11
+},
+{
+"day_idx": 6,
+"machine_idx": 12
+},
+{
+"day_idx": 6,
+"machine_idx": 13
+},
+{
+"day_idx": 6,
+"machine_idx": 14
+},
+{
+"day_idx": 6,
+"machine_idx": 15
+},
+{
+"day_idx": 6,
+"machine_idx": 16
+},
+{
+"day_idx": 6,
+"machine_idx": 17
+},
+{
+"day_idx": 6,
+"machine_idx": 18
+},
+{
+"day_idx": 6,
+"machine_idx": 19
+},
+{
+"day_idx": 27,
+"machine_idx": 25
+},
+{
+"day_idx": 27,
+"machine_idx": 20
+},
+{
+"day_idx": 27,
+"machine_idx": 21
+},
+{
+"day_idx": 27,
+"machine_idx": 22
+},
+{
+"day_idx": 27,
+"machine_idx": 23
+},
+{
+"day_idx": 27,
+"machine_idx": 24
+},
+{
+"day_idx": 27,
+"machine_idx": 26
+},
+{
+"day_idx": 48,
+"machine_idx": 27
+},
+{
+"day_idx": 48,
+"machine_idx": 28
+},
+{
+"day_idx": 48,
+"machine_idx": 29
+},
+{
+"day_idx": 48,
+"machine_idx": 30
+},
+{
+"day_idx": 48,
+"machine_idx": 0
+},
+{
+"day_idx": 48,
+"machine_idx": 1
+},
+{
+"day_idx": 48,
+"machine_idx": 2
+},
+{
+"day_idx": 48,
+"machine_idx": 3
+},
+{
+"day_idx": 48,
+"machine_idx": 4
+},
+{
+"day_idx": 48,
+"machine_idx": 5
+},
+{
+"day_idx": 48,
+"machine_idx": 6
+},
+{
+"day_idx": 48,
+"machine_idx": 7
+},
+{
+"day_idx": 48,
+"machine_idx": 8
+},
+{
+"day_idx": 48,
+"machine_idx": 9
+},
+{
+"day_idx": 48,
+"machine_idx": 10
+},
+{
+"day_idx": 48,
+"machine_idx": 11
+},
+{
+"day_idx": 48,
+"machine_idx": 12
+},
+{
+"day_idx": 48,
+"machine_idx": 13
+},
+{
+"day_idx": 48,
+"machine_idx": 14
+},
+{
+"day_idx": 48,
+"machine_idx": 15
+},
+{
+"day_idx": 48,
+"machine_idx": 16
+},
+{
+"day_idx": 48,
+"machine_idx": 17
+},
+{
+"day_idx": 48,
+"machine_idx": 18
+},
+{
+"day_idx": 48,
+"machine_idx": 19
+},
+{
+"day_idx": 69,
+"machine_idx": 25
+},
+{
+"day_idx": 69,
+"machine_idx": 20
+},
+{
+"day_idx": 69,
+"machine_idx": 21
+},
+{
+"day_idx": 69,
+"machine_idx": 22
+},
+{
+"day_idx": 69,
+"machine_idx": 23
+},
+{
+"day_idx": 69,
+"machine_idx": 24
+},
+{
+"day_idx": 69,
+"machine_idx": 26
+}
+],
+"max_daily_prod_zero": 3,
+"count_days": 81,
+"dt_begin": "2026-03-02T00:00:00",
+"apply_qty_minys": "false",
+"apply_index_up": "false"
+}

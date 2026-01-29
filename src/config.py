@@ -24,6 +24,12 @@ class Settings(BaseSettings):
     SOLVER_ENUMERATE_COUNT: int = Field(default=3)
     APPLY_QTY_MINUS: bool = Field(default=True)
     APPLY_INDEX_UP: bool = Field(default=True)
+
+    # В SIMPLE можно отдельно отключать INDEX_UP, не трогая LONG/полную модель.
+    SIMPLE_DISABLE_INDEX_UP: bool = Field(
+        default=False,
+        description="Если True, в LONG_SIMPLE игнорируем APPLY_INDEX_UP и не накладываем индекс только вверх",
+    )
     APPLY_DOWNTIME_LIMITS: bool = Field(default=True)
 
     # Режим горизонта планирования: FULL (по умолчанию), LONG (упрощённый 84 смены), SHORT (детализированный 21 смена)
@@ -94,6 +100,16 @@ class Settings(BaseSettings):
         description=(
             "Если не None, в LONG_SIMPLE используем цель Maximize(product_counts[idx]) "
             "для оценки максимальной емкости по этому продукту."
+        ),
+    )
+
+    # Отладочные верхние границы для отдельных продуктов в LONG_SIMPLE:
+    # если заданы, то добавляем ограничения product_counts[p] <= cap_days.
+    SIMPLE_DEBUG_PRODUCT_UPPER_CAPS: dict[int, int] | None = Field(
+        default=None,
+        description=(
+            "Словарь {product_idx: cap_days} для введения точечных верхних "
+            "границ на product_counts[p] в LONG_SIMPLE (отладка перепроизводства)."
         ),
     )
 
