@@ -1744,10 +1744,8 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
 
         # Переотображаем SIMPLE_DEBUG_DUMP_CONSTRAINTС_FOR_IDX (если задан)
         # из исходного idx во внутренний idx, чтобы далее можно было сделать
-        # дамп ограничений по конкретному продукту. Значение читаем из
-        # settings.DEBUG_FLAGS (dict), чтобы не расширять модель настроек.
-        dbg_flags = getattr(settings, "DEBUG_FLAGS", {}) or {}
-        dbg_dump_idx = dbg_flags.get("SIMPLE_DEBUG_DUMP_CONSTRAINTS_FOR_IDX")
+        # дамп ограничений по конкретному продукту.
+        dbg_dump_idx = getattr(settings, "SIMPLE_DEBUG_DUMP_CONSTRAINTS_FOR_IDX", None)
         if dbg_dump_idx is not None:
             try:
                 dbg_dump_ext = int(dbg_dump_idx)
@@ -1825,8 +1823,7 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
         )
 
         # Отладочный дамп ограничений для конкретного продукта (если включён).
-        dbg_flags = getattr(settings, "DEBUG_FLAGS", {}) or {}
-        dbg_ext = dbg_flags.get("SIMPLE_DEBUG_DUMP_CONSTRAINTS_FOR_IDX")
+        dbg_ext = getattr(settings, "SIMPLE_DEBUG_DUMP_CONSTRAINTS_FOR_IDX", None)
         dbg_int = getattr(settings, "SIMPLE_DEBUG_DUMP_CONSTRAINTS_FOR_IDX_INTERNAL", None)
         if dbg_ext is not None and dbg_int is not None:
             try:

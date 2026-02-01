@@ -113,6 +113,19 @@ class Settings(BaseSettings):
         ),
     )
 
+    # Отладка: дамп линейных ограничений для конкретного продукта в LONG_SIMPLE.
+    # SIMPLE_DEBUG_DUMP_CONSTRAINTS_FOR_IDX задаётся во внешних idx (как в JSON),
+    # SIMPLE_DEBUG_DUMP_CONSTRAINTS_FOR_IDX_INTERNAL – соответствующий внутренний idx
+    # (заполняется в schedule_loom_calc после переотображения idx).
+    SIMPLE_DEBUG_DUMP_CONSTRAINTS_FOR_IDX: int | None = Field(
+        default=None,
+        description="Внешний idx продукта, для которого нужно сделать отладочный дамп линейных ограничений в LONG_SIMPLE",
+    )
+    SIMPLE_DEBUG_DUMP_CONSTRAINTS_FOR_IDX_INTERNAL: int | None = Field(
+        default=None,
+        description="Внутренний idx продукта для дампа ограничений (служебное поле, заполняется в runtime)",
+    )
+
     # Включать ли монотонность по C[p,d] (машино-дни по продукту в день) в LONG_SIMPLE.
     # При SIMPLE_USE_MONOTONE_COUNTS=False блок монотонности в create_model_simple
     # отключается, что может помочь диагностировать конфликты с нижними границами

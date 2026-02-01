@@ -28,11 +28,7 @@ def run_long_simple(data, machines, products, cleans, remains):
     settings.SIMPLE_QTY_MINUS_SUBSET = set()
 
     # Включаем отладочный дамп ограничений для внешнего idx=26.
-    # Используем существующее "гибкое" поле DEBUG_FLAGS (dict), чтобы
-    # не добавлять новое поле в pydantic-модель настроек.
-    flags = getattr(settings, "DEBUG_FLAGS", {}) or {}
-    flags["SIMPLE_DEBUG_DUMP_CONSTRAINTS_FOR_IDX"] = 26
-    settings.DEBUG_FLAGS = flags
+    settings.SIMPLE_DEBUG_DUMP_CONSTRAINTS_FOR_IDX = 26
 
     # Отключаем H1-H3 через debug-режим.
     settings.SIMPLE_DEBUG_H_START = True
