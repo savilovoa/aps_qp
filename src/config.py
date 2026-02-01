@@ -113,6 +113,45 @@ class Settings(BaseSettings):
         ),
     )
 
+    # Включать ли монотонность по C[p,d] (машино-дни по продукту в день) в LONG_SIMPLE.
+    # При SIMPLE_USE_MONOTONE_COUNTS=False блок монотонности в create_model_simple
+    # отключается, что может помочь диагностировать конфликты с нижними границами
+    # по qty_minus.
+    SIMPLE_USE_MONOTONE_COUNTS: bool = Field(
+        default=True,
+        description=(
+            "Если True, в LONG_SIMPLE накладывается монотонность C[p,d] по дням; "
+            "если False — монотонность C[p,d] отключена."
+        ),
+    )
+
+    # Максимальное число балансирующих продуктов qty_minus!=0 на один цех (div)
+    # в LONG_SIMPLE. Эти продукты могут свободнее отклоняться от плана, все
+    # остальные получают жёсткий коридор вокруг планового объёма.
+    SIMPLE_QTY_MINUS_MAX_BALANCE_PER_DIV: int = Field(
+        default=1,
+        description=(
+            "Максимальное количество балансирующих продуктов qty_minus!=0 на один "
+            "цех (div) в LONG_SIMPLE. Остальные flex-продукты получают жёсткий "
+            "коридор вокруг плана в днях."
+        ),
+    )
+
+    # Дополнительная крупная эвристика для LONG_SIMPLE: большие продукты без
+    # стартовых машин (machines.product_idx == p) могут полностью занимать одну
+    # подходящую машину на весь горизонт. В этом случае продукт p запрещается на
+    # остальных машинах. Включена опционально, чтобы можно было легко сравнивать
+    # поведение модели с/без этой эвристики.
+    # Флаг для крупной эвристики big-no-start. Храним как строку/None, чтобы
+    # избежать жёсткого bool-parsing от pydantic для разных значений env.
+    SIMPLE_ENABLE_BIG_NOSTART_HEURISTIC: str | None = Field(
+        default=None,
+        description=(
+            "Флаг эвристики big-no-start в LONG_SIMPLE. Если непустая строка, "
+            "считается включённой (True); если None или пусто — выключена."
+        ),
+    )
+
 settings = Settings()
 
 log_path = settings.BASE_DIR + "/log"

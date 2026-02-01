@@ -26,8 +26,15 @@ def run_ls_prop_noindex_h123():
     settings.SIMPLE_USE_PROP_MULT = True
     settings.APPLY_STRATEGY_PENALTY = True
 
+    # Флаг USE_GREEDY_HINT берём из настроек (env/config), чтобы можно было легко
+    # сравнивать запуски с hint и без него одним и тем же скриптом.
+    # Здесь его явно не переопределяем.
+
     settings.APPLY_INDEX_UP = True
     settings.SIMPLE_DISABLE_INDEX_UP = True
+
+    # Для экспериментов с LS_PROP в LONG_SIMPLE флаг USE_GREEDY_HINT берём из
+    # config/env, чтобы можно было легко сравнивать запуски с hint и без него.
 
     settings.SIMPLE_DEBUG_H_START = True
     settings.SIMPLE_DEBUG_H_MODE = "H123"

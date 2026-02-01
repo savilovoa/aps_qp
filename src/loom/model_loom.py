@@ -52,6 +52,13 @@ class DataLoomIn(BaseModel):
     dt_begin: date
     apply_qty_minus: Optional[bool] = Field(description="Применить ограничение на количество минус", default=None)
     apply_index_up: Optional[bool] = Field(description="Применить ограничение на индекс up", default=None)
+    horizon_mode: Optional[str] = Field(
+        default=None,
+        description=(
+            "Режим горизонта/алгоритма: FULL, LONG, LONG_SIMPLE, LONG_TWOLEVEL. "
+            "Если None, используется значение из конфигурации."
+        ),
+    )
 
 class LoomPlan(BaseModel):
     machine_idx: int
@@ -59,6 +66,20 @@ class LoomPlan(BaseModel):
     product_idx: int | None
     days_in_batch: int | None
     prev_lday: int | None
+
+
+class LongDayCapacity(BaseModel):
+    """Агрегированное расписание для LONG-режима: сколько машин под продукт в день.
+
+    day_idx: индекс модельного дня (уже агрегированные дни, а не смены).
+    product_idx: индекс продукта из входных данных.
+    machine_count: сколько машин занято этим продуктом в этот день.
+    """
+
+    day_idx: int
+    product_idx: int
+    machine_count: int
+
 
 class LoomPlansOut(BaseModel):
     status: int = Field(default=0)
@@ -68,6 +89,8 @@ class LoomPlansOut(BaseModel):
     objective_value: int = Field(default=0)
     proportion_diff: int = Field(default=0)
     res_html: str = Field(default="")
+    # Для LONG-режима дополнительно возвращаем агрегированные мощности по дням.
+    long_schedule: list[LongDayCapacity] | None = Field(default=None)
 
 class LoomPlansViewIn(BaseModel):
     machines: list[Machine]

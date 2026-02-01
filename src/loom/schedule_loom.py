@@ -1,10 +1,20 @@
 from ortools.sat.python import cp_model
 from pydantic import BaseModel
-from .model_loom import DataLoomIn, LoomPlansOut, Machine, Product, Clean, LoomPlan, LoomPlansViewIn, LoomPlansViewOut
+from .model_loom import (
+    DataLoomIn,
+    LoomPlansOut,
+    Machine,
+    Product,
+    Clean,
+    LoomPlan,
+    LoomPlansViewIn,
+    LoomPlansViewOut,
+    LongDayCapacity,
+)
 import traceback as tr
 from ..config import logger, settings
 import pandas as pd
-from .loom_plan_html import schedule_to_html
+from .loom_plan_html import schedule_to_html, aggregated_schedule_to_html
 from uuid import uuid4
 import time
 def MachinesModelToArray(machines: list[Machine]) -> list[(str, int, str, int, int)]:
@@ -62,10 +72,13 @@ def schedule_loom_calc_model(DataIn: DataLoomIn) -> LoomPlansOut:
         count_days = DataIn.count_days
         days = [i for i in range(count_days)]
         data = DataIn.model_dump()
-        if DataIn.apply_index_up:
+        if DataIn.apply_index_up is not None:
             settings.APPLY_INDEX_UP = DataIn.apply_index_up
-        if DataIn.apply_qty_minus:
+        if DataIn.apply_qty_minus is not None:
             settings.APPLY_QTY_MINUS = DataIn.apply_qty_minus
+        # Режим горизонта/алгоритма (FULL, LONG, LONG_SIMPLE, LONG_TWOLEVEL)
+        if getattr(DataIn, "horizon_mode", None):
+            settings.HORIZON_MODE = DataIn.horizon_mode.upper()
 
         result_calc = schedule_loom_calc(remains=remains, products=products, machines=machines, cleans=cleans,
                                     max_daily_prod_zero=max_daily_prod_zero, count_days=count_days, data=data)
@@ -75,19 +88,77 @@ def schedule_loom_calc_model(DataIn: DataLoomIn) -> LoomPlansOut:
             products_view = [name for (name, qty, id, machine_type, qm) in products]
             title_text = f"{result_calc['status_str']} оптимизационное значение {result_calc['objective_value']}"
 
-            res_html = schedule_to_html(machines=machines_view, products=products_view, schedules=result_calc["schedule"],
-                                        days=days, dt_begin=DataIn.dt_begin, title_text=title_text)
+            # Базовое расписание по машинам (для FULL; для LONG_ отдадим
+            # только агрегированное расписание long_schedule).
+            base_schedule = [
+                LoomPlan(
+                    machine_idx=s["machine_idx"],
+                    day_idx=s["day_idx"],
+                    product_idx=s["product_idx"],
+                    days_in_batch=s["days_in_batch"],
+                    prev_lday=s["prev_lday"],
+                )
+                for s in result_calc["schedule"]
+            ]
+
+            horizon_mode = getattr(settings, "HORIZON_MODE", "FULL").upper()
+
+            # Для упрощённых режимов (LONG_SIMPLE, LONG_SIMPLE_HINT, LONG_TWOLEVEL) строим
+            # агрегированное расписание по дням и продуктам: сколько машин в день под продукт.
+            long_schedule: list[LongDayCapacity] | None = None
+            if horizon_mode in ("LONG_SIMPLE", "LONG_SIMPLE_HINT", "LONG_TWOLEVEL"):
+                counts: dict[tuple[int, int], int] = {}
+                for s in result_calc["schedule"]:
+                    p = s["product_idx"]
+                    d = s["day_idx"]
+                    # Пропускаем None/<=0 (чистки, простои и т.п.).
+                    if p is None or p <= 0:
+                        continue
+                    key = (d, p)
+                    counts[key] = counts.get(key, 0) + 1
+
+                long_schedule = [
+                    LongDayCapacity(day_idx=d, product_idx=p, machine_count=c)
+                    for (d, p), c in sorted(counts.items())
+                ]
+
+            # Для LONG_SIMPLE_/LONG_TWOLEVEL schedule оставляем пустым, для остальных режимов — детальный план.
+            if horizon_mode in ("LONG_SIMPLE", "LONG_SIMPLE_HINT", "LONG_TWOLEVEL"):
+                schedule_out: list[LoomPlan] = []
+            else:
+                schedule_out = base_schedule
+
+            # HTML: для FULL используем детальное расписание по машинам,
+            # для LONG_SIMPLE_/LONG_TWOLEVEL – агрегированное представление long_schedule.
+            if horizon_mode in ("LONG_SIMPLE", "LONG_SIMPLE_HINT", "LONG_TWOLEVEL"):
+                res_html = aggregated_schedule_to_html(
+                    machines=data["machines"],
+                    schedule=result_calc["schedule"],
+                    products=data["products"],
+                    long_schedule=long_schedule or [],
+                    dt_begin=DataIn.dt_begin,
+                    title_text=title_text,
+                )
+            else:
+                res_html = schedule_to_html(
+                    machines=machines_view,
+                    products=products_view,
+                    schedules=result_calc["schedule"],
+                    days=days,
+                    dt_begin=DataIn.dt_begin,
+                    title_text=title_text,
+                )
             id_html = str(uuid4())
 
-
-            schedule = [LoomPlan(machine_idx=s["machine_idx"], day_idx=s["day_idx"], product_idx=s["product_idx"],
-                                 days_in_batch=s["days_in_batch"], prev_lday=s["prev_lday"])
-                        for s in result_calc["schedule"]]
-
-
-            result = LoomPlansOut(status=result_calc["status"], status_str=result_calc["status_str"],
-                                  schedule=schedule,objective_value=result_calc["objective_value"],
-                                  proportion_diff=result_calc["proportion_diff"], res_html=id_html)
+            result = LoomPlansOut(
+                status=result_calc["status"],
+                status_str=result_calc["status_str"],
+                schedule=schedule_out,
+                objective_value=result_calc["objective_value"],
+                proportion_diff=result_calc["proportion_diff"],
+                res_html=id_html,
+                long_schedule=long_schedule,
+            )
             save_plan_html(id_html, res_html)
             save_model_to_log(result)
         else:
@@ -800,6 +871,467 @@ def create_schedule_init(machines: list[dict], products: list[dict], cleans: lis
     return schedule, objective_value, deviation_proportion, count_product_zero
 
 
+def create_simple_greedy_hint(
+    machines: list[tuple],
+    products: list[tuple],
+    count_days: int,
+    product_divs: list[int],
+    machine_divs: list[int],
+) -> list[list[int]]:
+    """Жадный план для LONG_SIMPLE (SIMPLE-модели) без нулей и чисток.
+
+    Формирует для каждой машины m и модельного дня d продукт-idx (>=1),
+    соблюдая совместимость по type/div и приблизительно порядок INDEX_UP.
+    План строится по дням, без использования PRODUCT_ZERO и clean-дней.
+    """
+    num_machines = len(machines)
+    num_products = len(products)
+    schedule: list[list[int | None]] = [
+        [None for _ in range(count_days)] for _ in range(num_machines)
+    ]
+
+    # Стартовые продукты на машинах
+    initial_products: list[int] = []
+    for (_, product_idx, _id, _t, _remain_day) in machines:
+        initial_products.append(int(product_idx))
+
+    # План по дням для каждого продукта (из qty в сменах)
+    shifts_per_day = 3
+    plan_days: list[int] = [0 for _ in range(num_products)]
+    for p in range(1, num_products):
+        try:
+            qty_shifts = int(products[p][1])
+        except Exception:
+            qty_shifts = 0
+        if qty_shifts <= 0:
+            continue
+        plan_days[p] = (qty_shifts + shifts_per_day - 1) // shifts_per_day
+
+    remaining_days: list[int] = plan_days.copy()
+
+    def can_run_product_on_machine(p_idx: int, m_idx: int) -> bool:
+        if p_idx <= 0 or p_idx >= num_products:
+            return False
+        prod_type = products[p_idx][3]
+        prod_div = product_divs[p_idx] if 0 <= p_idx < len(product_divs) else 0
+        m_type = machines[m_idx][3]
+        m_div = machine_divs[m_idx] if 0 <= m_idx < len(machine_divs) else 1
+
+        # Совместимость по type
+        if prod_type > 0 and m_type != prod_type:
+            return False
+        # Совместимость по div
+        if prod_div in (1, 2) and m_div != prod_div:
+            return False
+        return True
+
+    # День 0: пытаемся поставить стартовый продукт, если он планируется и совместим
+    for m in range(num_machines):
+        p0 = initial_products[m]
+        if (
+            p0 > 0
+            and p0 < num_products
+            and remaining_days[p0] > 0
+            and can_run_product_on_machine(p0, m)
+        ):
+            schedule[m][0] = p0
+            remaining_days[p0] -= 1
+
+    # Основное заполнение по дням, стараемся поддерживать INDEX_UP (неубывание idx)
+    for m in range(num_machines):
+        for d in range(count_days):
+            if schedule[m][d] is not None:
+                continue
+            prev_p = schedule[m][d - 1] if d > 0 else None
+
+            chosen: int | None = None
+            # 1) Пытаемся продолжать предыдущий продукт, если есть остаток плана.
+            if (
+                prev_p is not None
+                and prev_p > 0
+                and prev_p < num_products
+                and can_run_product_on_machine(prev_p, m)
+            ):
+                if remaining_days[prev_p] > 0:
+                    chosen = prev_p
+
+            # 2) Иначе выбираем продукт с максимальным remaining_days[p]
+            # среди совместимых и с idx >= prev_p (для INDEX_UP).
+            if chosen is None:
+                start_idx = int(prev_p) if prev_p is not None and prev_p > 0 else 1
+                best_p: int | None = None
+                best_rem = -1
+                for p in range(start_idx, num_products):
+                    if remaining_days[p] <= 0:
+                        continue
+                    if not can_run_product_on_machine(p, m):
+                        continue
+                    if remaining_days[p] > best_rem:
+                        best_rem = remaining_days[p]
+                        best_p = p
+                if best_p is not None:
+                    chosen = best_p
+
+            # 3) Если план по дням исчерпан для всех кандидатов, но надо что-то
+            # поставить (для полного заполнения), продолжаем предыдущий продукт,
+            # либо берём первый совместимый продукт >= prev_p.
+            if chosen is None:
+                if (
+                    prev_p is not None
+                    and prev_p > 0
+                    and prev_p < num_products
+                    and can_run_product_on_machine(prev_p, m)
+                ):
+                    chosen = prev_p
+                else:
+                    start_idx = int(prev_p) if prev_p is not None and prev_p > 0 else 1
+                    for p in range(start_idx, num_products):
+                        if can_run_product_on_machine(p, m):
+                            chosen = p
+                            break
+
+            if chosen is None:
+                # В крайнем случае ничего не ставим, заполним позже.
+                continue
+
+            schedule[m][d] = chosen
+            if remaining_days[chosen] > 0:
+                remaining_days[chosen] -= 1
+
+    # Заполняем возможные None на каждой машине, протягивая последнее значение.
+    for m in range(num_machines):
+        # Если день 0 пустой — выберем первый совместимый продукт.
+        if schedule[m][0] is None:
+            for p in range(1, num_products):
+                if can_run_product_on_machine(p, m):
+                    schedule[m][0] = p
+                    break
+        # Протягиваем вперёд последнее заданное значение.
+        for d in range(1, count_days):
+            if schedule[m][d] is None:
+                schedule[m][d] = schedule[m][d - 1]
+
+    # Логируем жадный SIMPLE-план для отладки.
+    try:
+        from pathlib import Path
+
+        log_dir = Path("log")
+        log_dir.mkdir(parents=True, exist_ok=True)
+        hint_log_path = log_dir / "greedy_simple_hint.log"
+        with hint_log_path.open("w", encoding="utf-8") as f:
+            for m in range(num_machines):
+                name = machines[m][0]
+                init_p = initial_products[m]
+                codes: list[str] = []
+                for d in range(count_days):
+                    p = schedule[m][d]
+                    if p is None or p <= 0:
+                        codes.append("--")
+                    else:
+                        codes.append(f"{int(p):02d}")
+                f.write(
+                    f"m={m:02d}\tname={name}\tinit={init_p:02d}\t" + ",".join(codes) + "\n"
+                )
+    except Exception:
+        pass
+
+    # Преобразуем None -> 0 не будем, hints используют только значения >=1.
+    return [[int(p) if p is not None else 0 for p in row] for row in schedule]
+
+
+def debug_dump_constraints_for_product_idx(
+    model: cp_model.CpModel,
+    internal_idx: int,
+    external_idx: int | None = None,
+    log_path: str = "log/simple_constraints_p_debug.log",
+) -> None:
+    """Отладочный дамп линейных ограничений, в которые входит продукт internal_idx.
+
+    Выбираем все переменные, связанные с этим продуктом (count_prod_simple_*,
+    prod_simple_*, C_simple_*, Cdiff_simple_*, start_seg_p*) и выписываем все
+    линейные ограничения, в которых они участвуют.
+    """
+    try:
+        from pathlib import Path
+
+        proto = model.Proto()
+        var_names: list[str] = [v.name for v in proto.variables]
+        target_vars: set[int] = set()
+
+        p = int(internal_idx)
+        prefixes = [
+            f"prod_simple_{p}_",      # булевы флаги продукта по машинам/дням
+            f"C_simple_{p}_",         # дневные мощности C[p,d]
+            f"Cdiff_simple_{p}_",     # разности C[p,d+1]-C[p,d]
+            f"start_seg_p{p}_",       # начало сегмента продукта p на машине
+        ]
+        exact = {
+            f"count_prod_simple_{p}",   # общий объём продукта p в ДНЯХ
+            f"simple_is_up_{p}",        # флаг направления монотонности
+        }
+
+        for idx, name in enumerate(var_names):
+            if not name:
+                continue
+            if name in exact:
+                target_vars.add(idx)
+                continue
+            for pref in prefixes:
+                if name.startswith(pref):
+                    target_vars.add(idx)
+                    break
+
+        if not target_vars:
+            return
+
+        Path("log").mkdir(parents=True, exist_ok=True)
+        if external_idx is None:
+            out_path = Path(log_path)
+        else:
+            out_path = Path(f"log/simple_constraints_p{external_idx}.log")
+
+        with out_path.open("w", encoding="utf-8") as f:
+            f.write(
+                f"# Debug dump for product internal_idx={internal_idx}, external_idx={external_idx}\n"
+            )
+            f.write(f"# Target var indices: {sorted(target_vars)}\n\n")
+
+            for ci, ct in enumerate(proto.constraints):
+                if not ct.WhichOneof("constraint") == "linear":
+                    continue
+                lin = ct.linear
+                if not lin.vars:
+                    continue
+                if not any(v in target_vars for v in lin.vars):
+                    continue
+
+                dom = list(lin.domain)
+                f.write(f"Constraint {ci}: domain={dom}\n")
+                for v_idx, coeff in zip(lin.vars, lin.coeffs):
+                    name = var_names[v_idx]
+                    f.write(f"  {coeff} * {name}\n")
+                f.write("\n")
+    except Exception as e:
+        try:
+            logger.error(f"debug_dump_constraints_for_product_idx failed: {e}")
+        except Exception:
+            pass
+
+
+def simple_qtyminus_precheck_long_simple(data: dict) -> set[int]:
+    """Pre-check для LONG_SIMPLE перед построением модели с APPLY_QTY_MINUS.
+
+    Идея:
+      - Рассматриваем строгие продукты (qty_minus=0, qty>0).
+      - По каждому div считаем агрегированную нижнюю границу по дням
+        (plan_days и/или min_days) и сравниваем с мощностью по div
+        (число машин * simple_days).
+      - Если по какому-то div нижняя граница превышает мощность, понижаем
+        жёсткость ("расслабляем") самые большие по plan_days строгие продукты
+        без H2/H3 до тех пор, пока агрегированное неравенство не выполнится.
+
+    Возвращает множество idx строгих продуктов, для которых остаётся
+    смысл включать жёсткие нижние границы qty_minus в модели.
+    """
+    import math
+
+    products_json = data["products"]
+    machines_json = data["machines"]
+
+    orig_days = int(data["count_days"])
+    shifts_per_day = 3
+    simple_days = (orig_days + shifts_per_day - 1) // shifts_per_day
+
+    # Собираем метаданные по продуктам.
+    plan_days: dict[int, int] = {}
+    min_days: dict[int, int] = {}
+    prod_div: dict[int, int] = {}
+    qty_minus_flag: dict[int, int] = {}
+    qty_shifts: dict[int, int] = {}
+
+    for p in products_json:
+        try:
+            idx = int(p["idx"])
+        except Exception:
+            continue
+        if idx == 0:
+            continue
+        qty = int(p.get("qty", 0) or 0)
+        qty_shifts[idx] = qty
+        qm = int(p.get("qty_minus", 0) or 0)
+        qty_minus_flag[idx] = qm
+        qmm_shifts = int(p.get("qty_minus_min", 0) or 0)
+        pd = (qty + shifts_per_day - 1) // shifts_per_day if qty > 0 else 0
+        md = (qmm_shifts + shifts_per_day - 1) // shifts_per_day if qmm_shifts > 0 else 0
+        plan_days[idx] = pd
+        min_days[idx] = md
+        prod_div[idx] = int(p.get("div", 0) or 0)
+
+    # Строгие продукты: qty_minus == 0 и qty>0
+    strict_idxs = [
+        idx
+        for idx, qty in qty_shifts.items()
+        if idx != 0 and qty > 0 and qty_minus_flag.get(idx, 0) == 0
+    ]
+
+    if not strict_idxs:
+        return set()
+
+    # Оценим H2/H3 для разделения на "жёсткие" и "мягкие" строгие.
+    # Для pre-check берём тот же подход, что в estimate_capacity_for_product.
+    from tools.analyze_simple_subset_capacity import estimate_capacity_for_product
+    from tools.compare_long_vs_simple import load_input
+
+    # Построим tuple-версии products/machines, как в schedule_loom_calc/estimate_capacity_for_product.
+    # data здесь уже после load_input, поэтому machines/products должны быть кортежами.
+    # На всякий случай восстановим tuples из JSON для совместимости.
+    import pandas as pd
+
+    machines_df = pd.DataFrame(data["machines"])
+    products_df = pd.DataFrame(data["products"])
+
+    machines_tuples = [
+        (row["name"], row["product_idx"], row["id"], row["type"], row["remain_day"], row.get("reserve", 0))
+        for _, row in machines_df.iterrows()
+    ]
+    products_tuples = [
+        (
+            row["name"],
+            row["qty"],
+            row["id"],
+            row["machine_type"],
+            row["qty_minus"],
+            row["lday"],
+            row.get("src_root", -1),
+            row.get("qty_minus_min", 0),
+            row.get("sr", False),
+            row.get("strategy", "--"),
+        )
+        for _, row in products_df.iterrows()
+    ]
+
+    # Классификация H2/H3
+    hard_strict: set[int] = set()
+    soft_strict: set[int] = set()
+
+    num_days = orig_days
+    for idx in strict_idxs:
+        # estimate_capacity_for_product ожидает индекс по tuple-списку.
+        if idx < 0 or idx >= len(products_tuples):
+            soft_strict.add(idx)
+            continue
+        cap_total, per_m_cap, extra = estimate_capacity_for_product(
+            idx, products_tuples, machines_tuples, num_days
+        )
+        if extra.get("h2_active") or extra.get("h3_active"):
+            hard_strict.add(idx)
+        else:
+            soft_strict.add(idx)
+
+    strict_set = set(strict_idxs)
+
+    # Агрегированная мощность по div.
+    cap_by_div: dict[int, int] = {}
+    for m in machines_json:
+        m_div = int(m.get("div", 1) or 1)
+        cap_by_div[m_div] = cap_by_div.get(m_div, 0) + simple_days
+
+    # Нижние границы по дням для текущего strict_set.
+    def compute_lb(strict_subset: set[int]) -> dict[int, int]:
+        lb: dict[int, int] = {}
+        for idx in strict_subset:
+            if idx == 0:
+                continue
+            # Для строгих qty_minus=0 нижняя граница ~ plan_days.
+            pd = plan_days.get(idx, 0)
+            md = min_days.get(idx, 0)
+            lower = max(pd, md)
+            d = prod_div.get(idx, 0)
+            if d in (1, 2):
+                lb[d] = lb.get(d, 0) + lower
+        return lb
+
+    lb_by_div = compute_lb(strict_set)
+
+    # Логируем начальную ситуацию.
+    from src.config import logger
+
+    logger.info("SIMPLE precheck: strict_idxs=%s", strict_idxs)
+    logger.info("SIMPLE precheck: cap_by_div=%s, lb_by_div_initial=%s", cap_by_div, lb_by_div)
+
+    # Функция, возвращающая div, где есть явный дефицит.
+    def find_deficit_divs() -> dict[int, int]:
+        deficits: dict[int, int] = {}
+        for d, cap in cap_by_div.items():
+            lb = lb_by_div.get(d, 0)
+            if lb > cap:
+                deficits[d] = lb - cap
+        return deficits
+
+    deficits = find_deficit_divs()
+    if not deficits:
+        logger.info("SIMPLE precheck: no aggregate deficit by div; keeping all strict products")
+        return strict_set
+
+    logger.info("SIMPLE precheck: initial deficits=%s", deficits)
+
+    # Пытаемся устранить дефициты, снимая qty_minus=0 с самых больших soft_strict продуктов по каждому проблемному div.
+    # По умолчанию hard_strict (H2/H3) не трогаем.
+
+    # Сгруппируем soft_strict по div.
+    soft_by_div: dict[int, list[int]] = {}
+    for idx in soft_strict:
+        d = prod_div.get(idx, 0)
+        if d in (1, 2):
+            soft_by_div.setdefault(d, []).append(idx)
+
+    # Для стабильности сортируем по убыванию plan_days (сначала самые большие).
+    for d in soft_by_div:
+        soft_by_div[d].sort(key=lambda p: plan_days.get(p, 0), reverse=True)
+
+    relaxed: set[int] = set()
+
+    # Итеративно снимаем soft_strict, пока дефицит не исчезнет или кандидаты не кончатся.
+    changed = True
+    while changed:
+        changed = False
+        deficits = find_deficit_divs()
+        if not deficits:
+            break
+        logger.info("SIMPLE precheck: current deficits=%s", deficits)
+        for d, deficit in list(deficits.items()):
+            cand_list = soft_by_div.get(d, [])
+            while cand_list and lb_by_div.get(d, 0) > cap_by_div.get(d, 0):
+                p = cand_list.pop(0)
+                if p not in strict_set:
+                    continue
+                # Снимаем p из strict_set: больше не считаем его жёстким qty_minus=0.
+                strict_set.remove(p)
+                relaxed.add(p)
+                lower = max(plan_days.get(p, 0), min_days.get(p, 0))
+                lb_by_div[d] = lb_by_div.get(d, 0) - lower
+                logger.info(
+                    "SIMPLE precheck: relax strict qty_minus=0 for p=%d (lower=%d) in div=%d; new lb_div=%d",
+                    p,
+                    lower,
+                    d,
+                    lb_by_div[d],
+                )
+                changed = True
+        # цикл продолжится, пока что-то меняется
+
+    final_deficits = find_deficit_divs()
+    if final_deficits:
+        logger.warning("SIMPLE precheck: residual aggregate deficits after relaxation: %s", final_deficits)
+    logger.info(
+        "SIMPLE precheck: final strict_set=%s, relaxed_strict=%s",
+        sorted(strict_set),
+        sorted(relaxed),
+    )
+
+    return strict_set
+
+
 def schedule_loom_calc(remains: list, products: list, machines: list, cleans: list, max_daily_prod_zero: int,
                        count_days: int, data: dict) -> LoomPlansOut:
 
@@ -932,7 +1464,7 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
     # Жадный предварительный план для использования как hint (опционально)
     greedy_schedule = None
     dedicated_machines: list[int] = []  # будет заполнен для LONG на основе greedy-анализа
-    if settings.USE_GREEDY_HINT:
+    if settings.USE_GREEDY_HINT and getattr(settings, "HORIZON_MODE", "FULL").upper() != "LONG_SIMPLE":
         try:
             greedy_schedule, _, _, _ = create_schedule_init(
                 machines=data["machines"],
@@ -994,7 +1526,51 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
             greedy_schedule = None
             dedicated_machines = []
 
-    # Валидация входных данных: lday для продуктов (кроме нулевого) не должен быть 0 или отрицательным.
+    # Валидация входных данных: запрещаем дубликаты продуктов по id/idx (кроме idx=0)
+    # и некорректные значения lday.
+
+    # 1) Проверка на дубликаты id (кроме пустых id).
+    dup_id_mask = (
+        products_df["id"].notna()
+        & (products_df["id"] != "")
+        & products_df.duplicated(subset=["id"], keep=False)
+    )
+    dup_ids_df = products_df[dup_id_mask]
+
+    # 2) Проверка на дубликаты idx (кроме служебного idx=0).
+    dup_idx_mask = (
+        (products_df["idx"] != 0)
+        & products_df.duplicated(subset=["idx"], keep=False)
+    )
+    dup_idx_df = products_df[dup_idx_mask]
+
+    dup_messages: list[str] = []
+    if not dup_ids_df.empty:
+        for _, row in dup_ids_df.iterrows():
+            dup_messages.append(
+                f"id={row.get('id')}, idx={row.get('idx')}, name='{row.get('name')}', qty={row.get('qty')}"
+            )
+    if not dup_idx_df.empty:
+        for _, row in dup_idx_df.iterrows():
+            dup_messages.append(
+                f"DUP_IDX idx={row.get('idx')}, id={row.get('id')}, name='{row.get('name')}', qty={row.get('qty')}"
+            )
+
+    if dup_messages:
+        details = "; ".join(dup_messages)
+        error_msg = f"Некорректные данные: обнаружены дубликаты продуктов (id/idx): {details}"
+        logger.error(error_msg)
+        return {
+            "status": int(cp_model.UNKNOWN),
+            "status_str": "UNKNOWN",
+            "schedule": schedule,
+            "products": products_schedule,
+            "objective_value": 0,
+            "proportion_diff": 0,
+            "error_str": error_msg,
+        }
+
+    # 3) Валидация lday: для продуктов (кроме нулевого) lday не должен быть 0 или отрицательным.
     invalid_products = []
     for p in products:
         # products: (name, qty, id, machine_type, qty_minus, lday, src_root, ...)
@@ -1027,8 +1603,8 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
     # дней, где каждые 3 смены исходного горизонта образуют один день.
     # Преобразуем day_idx в cleans из смен в дни и сокращаем горизонт.
     horizon_mode_local = getattr(settings, "HORIZON_MODE", "FULL").upper()
-    if horizon_mode_local == "LONG_SIMPLE":
-        shifts_per_day = 3  # 84 смены / 3 = 28 календарных дней
+    if horizon_mode_local in ("LONG_SIMPLE", "LONG_TWOLEVEL"):
+        shifts_per_day = 3  # 84 смены / 3 = 28 календарных дней для SIMPLE/TWOLEVEL
         count_days_days = (count_days + shifts_per_day - 1) // shifts_per_day
         if not clean_df.empty:
             clean_df = clean_df.copy()
@@ -1072,23 +1648,25 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
     product_zero = products_df[products_df["idx"] == 0]
 
     # Пересортируем продукты один раз на весь период, без разбивки по неделям.
+    # Дедубликацию по id не выполняем: при дубликатах входные данные считаем
+    # некорректными (см. проверку выше) и сразу возвращаем ошибку, чтобы не
+    # "угадывать" правильную запись.
     products_df_new = products_df.tail(-1)
-    products_df_new = products_df_new.sort_values(by=["qty"])
-    products_df_new = pd.concat([product_zero, products_df_new])
 
     # Убираем из products_df_new продукты с qty=0, которые нигде не стоят на
-    # машинах на начало, и гарантируем уникальные id перед построением
-    # отображения id->idx.
+    # машинах на начало, по id. Это безопасно: такие строки не могут появиться
+    # в расписании и только раздувают модель.
     products_df_zero = products_df[products_df["qty"] == 0]
     for _, p in products_df_zero.iterrows():
         pid = p["id"]
-        # Если продукт с таким id нигде не используется как стартовый, выпиливаем
-        # его из products_df_new полностью (по id, а не по исходному index).
         if len(machines_df[machines_df["product_id"] == pid]) == 0:
             products_df_new = products_df_new[products_df_new["id"] != pid]
 
-    # На всякий случай удаляем возможные дубликаты id, оставляя первую запись.
-    products_df_new = products_df_new.drop_duplicates(subset=["id"], keep="first").reset_index(drop=True)
+    # Теперь сортируем по qty для LONG_SIMPLE-эвристик и добавляем нулевой
+    # продукт (idx=0) в начало.
+    if not products_df_new.empty:
+        products_df_new = products_df_new.sort_values(by=["qty"])
+    products_df_new = pd.concat([product_zero, products_df_new]).reset_index(drop=True)
 
     products_df_new["idx"] = range(len(products_df_new))
     id_to_new_idx_map = products_df_new.set_index("id")["idx"].to_dict()
@@ -1100,7 +1678,7 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
     # SIMPLE_DEBUG_PRODUCT_UPPER_CAPS), выполним переотображение idx_orig -> idx_internal
     # через поле id продукта.
     horizon_mode_local = getattr(settings, "HORIZON_MODE", "FULL").upper()
-    if horizon_mode_local == "LONG_SIMPLE":
+    if horizon_mode_local in ("LONG_SIMPLE", "LONG_SIMPLE_HINT"):
         # Строим карту: исходный idx -> id
         orig_idx_to_id: dict[int, str] = {}
         for _, row in products_df.iterrows():
@@ -1145,6 +1723,43 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
                 new_caps[internal] = int(cap)
             settings.SIMPLE_DEBUG_PRODUCT_UPPER_CAPS = new_caps
 
+        # Переотображаем SIMPLE_QTY_MINUS_SUBSET из исходных idx в внутренние idx.
+        dbg_subset = getattr(settings, "SIMPLE_QTY_MINUS_SUBSET", None)
+        if dbg_subset is not None:
+            new_subset: set[int] = set()
+            try:
+                iterable = list(dbg_subset)
+            except TypeError:
+                iterable = []
+            for orig_idx in iterable:
+                try:
+                    orig_idx_int = int(orig_idx)
+                except Exception:
+                    continue
+                internal = orig_to_internal_idx(orig_idx_int)
+                if internal is None:
+                    continue
+                new_subset.add(internal)
+            settings.SIMPLE_QTY_MINUS_SUBSET = new_subset if new_subset else None
+
+        # Переотображаем SIMPLE_DEBUG_DUMP_CONSTRAINTС_FOR_IDX (если задан)
+        # из исходного idx во внутренний idx, чтобы далее можно было сделать
+        # дамп ограничений по конкретному продукту. Значение читаем из
+        # settings.DEBUG_FLAGS (dict), чтобы не расширять модель настроек.
+        dbg_flags = getattr(settings, "DEBUG_FLAGS", {}) or {}
+        dbg_dump_idx = dbg_flags.get("SIMPLE_DEBUG_DUMP_CONSTRAINTS_FOR_IDX")
+        if dbg_dump_idx is not None:
+            try:
+                dbg_dump_ext = int(dbg_dump_idx)
+            except Exception:
+                dbg_dump_ext = None
+            if dbg_dump_ext is not None:
+                internal = orig_to_internal_idx(dbg_dump_ext)
+                if internal is not None:
+                    settings.SIMPLE_DEBUG_DUMP_CONSTRAINTS_FOR_IDX_INTERNAL = internal
+                else:
+                    settings.SIMPLE_DEBUG_DUMP_CONSTRAINTS_FOR_IDX_INTERNAL = None
+
     # Цеха по машинам/продуктам: div=1 или 2 – фиксированный цех, 0 –
     # "плавающий" продукт (можно в любом цехе), None/отсутствие – игнорируем.
     if "div" in products_df_new.columns:
@@ -1163,24 +1778,42 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
     machines_new = MachinesDFToArray(machines_df)
     cleans_new = CleansDFToArray(clean_df)
 
-    solver = cp_model.CpSolver()
-    solver.parameters.log_search_progress = True
-    # solver.parameters.debug_crash_on_bad_hint = True
-
     horizon_mode = getattr(settings, "HORIZON_MODE", "FULL").upper()
-    long_mode = horizon_mode == "LONG"
+    # long_mode используется только для отключения детальной отладки/переходов;
+    # считаем "долгими" упрощённые режимы.
+    long_mode = horizon_mode in ("LONG_SIMPLE", "LONG_SIMPLE_HINT", "LONG_TWOLEVEL")
 
-    if horizon_mode == "LONG":
-        (model, jobs, product_counts, proportion_objective_terms, total_products_count, prev_lday, start_batch,
-         batch_end_complite, days_in_batch, completed_transition, pred_start_batch, same_as_prev,
-         strategy_penalty_terms) = create_model_long(
-            remains=remains, products=products_new, machines=machines_new, cleans=cleans_new,
-            max_daily_prod_zero=max_daily_prod_zero, count_days=count_days,
-            dedicated_machines=dedicated_machines,
-            product_divs=product_divs,
-            machine_divs=machine_divs,
-        )
-    elif horizon_mode == "LONG_SIMPLE":
+    # Для LONG_SIMPLE / LONG_SIMPLE_HINT при включённом USE_GREEDY_HINT или в режиме
+    # LONG_SIMPLE_HINT строим жадный SIMPLE-план (без нулей и чисток).
+    simple_hint_mode = (
+        horizon_mode == "LONG_SIMPLE_HINT"
+        or (settings.USE_GREEDY_HINT and horizon_mode == "LONG_SIMPLE")
+    )
+    if simple_hint_mode:
+        try:
+            greedy_schedule = create_simple_greedy_hint(
+                machines_new,
+                products_new,
+                count_days,
+                product_divs,
+                machine_divs,
+            )
+            logger.info("Greedy SIMPLE hint computed for %s", horizon_mode)
+        except Exception as e:
+            logger.error(f"Ошибка при вычислении SIMPLE greedy hint: {e}")
+            greedy_schedule = None
+
+    if horizon_mode in ("LONG_SIMPLE", "LONG_SIMPLE_HINT"):
+        # Pre-check для строгих qty_minus=0 в LONG_SIMPLE: если APPLY_QTY_MINUS включён
+        # и внешний код не задал SIMPLE_QTY_MINUS_SUBSET явно, попробуем заранее
+        # ослабить часть строгих продуктов, чтобы агрегированные нижние границы
+        # по дням не превышали мощность по цехам.
+        if settings.APPLY_QTY_MINUS and getattr(settings, "SIMPLE_QTY_MINUS_SUBSET", None) is None:
+            strict_final = simple_qtyminus_precheck_long_simple(data)
+            if strict_final:
+                # Используем strict_final как SIMPLE_QTY_MINUS_SUBSET, чтобы
+                # qty_minus-блок применялся только к этому подмножеству.
+                settings.SIMPLE_QTY_MINUS_SUBSET = set(strict_final)
         (model, jobs, product_counts, proportion_objective_terms, total_products_count, prev_lday, start_batch,
          batch_end_complite, days_in_batch, completed_transition, pred_start_batch, same_as_prev,
          strategy_penalty_terms) = create_model_simple(
@@ -1190,6 +1823,48 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
             product_divs=product_divs,
             machine_divs=machine_divs,
         )
+
+        # Отладочный дамп ограничений для конкретного продукта (если включён).
+        dbg_flags = getattr(settings, "DEBUG_FLAGS", {}) or {}
+        dbg_ext = dbg_flags.get("SIMPLE_DEBUG_DUMP_CONSTRAINTS_FOR_IDX")
+        dbg_int = getattr(settings, "SIMPLE_DEBUG_DUMP_CONSTRAINTS_FOR_IDX_INTERNAL", None)
+        if dbg_ext is not None and dbg_int is not None:
+            try:
+                debug_dump_constraints_for_product_idx(
+                    model,
+                    internal_idx=int(dbg_int),
+                    external_idx=int(dbg_ext),
+                )
+            except Exception as e:
+                logger.error(f"Failed to dump constraints for product idx={dbg_ext}: {e}")
+    elif horizon_mode == "LONG_TWOLEVEL":
+        from .two_level_simple import build_twolevel_schedule
+
+        schedule = []
+        products_schedule = []
+        diff_all = 0
+
+        schedule, products_schedule, internal_obj, external_penalty = build_twolevel_schedule(
+            remains=remains,
+            products_new=products_new,
+            machines_new=machines_new,
+            cleans_new=cleans_new,
+            count_days=count_days,
+            products_df_orig=products_df,
+            machines_orig=machines,
+            data=data,
+        )
+
+        result = {
+            "status": int(cp_model.OPTIMAL),
+            "status_str": "FEASIBLE_TWOLEVEL",
+            "schedule": schedule,
+            "products": products_schedule,
+            "objective_value": int(internal_obj),
+            "proportion_diff": int(external_penalty),
+            "error_str": "",
+        }
+        return result
     else:
         (model, jobs, product_counts, proportion_objective_terms, total_products_count, prev_lday, start_batch,
          batch_end_complite, days_in_batch, completed_transition, pred_start_batch, same_as_prev,
@@ -1201,42 +1876,55 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
             machine_divs=machine_divs,
         )
 
-    # Если есть жадный план и включён USE_GREEDY_HINT, используем его как hint для jobs[m,d].
-    # В LONG-режиме временно отключаем hints, т.к. сочетание LONG+hint
-    # приводит к крэшу OR-Tools до вывода статуса решения.
-    if settings.USE_GREEDY_HINT and greedy_schedule is not None and not long_mode:
+    # Если есть жадный план и включён USE_GREEDY_HINT/режим LONG_SIMPLE_HINT,
+    # используем его как hint для jobs[m,d]. Для упрощённых режимов (LONG_SIMPLE_)
+    # hints безопасны; для FULL/SHORT мы по-прежнему можем использовать shift-based greedy.
+    if greedy_schedule is not None and not long_mode:
         try:
-            # Маппинг: исходный idx продукта -> id, и id -> новый idx в products_df_new
-            orig_idx_to_id = products_df.set_index("idx")["id"].to_dict()
-            id_to_new_idx = products_df_new.set_index("id")["idx"].to_dict()
+            simple_mode = horizon_mode in ("LONG_SIMPLE", "LONG_SIMPLE_HINT")
+            if not simple_mode:
+                # FULL/SHORT: используем greedy_schedule_init и переотображение id -> новый idx.
+                orig_idx_to_id = products_df.set_index("idx")["id"].to_dict()
+                id_to_new_idx = products_df_new.set_index("id")["idx"].to_dict()
 
             for (m, d), var in jobs.items():
                 # jobs есть только для рабочих дней (без чисток)
                 if m >= len(greedy_schedule) or d >= len(greedy_schedule[m]):
                     continue
-                orig_p = greedy_schedule[m][d]
-                if orig_p is None or orig_p in (-2,):
-                    # None или -2 (чистка) — hint не ставим
+                p_val = greedy_schedule[m][d]
+                if p_val is None:
                     continue
-                # PRODUCT_ZERO остаётся 0
-                if orig_p == 0:
-                    hint_idx = 0
+
+                if simple_mode:
+                    # В SIMPLE hints уже заданы во внутреннем пространстве idx (1..num_products-1).
+                    hint_idx = int(p_val)
+                    if hint_idx < 1 or hint_idx >= len(products_new):
+                        continue
                 else:
-                    pid = orig_idx_to_id.get(int(orig_p))
-                    if pid is None:
+                    orig_p = p_val
+                    if orig_p in (-2,):
+                        # чистка — hint не ставим
                         continue
-                    new_idx = id_to_new_idx.get(pid)
-                    if new_idx is None:
-                        continue
-                    hint_idx = int(new_idx)
+                    # PRODUCT_ZERO остаётся 0
+                    if orig_p == 0:
+                        hint_idx = 0
+                    else:
+                        pid = orig_idx_to_id.get(int(orig_p))
+                        if pid is None:
+                            continue
+                        new_idx = id_to_new_idx.get(pid)
+                        if new_idx is None:
+                            continue
+                        hint_idx = int(new_idx)
+
                 model.AddHint(var, hint_idx)
             logger.info("Greedy hints added to CP-SAT model")
         except Exception as e:
             logger.error(f"Ошибка при установке hints из жадного плана: {e}")
 
-    # solver.parameters.log_search_progress = True
-    #solver.parameters.debug_crash_on_bad_hint = True
-    #solver.parameters.num_search_workers = 4
+    # Создаём solver после построения модели.
+    solver = cp_model.CpSolver()
+    solver.parameters.log_search_progress = True
 
     t_start = time.time()
     if settings.SOLVER_ENUMERATE:
@@ -1905,6 +2593,19 @@ def create_model_simple(remains: list, products: list, machines: list, cleans: l
 
     dedicated_set = set(dedicated_machines or [])
 
+    # Крупная эвристика для больших продуктов без стартовых машин (п.3):
+    # если включена SIMPLE_ENABLE_BIG_NOSTART_HEURISTIC, то для некоторых
+    # продуктов без стартовых машин, объём которых сравним с мощностью одной
+    # машины за горизонт, мы можем целиком забить одну совместимую машину этим
+    # продуктом и запретить его на остальных машинах.
+    # Интерпретируем SIMPLE_ENABLE_BIG_NOSTART_HEURISTIC как "включено, если
+    # непустая строка". Это обходной путь вокруг строгого bool-parsing pydantic.
+    raw_big_nostart = getattr(settings, "SIMPLE_ENABLE_BIG_NOSTART_HEURISTIC", None)
+    if isinstance(raw_big_nostart, str):
+        ENABLE_SIMPLE_BIG_NOSTART_HEURISTIC = raw_big_nostart.strip() != ""
+    else:
+        ENABLE_SIMPLE_BIG_NOSTART_HEURISTIC = bool(raw_big_nostart)
+
     all_machines = range(num_machines)
     all_days = range(num_days)
     all_products = range(num_products)
@@ -1916,6 +2617,10 @@ def create_model_simple(remains: list, products: list, machines: list, cleans: l
     # нижние/верхние границы объёма из блока qty_minus (во избежание
     # дублирования/конфликтов).
     h1_products: set[int] = set()
+    # Для H1 дополнительно храним набор станков, на которых продукт
+    # стартует с qty=0 и для которых мы реально применили ограничение
+    # по дням (has_higher_compatible=True).
+    h1_product_machines: dict[int, set[int]] = {}
     h2_products: set[int] = set()
     h3_products: set[int] = set()
 
@@ -2063,10 +2768,26 @@ def create_model_simple(remains: list, products: list, machines: list, cleans: l
 
             # Продукт p0 попадает под эвристику H1 (zero-plan start product).
             h1_products.add(p0)
+            if p0 not in h1_product_machines:
+                h1_product_machines[p0] = set()
+            h1_product_machines[p0].add(m)
 
             # Запрещаем p0 на машине m, начиная с дня max_zero_days_per_machine.
             for d in range(max_zero_days_per_machine, num_days):
                 model.Add(jobs[m, d] != p0)
+
+        # Дополнительно запрещаем H1‑коды на всех машинах, где они не стоят на
+        # начало. Таким образом, нулевые стартовые продукты могут встречаться
+        # только на своих начальных станках и только в первые max_zero_days_per_machine
+        # дней (ограничение по дням задаётся выше).
+        if ENABLE_SIMPLE_ZERO_PLAN_START_LIMIT and h1_products:
+            for p in h1_products:
+                allowed_machines = h1_product_machines.get(p, set())
+                for m in all_machines:
+                    if m in allowed_machines:
+                        continue
+                    for d in all_days:
+                        model.Add(jobs[m, d] != p)
 
     # 2) и 3) Продукты с планом qty>0 и особыми условиями на стартовых станках.
     # Используем план в сменах и переводим его в дни.
@@ -2305,6 +3026,76 @@ def create_model_simple(remains: list, products: list, machines: list, cleans: l
                 for d in all_days:
                     model.Add(jobs[m, d] != p)
 
+        # --- Дополнительная крупная эвристика для больших продуктов без стартовых машин ---
+        # Если включён ENABLE_SIMPLE_BIG_NOSTART_HEURISTIC, рассматриваем продукты,
+        # которые не стоят ни на одной машине в день 0 (len(machines_for_p) == 0),
+        # имеют ненулевой плановый объём и могут по объёму примерно занять одну
+        # машину на весь горизонт: план по дням в диапазоне [0.7 * num_days, 1.3 * num_days].
+        # Для такого продукта p выбираем одну подходящую по type/div машину m0 и
+        # забиваем её этим продуктом на весь горизонт, одновременно запрещая p
+        # на остальных машинах. Продукт добавляем в h3_products, чтобы блок
+        # APPLY_QTY_MINUS не накладывал на него дополнительные объёмные пределы.
+        if ENABLE_SIMPLE_BIG_NOSTART_HEURISTIC and not machines_for_p and plan_days > 0:
+            # Оцениваем, сопоставим ли объём мощности одной машины.
+            if (
+                plan_days * 10 >= num_days * 7  # план >= ~0.7 горизонта
+                and plan_days * 10 <= num_days * 13  # план <= ~1.3 горизонта
+            ):
+                # Ищем совместимые по type/div машины.
+                compatible_machines: list[int] = []
+                for m_idx in all_machines:
+                    machine_type = machines[m_idx][3]
+                    m_div = machine_divs[m_idx] if 0 <= m_idx < len(machine_divs) else 1
+                    product_machine_type_req = products[p][3]
+                    prod_div = product_divs[p] if 0 <= p < len(product_divs) else 0
+                    type_incompatible = (
+                        product_machine_type_req > 0
+                        and machine_type != product_machine_type_req
+                    )
+                    div_incompatible = (
+                        prod_div in (1, 2) and m_div != prod_div
+                    )
+                    if not (type_incompatible or div_incompatible):
+                        compatible_machines.append(m_idx)
+
+                # Выбираем машину: предпочтительно без стартового продукта (initial_products[m]==0).
+                m0_big: int | None = None
+                for m_idx in compatible_machines:
+                    if initial_products[m_idx] == 0:
+                        m0_big = m_idx
+                        break
+                if m0_big is None and compatible_machines:
+                    m0_big = compatible_machines[0]
+
+                if m0_big is not None:
+                    try:
+                        name_p = products[p][0]
+                        logger.info(
+                            "SIMPLE BIG_NOSTART: p=%d (%s), plan_days=%d, num_days=%d, "
+                            "m0=%d, compatible_machines=%s",
+                            p,
+                            name_p,
+                            plan_days,
+                            num_days,
+                            m0_big,
+                            compatible_machines,
+                        )
+                    except Exception:
+                        pass
+
+                    # Помечаем продукт как попавший под крупную эвристику (аналог H3).
+                    h3_products.add(p)
+
+                    # Фиксируем m0_big целиком под продукт p.
+                    for d in all_days:
+                        model.Add(jobs[m0_big, d] == p)
+                    # Запрещаем p на остальных машинах.
+                    for m_idx in all_machines:
+                        if m_idx == m0_big:
+                            continue
+                        for d in all_days:
+                            model.Add(jobs[m_idx, d] != p)
+
     # ------------ Подсчёт общего количества каждого продукта ------------
     product_produced_bools: dict[tuple[int, int, int], cp_model.BoolVar] = {}
     # В SIMPLE не используем продукт 0, поэтому считаем только p >= 1.
@@ -2315,6 +3106,7 @@ def create_model_simple(remains: list, products: list, machines: list, cleans: l
             model.Add(jobs[m, d] == p).OnlyEnforceIf(b)
             model.Add(jobs[m, d] != p).OnlyEnforceIf(b.Not())
 
+    # Общее количество дней по продукту (все машины × все дни).
     product_counts: list[cp_model.IntVar] = [
         model.NewIntVar(0, num_machines * num_days, f"count_prod_simple_{p}") for p in all_products
     ]
@@ -2325,25 +3117,90 @@ def create_model_simple(remains: list, products: list, machines: list, cleans: l
         model.Add(product_counts[p] == sum(
             product_produced_bools[p, m, d] for m, d in work_days
         ))
-        # Применяем накопленные сверху капы для "маленьких" продуктов (эвристика H2), если есть.
-        cap = small_caps.get(p)
-        if cap is not None:
-            model.Add(product_counts[p] <= cap)
-        # Отладочные верхние границы для конкретных продуктов.
-        if debug_upper_caps is not None and p in debug_upper_caps:
-            cap_dbg = debug_upper_caps[p]
-            model.Add(product_counts[p] <= cap_dbg)
-        # Дополнительный кап для строгих маленьких продуктов (qty_minus=0, план < 0.5 машино-периода):
-        # фактический объём в ДНЯХ не должен превышать рассчитанный cap_days
-        # (приблизительно соответствует плану + 1 смена с учётом округления).
-        max_days_cap = strict_small_caps_days.get(p)
-        if max_days_cap is not None:
-            model.Add(product_counts[p] <= max_days_cap)
-        # Глобальный кап для всех продуктов с небольшим планом (qty < 0.7 * машино-период):
-        max_days_cap_global = global_small_caps_days.get(p)
-        if max_days_cap_global is not None:
-            model.Add(product_counts[p] <= max_days_cap_global)
 
+    # Глобальный кап по H1‑продуктам временно отключён: ограничение
+    # действует только по дням на стартовых станках (см. выше) и по
+    # запрету на других машинах. Это нужно, чтобы проверить влияние
+    # жёсткого "2 дня на продукт" на выполнимость STRICT9.
+    # if ENABLE_SIMPLE_ZERO_PLAN_START_LIMIT and h1_products:
+    #     for p in h1_products:
+    #         cap_days = max_zero_days_per_machine
+    #         cap_days = min(cap_days, num_machines * num_days)
+    #         model.Add(product_counts[p] <= cap_days)
+
+    # Отладочные верхние капы по продуктам: если заданы, просто добавляем
+    # ограничение вида product_counts[p] <= cap_dbg. Оно сочетается с H1‑капами
+    # (берётся более жёсткая граница).
+    if debug_upper_caps:
+        for p, cap_dbg in debug_upper_caps.items():
+            if 0 < p < num_products:
+                model.Add(product_counts[p] <= int(cap_dbg))
+
+    # ------------ Монотонность по дням для каждого продукта ------------
+    # Для каждого продукта p считаем дневные мощности C[p,d] = кол-во машин,
+    # занятых продуктом p в день d, и вводим бинарную переменную направления
+    # is_up[p]: 1 — профиль неубывающий (выводим/наращиваем), 0 — невозрастающий
+    # (снимаем). Волнистые паттерны 3-1-0-1-2-3 запрещены.
+    C_pd: dict[tuple[int, int], cp_model.IntVar] = {}
+    is_up: dict[int, cp_model.BoolVar] = {}
+
+    if getattr(settings, "SIMPLE_USE_MONOTONE_COUNTS", True):
+        # Для верхней границы берём максимум машин, на которых продукт в принципе
+        # может стоять по type/div. Это уменьшает Big-M в ограничениях.
+        max_cap_per_product: dict[int, int] = {}
+        for p in range(1, num_products):
+            product_machine_type_req = products[p][3]
+            prod_div = product_divs[p] if 0 <= p < len(product_divs) else 0
+            cap = 0
+            for m in all_machines:
+                machine_type = machines[m][3]
+                m_div = machine_divs[m] if 0 <= m < len(machine_divs) else 1
+                type_incompatible = (
+                    product_machine_type_req > 0 and machine_type != product_machine_type_req
+                )
+                div_incompatible = (
+                    prod_div in (1, 2) and m_div != prod_div
+                )
+                if not (type_incompatible or div_incompatible):
+                    cap += 1
+            if cap <= 0:
+                cap = num_machines
+            max_cap_per_product[p] = cap
+
+        for p in range(1, num_products):
+            is_up[p] = model.NewBoolVar(f"simple_is_up_{p}")
+            M_p = max_cap_per_product[p]
+            for d in all_days:
+                C = model.NewIntVar(0, M_p, f"C_simple_{p}_{d}")
+                C_pd[p, d] = C
+                # C[p,d] = sum_m is_prod[p,m,d]
+                model.Add(C == sum(
+                    product_produced_bools[p, m, d] for m in all_machines
+                ))
+            # Монотонность по дням: либо неубывающий, либо невозрастающий профиль.
+            for d in range(num_days - 1):
+                diff = model.NewIntVar(-M_p, M_p, f"Cdiff_simple_{p}_{d}")
+                model.Add(diff == C_pd[p, d + 1] - C_pd[p, d])
+                # Если is_up[p] = 1 → diff >= 0; если 0 → ограничение ослабляем до diff >= -M_p.
+                model.Add(diff >= 0 - M_p * (1 - is_up[p]))
+                # Если is_up[p] = 0 → diff <= 0; если 1 → ограничение ослабляем до diff <= M_p.
+                model.Add(diff <= 0 + M_p * is_up[p])
+    else:
+        # Если монотонность отключена, всё равно инициализируем C_pd для совместимости,
+        # но без ограничений на разности. Верхняя граница берётся как num_machines.
+        for p in range(1, num_products):
+            for d in all_days:
+                C = model.NewIntVar(0, num_machines, f"C_simple_{p}_{d}")
+                C_pd[p, d] = C
+                model.Add(C == sum(
+                    product_produced_bools[p, m, d] for m in all_machines
+                ))
+        # Раньше здесь дополняли модель верхними капами по product_counts[p]
+        # из эвристики H2/H3 (small_caps, strict_small_caps_days,
+        # global_small_caps_days). В текущем варианте для увеличения
+        # выполнимости в LONG_SIMPLE эти капы отключаем и оставляем только
+        # отладочные верхние границы при необходимости (см. debug_upper_caps
+        # выше).
     # Минимальные объёмы по qty_minus / qty_minus_min (как в create_model),
     # с учётом того, что в SIMPLE product_counts[p] считаются в ДНЯХ, а qty и
     # qty_minus_min заданы в СМЕНАХ. Предполагаем 3 смены в день.
@@ -2357,13 +3214,96 @@ def create_model_simple(remains: list, products: list, machines: list, cleans: l
         debug_subset = getattr(settings, "SIMPLE_QTY_MINUS_SUBSET", None)
         debug_max_idx = getattr(settings, "SIMPLE_DEBUG_MAXIMIZE_PRODUCT_IDX", None)
 
+        # --- Выбор балансирующих продуктов по цехам (div) среди qty_minus != 0 ---
+        # Для каждого div отбираем до 2 продуктов с наибольшим планом в днях,
+        # которые не попали под H1–H3 и не вырезаны отладочными фильтрами.
+        balance_products: set[int] = set()
+        per_div_candidates: dict[int, list[tuple[int, int]]] = {}
+
         for p in range(1, num_products):
-            # Для продуктов, которые уже жёстко ограничены эвристиками H1-H3,
-            # НЕ накладываем дополнительные нижние/верхние границы по объёму
-            # из блока qty_minus, чтобы избежать дублирования и возможных
-            # конфликтов.
+            # Те же фильтры, что и для основного блока qty_minus.
             if p in h1_products or p in h2_products or p in h3_products:
                 continue
+            if debug_subset is not None and p not in debug_subset:
+                continue
+            if debug_max_idx is not None and p == debug_max_idx:
+                continue
+
+            qty_shifts = int(products[p][1])
+            if qty_shifts <= 0:
+                continue
+            qty_minus_flag = products[p][4]
+            if qty_minus_flag == 0:
+                continue
+
+            plan_days = (qty_shifts + shifts_per_day - 1) // shifts_per_day
+            if plan_days <= 0:
+                continue
+
+            prod_div = product_divs[p] if 0 <= p < len(product_divs) else 0
+            per_div_candidates.setdefault(prod_div, []).append((p, plan_days))
+
+        # Разрешаем не более SIMPLE_QTY_MINUS_MAX_BALANCE_PER_DIV балансирующих
+        # продуктов на цех (div). Значение по умолчанию = 1 и настраивается
+        # через settings.SIMPLE_QTY_MINUS_MAX_BALANCE_PER_DIV.
+        try:
+            max_balance_per_div = int(getattr(settings, "SIMPLE_QTY_MINUS_MAX_BALANCE_PER_DIV", 1))
+        except Exception:
+            max_balance_per_div = 1
+        if max_balance_per_div < 1:
+            max_balance_per_div = 1
+        for prod_div, cand_list in per_div_candidates.items():
+            cand_list.sort(key=lambda t: t[1], reverse=True)
+            for p, _plan_days in cand_list[:max_balance_per_div]:
+                balance_products.add(p)
+
+        # Диагностический вывод: классификация продуктов по режимам qty_minus.
+        # mode:
+        #   STRICT_QM0 — строгий qty_minus=0, только нижняя граница >= плану;
+        #   BALANCE    — продукт из balance_products (только нижняя граница min_days);
+        #   CORRIDOR   — обычный продукт с коридором plan_days±1;
+        #   SKIP_DEBUG — продукт вырезан отладочными фильтрами (subset/max_idx).
+        try:
+            for p in range(1, num_products):
+                try:
+                    qty_shifts = int(products[p][1])
+                except Exception:
+                    qty_shifts = 0
+                qty_minus_flag = products[p][4]
+                try:
+                    qty_minus_min_shifts = int(products[p][7]) if len(products[p]) > 7 else 0
+                except Exception:
+                    qty_minus_min_shifts = 0
+                prod_div = product_divs[p] if 0 <= p < len(product_divs) else 0
+
+                if debug_subset is not None and p not in debug_subset:
+                    mode = "SKIP_DEBUG"
+                elif debug_max_idx is not None and p == debug_max_idx:
+                    mode = "SKIP_DEBUG"
+                elif qty_shifts <= 0:
+                    mode = "ZERO_PLAN"
+                elif qty_minus_flag == 0:
+                    mode = "STRICT_QM0"
+                elif p in balance_products:
+                    mode = "BALANCE"
+                else:
+                    mode = "CORRIDOR"
+
+                name_p = products[p][0] if 0 <= p < len(products) else f"p{p}"
+                logger.info(
+                    "SIMPLE qty_minus: p=%d name=%s div=%d qty=%d qm=%d qm_min=%d mode=%s",
+                    p,
+                    name_p,
+                    prod_div,
+                    qty_shifts,
+                    qty_minus_flag,
+                    qty_minus_min_shifts,
+                    mode,
+                )
+        except Exception:
+            pass
+
+        for p in range(1, num_products):
 
             # Если задан отладочный поднабор продуктов, применяем qty_minus
             # только к нему.
@@ -2393,8 +3333,32 @@ def create_model_simple(remains: list, products: list, machines: list, cleans: l
                 # из-за округлений и ограничений по мощностям.
                 model.Add(product_counts[p] >= plan_days)
             else:
-                if min_days > 0:
-                    model.Add(product_counts[p] >= min_days)
+                # qty_minus != 0: продукты, которые могут отклоняться от плана.
+                # Для продуктов под эвристиками H1–H3 оставляем только нижнюю
+                # границу по объёму (min_days/plan_days), без жёсткого верха,
+                # чтобы не усиливать уже заданные структурные ограничения.
+                if p in h1_products or p in h2_products or p in h3_products:
+                    if plan_days > 0 or min_days > 0:
+                        lower = max(plan_days, min_days)
+                        model.Add(product_counts[p] >= lower)
+                # Для небольшой подгруппы balance_products (по div) оставляем
+                # только нижнюю границу (min_days), чтобы они могли балансировать
+                # общий перекос.
+                elif p in balance_products:
+                    if min_days > 0:
+                        model.Add(product_counts[p] >= min_days)
+                else:
+                    # Для всех остальных вводим жёсткий коридор вокруг плана:
+                    # примерно plan_days ± 1 день с учётом минимальной границы min_days.
+                    if plan_days > 0:
+                        lower_bound = max(min_days, max(plan_days - 1, 0))
+                        upper_bound = plan_days + 1
+                        model.Add(product_counts[p] >= lower_bound)
+                        model.Add(product_counts[p] <= upper_bound)
+                    elif min_days > 0:
+                        # На всякий случай, если план по дням 0, но есть min_days
+                        # из qty_minus_min, ограничиваем только снизу.
+                        model.Add(product_counts[p] >= min_days)
 
     # Ограничение по типам машин (machine_type) и по цехам (div)
     for p in all_products:
