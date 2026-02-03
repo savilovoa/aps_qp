@@ -152,13 +152,16 @@ def aggregated_schedule_to_html(
     """HTML-отчёт для агрегированного плана (LONG_SIMPLE/LONG_TWOLEVEL).
 
     Вертикаль: дни (реальные календарные даты от dt_begin).
-    Горизонталь: продукты, сгруппированные по цехам (div) и отсортированные по name.
-    В ячейке – количество машин, занятых продуктом в этот день.
+    Горизонталь: по каждому цеху (div по машинам) свои колонки продуктов,
+    отсортированные по имени; если продукт стоит в двух цехах, он появляется
+    в каждой соответствующей группе.
+    В ячейке – количество машин, занятых продуктом в этом цехе в этот день.
     Цветом выделяем только переходы (изменение количества машин по сравнению с предыдущим днём).
     """
 
-    # Карта: product_idx -> (name, div)
-    product_meta: dict[int, tuple[str, int | None]] = {}
+    # Карта: product_idx -> (name, div, плановая qty в сменах)
+    product_meta: dict[int, tuple[str, int | None, int]] = {}
+    plan_qty_by_idx: dict[int, int] = {}
     for p in products:
         try:
             idx = int(p.get("idx"))
@@ -166,36 +169,70 @@ def aggregated_schedule_to_html(
             continue
         name = p.get("name", f"p{idx}")
         div = p.get("div", None)
-        product_meta[idx] = (name, div)
+        try:
+            plan_qty = int(p.get("qty", 0))
+        except Exception:
+            plan_qty = 0
+        product_meta[idx] = (name, div, plan_qty)
+        plan_qty_by_idx[idx] = plan_qty
 
-    # Собираем матрицу: counts[(day_idx, product_idx)] = machine_count
-    counts: dict[tuple[int, int], int] = {}
+    # Карта: машина -> div-группа (1, 2 или None для прочих)
+    machine_div: dict[int, int | None] = {}
+    for m_idx, mrec in enumerate(machines):
+        d_raw = _safe_get(mrec, "div", None)
+        try:
+            d_int = int(d_raw) if d_raw is not None else None
+        except Exception:
+            d_int = None
+        g = d_int if d_int in (1, 2) else None
+        machine_div[m_idx] = g
+
+    # Строим карту (m,d) -> product_idx и одновременно считаем
+    # counts_div[(div, day_idx, product_idx)] = machine_count.
+    md: dict[tuple[int, int], int] = {}
+    counts_div: dict[tuple[int | None, int, int], int] = {}
+    # Дополнительно: по каким div вообще встречается продукт,
+    # и факт в сменах по (div, product).
+    product_divs: dict[int, set[int | None]] = {}
+    fact_shifts_div: dict[tuple[int | None, int], int] = {}
+
     max_day = 0
-    for rec in long_schedule:
+    for rec in schedule:
+        m = _safe_get(rec, "machine_idx", 0) or 0
         d = _safe_get(rec, "day_idx", 0) or 0
         p = _safe_get(rec, "product_idx", 0) or 0
-        c = _safe_get(rec, "machine_count", 0) or 0
         try:
-            d = int(d)
-            p = int(p)
-            c = int(c)
+            m = int(m); d = int(d); p = int(p)
         except Exception:
             continue
+        md[(m, d)] = p
         if p <= 0:
             continue
-        counts[(d, p)] = counts.get((d, p), 0) + c
+        g = machine_div.get(m, None)
+        key = (g, d, p)
+        counts_div[key] = counts_div.get(key, 0) + 1
+        # Суммарные div'ы по продукту
+        product_divs.setdefault(p, set()).add(g)
+        # Фактическое количество смен: 3 смены на машино-день
+        fact_key = (g, p)
+        fact_shifts_div[fact_key] = fact_shifts_div.get(fact_key, 0) + 3
         if d > max_day:
             max_day = d
 
-    days = list(range(max_day + 1)) if counts else []
+    days = list(range(max_day + 1)) if counts_div else []
 
-    # Группируем продукты по div и сортируем по имени внутри группы.
+    # Группы продуктов по div машин и сортировка по имени внутри группы.
     groups: dict[int | None, list[int]] = {}
-    for idx, (name, div) in product_meta.items():
-        g = div if div in (1, 2) else None
-        groups.setdefault(g, []).append(idx)
+    for (g, d, p), c in counts_div.items():
+        if c <= 0:
+            continue
+        groups.setdefault(g, []).append(p)
     for g in groups:
-        groups[g].sort(key=lambda i: product_meta[i][0])
+        uniq = sorted(
+            set(groups[g]),
+            key=lambda i: product_meta.get(i, (f"p{i}", None, 0))[0],
+        )
+        groups[g] = uniq
 
     # Предварительно считаем ежедневные итоги:
     # - transitions_per_day[d]: число переходов по всем машинам (как в анализаторе),
@@ -206,17 +243,7 @@ def aggregated_schedule_to_html(
     transitions_per_day: dict[int, int] = {d: 0 for d in days}
     machines_per_div_day: dict[tuple[int | None, int], int] = {}
 
-    # Строим карту (m,d) -> product_idx из детального расписания.
-    md: dict[tuple[int, int], int] = {}
-    for rec in schedule:
-        m = _safe_get(rec, "machine_idx", 0) or 0
-        d = _safe_get(rec, "day_idx", 0) or 0
-        p = _safe_get(rec, "product_idx", 0) or 0
-        try:
-            m = int(m); d = int(d); p = int(p)
-        except Exception:
-            continue
-        md[(m, d)] = p
+    # Строим карту (m,d) -> product_idx уже выполнено выше (md).
 
     # Стартовые продукты по машинам
     init_prod: dict[int, int] = {}
@@ -246,11 +273,9 @@ def aggregated_schedule_to_html(
                     day_transitions += 1
         transitions_per_day[d] = day_transitions
 
-        # Суммарное количество машин по цехам/группам в этот день
-        for idx, (name, div) in product_meta.items():
-            g = div if div in (1, 2) else None
-            c = counts.get((d, idx), 0)
-            machines_per_div_day[(g, d)] = machines_per_div_day.get((g, d), 0) + c
+    # Суммарное количество машин по цехам/группам в каждый день
+    for (g, d, p), c in counts_div.items():
+        machines_per_div_day[(g, d)] = machines_per_div_day.get((g, d), 0) + c
 
     # CSS-стили для таблицы и подсветки переходов.
     styles = """
@@ -263,6 +288,8 @@ def aggregated_schedule_to_html(
     td.nonzero { background-color: #ffffff; }
     td.transition { background-color: #ffe8a3; }
     .div-header { margin-top: 24px; font-weight: bold; }
+    /* Подсветка продуктов, которые встречаются в нескольких цехах */
+    th.multi-div-product, td.multi-div-product { background-color: #ffff99; }
     </style>
     """
 
@@ -284,15 +311,62 @@ def aggregated_schedule_to_html(
     # Определяем порядок цехов
     div_keys = sorted(groups.keys(), key=lambda x: (999 if x is None else x))
 
-    # Заголовок: Дата | Переходов | Итого цех1 | продукты цех1... | Итого цех2 | продукты цех2...
+    # Заголовок: Дата | Переходов | Итого цех1 | продукты цех1... | Итого цех2 | продукты цех2... | Итого прочие | продукты div=0/None
     html_parts.append("<tr><th>Дата</th><th>Переходов</th>")
     for div in div_keys:
-        if div not in (1, 2):
-            continue
-        html_parts.append(f"<th>Итого цех {div}</th>")
+        if div in (1, 2):
+            header = f"Итого цех {div}"
+        else:
+            header = "Итого прочие"
+        html_parts.append(f"<th>{header}</th>")
         for p_idx in groups.get(div, []):
-            name, _ = product_meta[p_idx]
-            html_parts.append(f"<th>{name}</th>")
+            name, _, _ = product_meta[p_idx]
+            multi = len(product_divs.get(p_idx, set())) > 1
+            cls_attr = " class='multi-div-product'" if multi else ""
+            html_parts.append(f"<th{cls_attr}>{name}</th>")
+    html_parts.append("</tr>")
+
+    # Вторая строка заголовка по продуктам: план/факт (факт по цеху, план общий по продукту)
+    html_parts.append("<tr><td>план/факт</td><td></td>")
+    for div in div_keys:
+        # В столбце "Итого цех" план/факт не выводим — оставляем пустым
+        html_parts.append("<td></td>")
+        for p_idx in groups.get(div, []):
+            plan_qty = plan_qty_by_idx.get(p_idx, 0)
+            fact_qty = fact_shifts_div.get((div, p_idx), 0)
+            cell_text = f"{plan_qty}/{fact_qty}" if (plan_qty or fact_qty) else ""
+            multi = len(product_divs.get(p_idx, set())) > 1
+            cls_attr = " class='multi-div-product'" if multi else ""
+            html_parts.append(f"<td{cls_attr}>{cell_text}</td>")
+    html_parts.append("</tr>")
+
+    # Дополнительная строка "Начало": распределение машин по продуктам и цехам
+    # на момент старта (machines.product_idx), без подсчёта переходов.
+    init_counts_div: dict[tuple[int | None, int], int] = {}
+    init_totals_div: dict[int | None, int] = {}
+    for m_idx in range(num_machines):
+        p0 = init_prod.get(m_idx, 0)
+        if p0 <= 0:
+            continue
+        g = machine_div.get(m_idx, None)
+        key = (g, p0)
+        init_counts_div[key] = init_counts_div.get(key, 0) + 1
+        init_totals_div[g] = init_totals_div.get(g, 0) + 1
+
+    html_parts.append("<tr><td>Начало</td>")
+    html_parts.append("<td></td>")  # переходы на момент начала не считаем
+    for div in div_keys:
+        total_m0 = init_totals_div.get(div, 0)
+        html_parts.append(f"<td>{total_m0}</td>")
+        for p_idx in groups.get(div, []):
+            c0 = init_counts_div.get((div, p_idx), 0)
+            if c0 == 0:
+                cls = "zero"
+                text = ""
+            else:
+                cls = "nonzero"
+                text = str(c0)
+            html_parts.append(f"<td class='{cls}'>{text}</td>")
     html_parts.append("</tr>")
 
     # Строки по дням
@@ -301,14 +375,16 @@ def aggregated_schedule_to_html(
         html_parts.append(f"<tr><td>{date_str}</td>")
         html_parts.append(f"<td>{transitions_per_day.get(d, 0)}</td>")
         for div in div_keys:
-            if div not in (1, 2):
-                continue
             total_m = machines_per_div_day.get((div, d), 0)
             html_parts.append(f"<td>{total_m}</td>")
             for p_idx in groups.get(div, []):
-                c = counts.get((d, p_idx), 0)
-                prev_c = counts.get((d - 1, p_idx), 0) if d > 0 else 0
-                is_transition = (d == 0 and c > 0) or (d > 0 and c != prev_c)
+                c = counts_div.get((div, d, p_idx), 0)
+                if d == 0:
+                    # Для первого дня сравниваем с начальным распределением по продуктам/цехам.
+                    prev_c = init_counts_div.get((div, p_idx), 0)
+                else:
+                    prev_c = counts_div.get((div, d - 1, p_idx), 0)
+                is_transition = c != prev_c
                 if c == 0:
                     cls = "zero"
                     text = ""

@@ -25,6 +25,15 @@ class Settings(BaseSettings):
     APPLY_QTY_MINUS: bool = Field(default=True)
     APPLY_INDEX_UP: bool = Field(default=True)
 
+    # Учитывать ли разделение по цехам (div) в моделях.
+    # Если False, ограничения совместимости по div и выбор единственного цеха
+    # для flex-продуктов (div=0) в CP-моделях отключаются, но разбиение по div
+    # в отчётах (HTML) остаётся.
+    APPLY_DIV_CONSTRAINTS: bool = Field(
+        default=True,
+        description="Включать ли ограничения по цехам (div) в моделях FULL/LONG/LONG_SIMPLE",
+    )
+
     # В SIMPLE можно отдельно отключать INDEX_UP, не трогая LONG/полную модель.
     SIMPLE_DISABLE_INDEX_UP: bool = Field(
         default=False,
@@ -93,13 +102,25 @@ class Settings(BaseSettings):
         description="Подмножество индексов продуктов для применения qty_minus в LONG_SIMPLE (отладка)",
     )
 
-    # Отладка емкости для конкретного продукта в LONG_SIMPLE: если задан индекс,
-    # то в SIMPLE вместо обычной цели максимизируем product_counts[idx].
-    SIMPLE_DEBUG_MAXIMIZE_PRODUCT_IDX: int | None = Field(
+    # Отладка минимально достижимого объёма для конкретного продукта в LONG_SIMPLE:
+    # только базовые домены jobs[m,d], связь с product_counts[p] и тип/div.
+    SIMPLE_DEBUG_SUPER_SIMPLE: bool = Field(
+        default=False,
+        description=(
+            "Если True, в LONG_SIMPLE строится максимально простая модель без "
+            "qty_minus, монотонности и ограничений по переходам (для отладки)."
+        ),
+    )
+
+    # Отладка минимально достижимого объёма для конкретного продукта в LONG_SIMPLE:
+    # если задан индекс, то в SIMPLE вместо обычной цели минимизируем
+    # product_counts[idx], чтобы оценить нижнюю границу по объёму с учётом всех
+    # текущих ограничений.
+    SIMPLE_DEBUG_MINIMIZE_PRODUCT_IDX: int | None = Field(
         default=None,
         description=(
-            "Если не None, в LONG_SIMPLE используем цель Maximize(product_counts[idx]) "
-            "для оценки максимальной емкости по этому продукту."
+            "Если не None, в LONG_SIMPLE используем цель Minimize(product_counts[idx]) "
+            "для оценки минимально достижимого объёма по этому продукту."
         ),
     )
 

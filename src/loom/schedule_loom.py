@@ -1760,16 +1760,21 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
 
     # Цеха по машинам/продуктам: div=1 или 2 – фиксированный цех, 0 –
     # "плавающий" продукт (можно в любом цехе), None/отсутствие – игнорируем.
-    if "div" in products_df_new.columns:
+    use_div = getattr(settings, "APPLY_DIV_CONSTRAINTS", True)
+
+    if "div" in products_df_new.columns and use_div:
         product_divs = (
             products_df_new["div"].fillna(0).astype(int).tolist()
         )
     else:
+        # При use_div=False в модели div игнорируется: считаем все продукты
+        # "плавающими" (div=0).
         product_divs = [0 for _ in range(len(products_df_new))]
 
-    if "div" in machines_df.columns:
+    if "div" in machines_df.columns and use_div:
         machine_divs = machines_df["div"].fillna(1).astype(int).tolist()
     else:
+        # При use_div=False в модели все машины считаются в одном условном цехе.
         machine_divs = [1 for _ in range(len(machines_df))]
 
     products_new = ProductsDFToArray(products_df_new)
@@ -1806,7 +1811,14 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
         # и внешний код не задал SIMPLE_QTY_MINUS_SUBSET явно, попробуем заранее
         # ослабить часть строгих продуктов, чтобы агрегированные нижние границы
         # по дням не превышали мощность по цехам.
-        if settings.APPLY_QTY_MINUS and getattr(settings, "SIMPLE_QTY_MINUS_SUBSET", None) is None:
+        #
+        # Если div-ограничения в моделях отключены (APPLY_DIV_CONSTRAINTS=False),
+        # precheck по дивам теряет смысл и пропускается.
+        if (
+            settings.APPLY_DIV_CONSTRAINTS
+            and settings.APPLY_QTY_MINUS
+            and getattr(settings, "SIMPLE_QTY_MINUS_SUBSET", None) is None
+        ):
             strict_final = simple_qtyminus_precheck_long_simple(data)
             if strict_final:
                 # Используем strict_final как SIMPLE_QTY_MINUS_SUBSET, чтобы
@@ -2181,31 +2193,36 @@ def create_model_long(remains: list, products: list, machines: list, cleans: lis
     # Вариант B для продуктов с div = 0: выбор единственного цеха в модели.
     # Для каждого такого продукта p вводим y[p,1], y[p,2] с y[p,1] + y[p,2] = 1,
     # и требуем: если p стоит на машине m (div=m_div), то y[p,m_div] = 1.
-    flex_products = [
-        p for p in all_products
-        if (0 <= p < len(product_divs) and product_divs[p] == 0 and p != 0)
-    ]
-
+    #
+    # При отключённых div-ограничениях (APPLY_DIV_CONSTRAINTS=False) этот блок
+    # не используется, чтобы не навязывать выбор единственного цеха.
+    flex_products: list[int] = []
     y_div: dict[tuple[int, int], cp_model.BoolVar] = {}
-    for p in flex_products:
-        y1 = model.NewBoolVar(f"y_div1_long_p{p}")
-        y2 = model.NewBoolVar(f"y_div2_long_p{p}")
-        model.Add(y1 + y2 == 1)
-        y_div[p, 1] = y1
-        y_div[p, 2] = y2
+    if getattr(settings, "APPLY_DIV_CONSTRAINTS", True):
+        flex_products = [
+            p for p in all_products
+            if (0 <= p < len(product_divs) and product_divs[p] == 0 and p != 0)
+        ]
 
-    for p in flex_products:
-        for m in all_machines:
-            m_div = machine_divs[m] if 0 <= m < len(machine_divs) else 1
-            if m_div not in (1, 2):
-                # Неподдерживаемый div – на всякий случай запрещаем p на этой машине.
+        for p in flex_products:
+            y1 = model.NewBoolVar(f"y_div1_long_p{p}")
+            y2 = model.NewBoolVar(f"y_div2_long_p{p}")
+            model.Add(y1 + y2 == 1)
+            y_div[p, 1] = y1
+            y_div[p, 2] = y2
+
+        for p in flex_products:
+            for m in all_machines:
+                m_div = machine_divs[m] if 0 <= m < len(machine_divs) else 1
+                if m_div not in (1, 2):
+                    # Неподдерживаемый div – на всякий случай запрещаем p на этой машине.
+                    for d in all_days:
+                        model.Add(jobs[m, d] != p)
+                    continue
+                y_pm = y_div[p, m_div]
                 for d in all_days:
-                    model.Add(jobs[m, d] != p)
-                continue
-            y_pm = y_div[p, m_div]
-            for d in all_days:
-                b = product_produced_bools[p, m, d]
-                model.AddImplication(b, y_pm)
+                    b = product_produced_bools[p, m, d]
+                    model.AddImplication(b, y_pm)
 
     # --------- Переходы и clean-дни в агрегированном LONG-режиме ---------
 
@@ -2681,9 +2698,10 @@ def create_model_simple(remains: list, products: list, machines: list, cleans: l
                 if fixed_product > 0:
                     model.Add(jobs[m, d] == fixed_product)
 
-    # Жёсткое начальное состояние: в день 0 машина стоит на своём initial product,
-    # если этот продукт > 0. Стартовое PRODUCT_ZERO в SIMPLE не фиксируем
-    # (машина свободна выбрать любой реальный продукт с первого дня).
+    # Жёсткое начальное состояние: в день 0 машина стоит на своём
+    # initial product, если этот продукт > 0. Это повторяет поведение
+    # FULL-модели: первый плановый день соответствует продолжению
+    # текущего состояния, а переходы считаются с d=1.
     for m in all_machines:
         init_p = initial_products[m]
         if init_p > 0:
@@ -2962,7 +2980,11 @@ def create_model_simple(remains: list, products: list, machines: list, cleans: l
             ENABLE_SIMPLE_BIG_START_HEURISTIC
             and len(machines_for_p) == 1
             and initial_products[m0] == p
-            and plan_days * 5 >= capacity_days_m0 * 4  # ~80% горизонта
+            # План по дням должен быть в диапазоне [0.8, 1.1] от горизонта
+            # этой машины: достаточно большой, чтобы почти заполнить машину,
+            # но не настолько большой, чтобы существенно выходить за её мощность.
+            and plan_days * 10 >= capacity_days_m0 * 8   # >= 0.8 горизонта
+            and plan_days * 10 <= capacity_days_m0 * 11  # <= 1.1 горизонта
             and strategy in ("=", "+")
         ):
             # Продукт p подпадает под эвристику H3.
@@ -3107,7 +3129,7 @@ def create_model_simple(remains: list, products: list, machines: list, cleans: l
     product_counts: list[cp_model.IntVar] = [
         model.NewIntVar(0, num_machines * num_days, f"count_prod_simple_{p}") for p in all_products
     ]
-
+    #settings.SIMPLE_DEBUG_PRODUCT_UPPER_CAPS = {1: 29}
     debug_upper_caps = getattr(settings, "SIMPLE_DEBUG_PRODUCT_UPPER_CAPS", None)
 
     for p in range(1, num_products):
@@ -3144,6 +3166,7 @@ def create_model_simple(remains: list, products: list, machines: list, cleans: l
     if getattr(settings, "SIMPLE_USE_MONOTONE_COUNTS", True):
         # Для верхней границы берём максимум машин, на которых продукт в принципе
         # может стоять по type/div. Это уменьшает Big-M в ограничениях.
+        print (f"{getattr(settings, "SIMPLE_USE_MONOTONE_COUNTS", True)}")
         max_cap_per_product: dict[int, int] = {}
         for p in range(1, num_products):
             product_machine_type_req = products[p][3]
@@ -3433,32 +3456,32 @@ def create_model_simple(remains: list, products: list, machines: list, cleans: l
     # более одного непрерывного блока (сегмента). Это запрещает паттерны
     # p -> q -> p на одной машине, но не навязывает глобальный порядок индексов
     # как INDEX_UP.
-    start_seg: dict[tuple[int, int, int], cp_model.BoolVar] = {}
-
-    for p in range(1, num_products):
-        for m in all_machines:
-            for d in all_days:
-                if d == 0:
-                    # start_seg[p,m,0] = (jobs[m,0] == p)
-                    b0 = product_produced_bools[p, m, 0]
-                    start_seg[p, m, 0] = b0
-                else:
-                    b_cur = product_produced_bools[p, m, d]
-                    b_prev = product_produced_bools[p, m, d - 1]
-                    s = model.NewBoolVar(f"start_seg_p{p}_m{m}_d{d}")
-                    start_seg[p, m, d] = s
-                    # s >= b_cur - b_prev
-                    model.Add(s >= b_cur - b_prev)
-                    # s <= b_cur
-                    model.Add(s <= b_cur)
-                    # s <= 1 - b_prev
-                    model.Add(s <= 1 - b_prev)
-
-            # На машине m для продукта p суммарное количество стартов сегментов не
-            # превышает 1.
-            seg_starts = [start_seg[p, m, d] for d in all_days]
-            if seg_starts:
-                model.Add(sum(seg_starts) <= 1)
+    # start_seg: dict[tuple[int, int, int], cp_model.BoolVar] = {}
+    #
+    # for p in range(1, num_products):
+    #     for m in all_machines:
+    #         for d in all_days:
+    #             if d == 0:
+    #                 # start_seg[p,m,0] = (jobs[m,0] == p)
+    #                 b0 = product_produced_bools[p, m, 0]
+    #                 start_seg[p, m, 0] = b0
+    #             else:
+    #                 b_cur = product_produced_bools[p, m, d]
+    #                 b_prev = product_produced_bools[p, m, d - 1]
+    #                 s = model.NewBoolVar(f"start_seg_p{p}_m{m}_d{d}")
+    #                 start_seg[p, m, d] = s
+    #                 # s >= b_cur - b_prev
+    #                 model.Add(s >= b_cur - b_prev)
+    #                 # s <= b_cur
+    #                 model.Add(s <= b_cur)
+    #                 # s <= 1 - b_prev
+    #                 model.Add(s <= 1 - b_prev)
+    #
+    #         # На машине m для продукта p суммарное количество стартов сегментов не
+    #         # превышает 1.
+    #         seg_starts = [start_seg[p, m, d] for d in all_days]
+    #         if seg_starts:
+    #             model.Add(sum(seg_starts) <= 1)
 
     # Считаем общее количество переходов по всем машинам и дням, чтобы
     # при необходимости штрафовать их в целевой функции.
@@ -3606,12 +3629,15 @@ def create_model_simple(remains: list, products: list, machines: list, cleans: l
     # без умножения на объём плана, чтобы "1 простой" имел понятный вес.
     downtime_penalty = max(2, settings.KFZ_DOWNTIME_PENALTY)
 
-    # Отладка: если SIMPLE_DEBUG_MAXIMIZE_PRODUCT_IDX задан, вместо обычной
-    # цели минимизации штрафов максимизируем product_counts[idx], чтобы
-    # оценить максимально достижимый объём этого продукта при всех текущих
-    # ограничениях.
+    # Отладка: если SIMPLE_DEBUG_MINIMIZE_PRODUCT_IDX задан, вместо обычной
+    # цели минимизации штрафов минимизируем product_counts[idx], чтобы
+    # оценить минимально достижимый объём этого продукта. Если задан
+    # SIMPLE_DEBUG_MAXIMIZE_PRODUCT_IDX, максимизируем объём продукта.
+    debug_min_idx = getattr(settings, "SIMPLE_DEBUG_MINIMIZE_PRODUCT_IDX", None)
     debug_max_idx = getattr(settings, "SIMPLE_DEBUG_MAXIMIZE_PRODUCT_IDX", None)
-    if debug_max_idx is not None and 0 <= debug_max_idx < len(product_counts):
+    if debug_min_idx is not None and 0 <= debug_min_idx < len(product_counts):
+        model.Minimize(product_counts[debug_min_idx])
+    elif debug_max_idx is not None and 0 <= debug_max_idx < len(product_counts):
         model.Maximize(product_counts[debug_max_idx])
     else:
         objective_terms: list[cp_model.LinearExpr] = []
