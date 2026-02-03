@@ -3,29 +3,33 @@
 {
 "idx": 0,
 "name": "ТС Тойота №1",
-"product_idx": 3,
+"product_idx": 1,
 "id": "fbc4c3a0-8087-11ea-80cc-005056aab926",
 "type": 0,
 "remain_day": 3,
-"reserve": 0
+"reserve": 0,
+"div": 1
+
 },
 {
 "idx": 1,
 "name": "ТС Тойота №2",
-"product_idx": 3,
+"product_idx": 1,
 "id": "fbc4c3a1-8087-11ea-80cc-005056aab926",
 "type": 0,
 "remain_day": 1,
-"reserve": 0
+"reserve": 0,
+"div": 2
 },
 {
 "idx": 2,
 "name": "ТС Тойота №3",
-"product_idx": 1,
+"product_idx": 2,
 "id": "fbc4c372-8087-11ea-80cc-005056aab926",
 "type": 0,
   "remain_day": 1,
-"reserve": 0
+"reserve": 0,
+"div": 1
 }],
 "products": [
 {
@@ -43,42 +47,31 @@
 },
 {
 "idx": 1,
-"name": "ст87017t3 ",
-"qty": 5,
-"id": "7ec17dc8-f3bd-4384-9738-7538ab3dc315",
+"name": "ст87021t4 ",
+"qty": 82,
+"id": "598f3ff4-d156-49a5-8a4c-d511973b6d68",
 "machine_type": 0,
-  "qty_minus": 0,
-"lday": 3,
-"src_root": -1,
+"qty_minus": false,
+"lday": 11,
+"src_root": 0,
 "qty_minus_min": 0,
-"sr": 0,
-"strategy": "--"
+"sr": false,
+"strategy": "+",
+"div": 0
 },
 {
 "idx": 2,
-"name": "ст87416t1 ",
-"qty": 16,
-"id": "9559e2e8-6e72-41f8-9dba-08aab5463623",
+"name": "ст87026t ",
+"qty": 124,
+"id": "2d492b52-6f15-4b60-a867-9cad10b9e441",
 "machine_type": 0,
-"qty_minus": 1,
-"lday": 5,
-"src_root": 0,
-"qty_minus_min": 12,
-"sr": 0,
-"strategy": "+"
-},
-{
-"idx": 3,
-"name": "ст2022УИСt4 ",
-"qty": 42,
-"id": "cd825c90-aa80-4b95-9f81-2486b871bf94",
-"machine_type": 0,
-  "qty_minus": 1,
-"lday": 4,
+"qty_minus": true,
+"lday": 15,
 "src_root": 1,
-"qty_minus_min": 40,
-"sr": 0,
-"strategy": "="
+"qty_minus_min": 30,
+"sr": false,
+"strategy": "+",
+"div": 1
 }
 ],
 "remains": [
@@ -87,6 +80,6 @@
 ],
 "cleans": [],
 "max_daily_prod_zero": 3,
-"count_days": 21,
+"count_days": 81,
   "dt_begin": "2025-12-01T00:00:00"
 }
