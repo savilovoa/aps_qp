@@ -9,6 +9,7 @@ from ortools.sat.python import cp_model
 from src.config import settings
 from src.loom.schedule_loom import schedule_loom_calc
 from tools.compare_long_vs_simple import load_input
+from src.loom.loom_plan_html import aggregated_schedule_to_html
 
 # Гарантируем, что stdout в скрипте работает в UTF-8, чтобы логи,
 # перенаправленные в файл (aps-loom_iterative_caps.log), были в UTF-8.
@@ -48,7 +49,7 @@ def run_long_simple(data, machines, products, cleans, remains):
         objective_value = getattr(res, "objective_value", 0)
         proportion_diff = getattr(res, "proportion_diff", 0)
 
-    return status, status_str, products_stats, objective_value, proportion_diff
+    return status, status_str, products_stats, objective_value, proportion_diff, res
 
 # Необязательный параметр для удобства логирования/фокуса:
 # если задан, просто печатаем позицию этого продукта в over_list, но
@@ -71,7 +72,7 @@ def main() -> None:
     settings.SIMPLE_DEBUG_PRODUCT_UPPER_CAPS = None
 
     print("=== Базовый запуск LONG_SIMPLE без доп.кап для strict продуктов ===")
-    base_status, base_status_str, base_stats, base_obj, base_prop = run_long_simple(
+    base_status, base_status_str, base_stats, base_obj, base_prop, res = run_long_simple(
         data, machines, products, cleans, remains
     )
     print(f"status={base_status} ({base_status_str}), obj={base_obj}, prop={base_prop}")
@@ -82,6 +83,9 @@ def main() -> None:
 
     # Собираем статистику по продуктам: ищем превышения плана у strict (qty_minus=false).
     over_list: list[tuple[int, int, int, int]] = []  # (idx, plan_shifts, fact_shifts, over)
+    initial_products: list[int] = []
+    for (_, product_idx, m_id, t, remain_day, reserve) in machines:
+        initial_products.append(product_idx)
 
     for ps in base_stats:
         p_idx = int(ps.get("product_idx", -1))
@@ -101,8 +105,17 @@ def main() -> None:
         # Интересуют только строгие продукты (qty_minus=false/0).
         if qty_minus_flag != 0:
             continue
+        # Если продукты с нулевым количеством, пропускаем
+        if plan == 0:
+            continue
 
-        if fact > plan:
+        if fact > plan and fact-plan > 2:
+            if initial_products.count(p_idx) == 1 and fact == 81 and plan >= 70:
+                continue
+
+            # Пока ограничиваем 1 цех
+            if prod[10] == 2:
+                continue
             over = fact - plan
             over_list.append((p_idx, plan, fact, over))
 
@@ -142,6 +155,10 @@ def main() -> None:
         plan_days = ceil(plan / 3) if plan > 0 else 0
         cap_days = plan_days + 2
 
+        # Добавляем/обновляем кап для очередного продукта и применяем все накопленные капы.
+        caps[p_idx] = cap_days
+        settings.SIMPLE_DEBUG_PRODUCT_UPPER_CAPS = dict(caps)
+
         print(
             "\n=== Пробуем кап для strict idx=",
             p_idx,
@@ -149,14 +166,13 @@ def main() -> None:
             cap_days,
             "(plan_days=",
             plan_days,
-            ") ===",
+            ") all caps=",
+            caps,
+            " ===",
         )
 
-        # Добавляем/обновляем кап для очередного продукта и применяем все накопленные капы.
-        caps[p_idx] = cap_days
-        settings.SIMPLE_DEBUG_PRODUCT_UPPER_CAPS = dict(caps)
 
-        status, status_str, stats, obj, prop = run_long_simple(
+        status, status_str, stats, obj, prop, res = run_long_simple(
             data, machines, products, cleans, remains
         )
         print(f"status={status} ({status_str}), obj={obj}, prop={prop}")
@@ -175,6 +191,32 @@ def main() -> None:
         }
         new_plan, new_fact = pf.get(p_idx, (0, 0))
         print(f"  -> idx={p_idx}: plan={new_plan}, fact={new_fact} смен после кapa")
+
+        # Агрегируем помашинный план в long_schedule и рендерим таблицу (дни × продукты по цехам)
+        counts: dict[tuple[int, int], int] = {}
+        for s in res["schedule"]:
+            p = s["product_idx"]
+            d = s["day_idx"]
+            if p is None or p <= 0:
+                continue
+            key = (d, p)
+            counts[key] = counts.get(key, 0) + 1
+        long_schedule = [
+            {"day_idx": d, "product_idx": p, "machine_count": c}
+            for (d, p), c in sorted(counts.items())
+        ]
+        result_html = aggregated_schedule_to_html(
+            machines=data["machines"],
+            schedule=res["schedule"],
+            products=data["products"],
+            long_schedule=long_schedule,
+            dt_begin=data["dt_begin"],
+            title_text="",
+        )
+        f_name = "example/res.html"
+        with open(f_name, "w", encoding="utf8") as f:
+            f.write(result_html)
+
 
 
 if __name__ == "__main__":  # pragma: no cover

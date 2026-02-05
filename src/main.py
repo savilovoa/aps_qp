@@ -50,11 +50,13 @@ def calc_test_data_from():
             d["qty_minus_min"],
             d["sr"],
             d["strategy"],
+            d["div"]
         )
         for d in data["products"]
     ]
     cleans = [(d["machine_idx"], d["day_idx"]) for d in data["cleans"]]
     remains = data["remains"]
+    #settings.SIMPLE_DEBUG_PRODUCT_UPPER_CAPS = {26: 30, 12: 25, 10: 16, 11: 21, 13: 16}
 
     result_calc = schedule_loom_calc(
         machines=machines,

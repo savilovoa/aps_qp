@@ -23,6 +23,7 @@ def load_input(path: Path):
             d["qty_minus_min"],
             d["sr"],
             d["strategy"],
+            d["div"]
         )
         for d in data["products"]
     ]
