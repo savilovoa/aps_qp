@@ -2215,13 +2215,67 @@ def create_model_simple(remains: list, products: list, machines: list, cleans: l
                     model.Add(jobs[m, d] == fixed_product)
 
     # Жёсткое начальное состояние: в день 0 машина стоит на своём
-    # initial product, если этот продукт > 0. Это повторяет поведение
-    # FULL-модели: первый плановый день соответствует продолжению
-    # текущего состояния, а переходы считаются с d=1.
-    # for m in all_machines:
-    #     init_p = initial_products[m]
-    #     if init_p > 0:
-    #         model.Add(jobs[m, 0] == init_p)
+    # initial product, если этот продукт > 0.
+    # (Закомментировано как в оригинале)
+
+    # --- Heuristic H6: Full Machine Occupation ---
+    # Фиксация продуктов, которые занимают полные машины, и ограничение их ареала.
+    if getattr(settings, "SIMPLE_ENABLE_HEURISTIC_H6", True):
+        shifts_per_day = 3
+        machine_capacity_shifts = count_days * shifts_per_day
+        h6_fixed_count = 0
+
+        for p, init_machines in product_to_initial_machines.items():
+            if p <= 0:
+                continue
+
+            try:
+                plan_shifts = int(proportions_input[p])
+            except Exception:
+                continue
+
+            if plan_shifts <= 0:
+                continue
+
+            # Сколько полных машин занимает план (округление вниз)
+            full_machines_needed = plan_shifts // machine_capacity_shifts
+
+            if full_machines_needed > 0:
+                # Не можем зафиксировать больше машин, чем есть на старте
+                machines_to_fix_count = min(full_machines_needed, len(init_machines))
+
+                if machines_to_fix_count > 0:
+                    # 1. Фиксируем первые K машин на весь горизонт
+                    machines_to_fix = init_machines[:machines_to_fix_count]
+                    for m in machines_to_fix:
+                        # Если машина уже dedicated, она и так зафиксирована, но повтор не повредит
+                        for d in all_days:
+                            model.Add(jobs[m, d] == p)
+
+                    # 2. Ограничиваем продукт ТОЛЬКО его начальными машинами,
+                    # НО ТОЛЬКО ЕСЛИ планового объема хватает, чтобы разместиться на них.
+                    # Иначе (если план > емкости init_machines), мы должны разрешить выход на новые машины.
+                    total_init_capacity = len(init_machines) * machine_capacity_shifts
+                    
+                    # Разрешаем небольшое превышение плана (на случай qty_minus), 
+                    # но если план явно требует больше машин, чем есть - не ограничиваем.
+                    # Если plan_shifts укладывается в емкость начальных машин:
+                    if plan_shifts <= total_init_capacity:
+                        allowed_machines_set = set(init_machines)
+                        for m in all_machines:
+                            if m not in allowed_machines_set:
+                                for d in all_days:
+                                    model.Add(jobs[m, d] != p)
+                        
+                        logger.info(
+                            f"H6: Product {p} (plan={plan_shifts}) fixed on {machines_to_fix_count} "
+                            f"machines {machines_to_fix} and restricted to {init_machines}"
+                        )
+                    else:
+                        logger.info(
+                            f"H6: Product {p} (plan={plan_shifts}) fixed on {machines_to_fix_count} "
+                            f"machines {machines_to_fix}, but NOT restricted (plan > capacity of {len(init_machines)} init machines)"
+                        )
 
     # 1) Продукты с планом qty=0, которые стоят только как начальные.
     # Разрешаем их только в первые 1-2 дня, далее на этих машинах продукт
