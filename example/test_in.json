@@ -384,7 +384,7 @@
 "qty_minus_min": 0,
 "sr": 0,
 "strategy": "=",
-"div": null
+"div": 0
 },
 {
 "idx": 1,
@@ -1572,6 +1572,6 @@
 "max_daily_prod_zero": 3,
 "count_days": 81,
 "dt_begin": "2026-03-02T00:00:00",
-"apply_qty_minys": "true",
-"apply_index_up": "true"
+"apply_qty_minus": "true",
+"apply_index_up": "false"
 }

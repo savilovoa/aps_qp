@@ -127,14 +127,14 @@ def schedule_loom_calc_model(DataIn: DataLoomIn) -> LoomPlansOut:
             # Для LONG_SIMPLE_/LONG_TWOLEVEL schedule оставляем пустым (для экономии памяти UI),
             # ЕСЛИ не требуется сохранить результат в JSON (для Two-Phase integration).
             save_json_path = getattr(settings, "SAVE_RESULT_JSON_PATH", None)
-            if horizon_mode in ("LONG_SIMPLE", "LONG_SIMPLE_HINT", "LONG_TWOLEVEL") and not save_json_path:
+            if horizon_mode in ("LONG_SIMPLE", "LONG_SIMPLE_HINT", "LONG_TWO_PHASE") and not save_json_path:
                 schedule_out: list[LoomPlan] = []
             else:
                 schedule_out = base_schedule
 
             # HTML: для FULL используем детальное расписание по машинам,
             # для LONG_SIMPLE_/LONG_TWOLEVEL – агрегированное представление long_schedule.
-            if horizon_mode in ("LONG_SIMPLE", "LONG_SIMPLE_HINT", "LONG_TWOLEVEL"):
+            if horizon_mode in ("LONG_SIMPLE", "LONG_SIMPLE_HINT", "LONG_TWO_PHASE"):
                 res_html = aggregated_schedule_to_html(
                     machines=data["machines"],
                     schedule=result_calc["schedule"],
