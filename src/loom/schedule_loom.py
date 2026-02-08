@@ -78,7 +78,7 @@ def schedule_loom_calc_model(DataIn: DataLoomIn) -> LoomPlansOut:
             settings.APPLY_INDEX_UP = DataIn.apply_index_up
         if DataIn.apply_qty_minus is not None:
             settings.APPLY_QTY_MINUS = DataIn.apply_qty_minus
-        # Режим горизонта/алгоритма (FULL, LONG, LONG_SIMPLE, LONG_TWOLEVEL)
+        # Режим горизонта/алгоритма (FULL, LONG_SIMPLE, LONG_TWO_PHASE)
         if getattr(DataIn, "horizon_mode", None):
             settings.HORIZON_MODE = DataIn.horizon_mode.upper()
 
@@ -105,10 +105,10 @@ def schedule_loom_calc_model(DataIn: DataLoomIn) -> LoomPlansOut:
 
             horizon_mode = getattr(settings, "HORIZON_MODE", "FULL").upper()
 
-            # Для упрощённых режимов (LONG_SIMPLE, LONG_SIMPLE_HINT, LONG_TWOLEVEL) строим
+            # Для упрощённых режимов (LONG_SIMPLE, LONG_SIMPLE_HINT) строим
             # агрегированное расписание по дням и продуктам: сколько машин в день под продукт.
             long_schedule: list[LongDayCapacity] | None = None
-            if horizon_mode in ("LONG_SIMPLE", "LONG_SIMPLE_HINT", "LONG_TWOLEVEL"):
+            if horizon_mode in ("LONG_SIMPLE", "LONG_SIMPLE_HINT"):
                 counts: dict[tuple[int, int], int] = {}
                 for s in result_calc["schedule"]:
                     p = s["product_idx"]
@@ -124,7 +124,7 @@ def schedule_loom_calc_model(DataIn: DataLoomIn) -> LoomPlansOut:
                     for (d, p), c in sorted(counts.items())
                 ]
 
-            # Для LONG_SIMPLE_/LONG_TWOLEVEL schedule оставляем пустым (для экономии памяти UI),
+            # Для LONG_SIMPLE schedule оставляем пустым (для экономии памяти UI),
             # ЕСЛИ не требуется сохранить результат в JSON (для Two-Phase integration).
             save_json_path = getattr(settings, "SAVE_RESULT_JSON_PATH", None)
             if horizon_mode in ("LONG_SIMPLE", "LONG_SIMPLE_HINT", "LONG_TWO_PHASE") and not save_json_path:
@@ -133,8 +133,9 @@ def schedule_loom_calc_model(DataIn: DataLoomIn) -> LoomPlansOut:
                 schedule_out = base_schedule
 
             # HTML: для FULL используем детальное расписание по машинам,
-            # для LONG_SIMPLE_/LONG_TWOLEVEL – агрегированное представление long_schedule.
+            # для LONG_SIMPLE – агрегированное представление long_schedule.
             if horizon_mode in ("LONG_SIMPLE", "LONG_SIMPLE_HINT", "LONG_TWO_PHASE"):
+                # Для агрегированных режимов: 1 модельный день = 3 смены
                 res_html = aggregated_schedule_to_html(
                     machines=data["machines"],
                     schedule=result_calc["schedule"],
@@ -142,6 +143,7 @@ def schedule_loom_calc_model(DataIn: DataLoomIn) -> LoomPlansOut:
                     long_schedule=long_schedule or [],
                     dt_begin=DataIn.dt_begin,
                     title_text=title_text,
+                    shifts_per_day=3,
                 )
             else:
                 res_html = schedule_to_html(
@@ -1471,8 +1473,7 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
     products_schedule = []
     diff_all = 0
 
-    # Режим горизонта: запоминаем исходное количество смен и режим LONG.
-    long_mode = getattr(settings, "HORIZON_MODE", "FULL").upper() == "LONG"
+    # Сохраняем исходное количество смен для дальнейших преобразований
     orig_count_days = count_days
 
     # Логируем ключевые настройки и размеры данных на момент создания модели.
@@ -1502,69 +1503,7 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
 
     # Жадный предварительный план для использования как hint (опционально)
     greedy_schedule = None
-    dedicated_machines: list[int] = []  # будет заполнен для LONG на основе greedy-анализа
-    # Разрешаем greedy hint и для LONG_SIMPLE, чтобы помочь солверу найти первое решение
-    if settings.USE_GREEDY_HINT: # and getattr(settings, "HORIZON_MODE", "FULL").upper() != "LONG_SIMPLE":
-        try:
-            greedy_schedule, _, _, _ = create_schedule_init(
-                machines=data["machines"],
-                products=data["products"],
-                cleans=data["cleans"],
-                count_days=count_days,
-                max_daily_prod_zero=max_daily_prod_zero,
-            )
-            logger.info("Greedy initial schedule computed for hinting")
-
-            # Для LONG-режима: ищем машины, которые greedy полностью заполнил
-            # их начальными продуктами (без нулей и пустот), и у которых qty_minus_min>0.
-            if greedy_schedule is not None and getattr(settings, "HORIZON_MODE", "FULL").upper() == "LONG":
-                num_m = len(data["machines"])
-                cleans_set = {(c["machine_idx"], c["day_idx"]) for c in data["cleans"]}
-
-                # Быстрый доступ к qty_minus_min по product_idx исходных данных
-                products_df_src = pd.DataFrame(data["products"])  # idx, qty_minus_min и т.п.
-                qty_minus_min_map = products_df_src.set_index("idx")["qty_minus_min"].to_dict()
-
-                dedicated_machines = []
-                for m_idx in range(min(num_m, len(greedy_schedule))):
-                    row = greedy_schedule[m_idx]
-                    init_p = int(data["machines"][m_idx]["product_idx"])
-                    if init_p == 0:
-                        continue
-                    qmm = int(qty_minus_min_map.get(init_p, 0) or 0)
-                    if qmm <= 0:
-                        continue
-                    ok = True
-                    has_work = False
-                    for d in range(count_days):
-                        if (m_idx, d) in cleans_set:
-                            continue
-                        if d >= len(row):
-                            ok = False
-                            break
-                        p = row[d]
-                        if isinstance(p, list):
-                            p = p[0] if p else None
-                        if p is None:
-                            ok = False
-                            break
-                        if p == 0:
-                            ok = False
-                            break
-                        if p != init_p:
-                            ok = False
-                            break
-                        has_work = True
-                    if ok and has_work:
-                        dedicated_machines.append(m_idx)
-
-                logger.info(
-                    f"Dedicated machines (full initial product with qty_minus_min>0): {dedicated_machines}"
-                )
-        except Exception as e:
-            logger.error(f"Ошибка при вычислении жадного плана для hint/locking: {e}")
-            greedy_schedule = None
-            dedicated_machines = []
+    dedicated_machines: list[int] = []
 
     # Валидация входных данных: запрещаем дубликаты продуктов по id/idx (кроме idx=0)
     # и некорректные значения lday.
@@ -1643,38 +1582,14 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
     # дней, где каждые 3 смены исходного горизонта образуют один день.
     # Преобразуем day_idx в cleans из смен в дни и сокращаем горизонт.
     horizon_mode_local = getattr(settings, "HORIZON_MODE", "FULL").upper()
-    if horizon_mode_local in ("LONG_SIMPLE", "LONG_TWOLEVEL"):
-        shifts_per_day = 3  # 84 смены / 3 = 28 календарных дней для SIMPLE/TWOLEVEL
+    if horizon_mode_local == "LONG_SIMPLE":
+        shifts_per_day = 3  # 84 смены / 3 = 28 календарных дней
         count_days_days = (count_days + shifts_per_day - 1) // shifts_per_day
         if not clean_df.empty:
             clean_df = clean_df.copy()
             clean_df["day_idx"] = (clean_df["day_idx"] // shifts_per_day).astype(int)
             clean_df = clean_df.drop_duplicates(subset=["machine_idx", "day_idx"]).reset_index(drop=True)
         count_days = count_days_days
-
-    # Для LONG-режима агрегируем горизонт: 2 реальные смены = 1 модельный день.
-    if long_mode and False:
-        step = 2
-        count_days_long = (orig_count_days + step - 1) // step
-
-        cleans_agg_set: set[tuple[int, int]] = set()
-        for c in data["cleans"]:
-            try:
-                m = int(c["machine_idx"])
-                d = int(c["day_idx"])
-            except (KeyError, TypeError, ValueError):
-                continue
-            d2 = d // step
-            if d2 < 0 or d2 >= count_days_long:
-                continue
-            cleans_agg_set.add((m, d2))
-
-        clean_df = pd.DataFrame(
-            [{"machine_idx": m, "day_idx": d2} for (m, d2) in sorted(cleans_agg_set)]
-        )
-
-        # Обновляем количество дней для построения LONG-модели.
-        count_days = count_days_long
 
     product_id = products_df["id"]
     machines_df["product_id"] = machines_df["product_idx"].map(product_id)
@@ -1825,7 +1740,7 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
     horizon_mode = getattr(settings, "HORIZON_MODE", "FULL").upper()
     # long_mode используется только для отключения детальной отладки/переходов;
     # считаем "долгими" упрощённые режимы.
-    long_mode = horizon_mode in ("LONG_SIMPLE", "LONG_SIMPLE_HINT", "LONG_TWOLEVEL")
+    long_mode = horizon_mode in ("LONG_SIMPLE", "LONG_SIMPLE_HINT")
 
     # Для LONG_SIMPLE / LONG_SIMPLE_HINT при включённом USE_GREEDY_HINT или в режиме
     # LONG_SIMPLE_HINT строим жадный SIMPLE-план (без нулей и чисток).
@@ -1902,34 +1817,6 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
                 )
             except Exception as e:
                 logger.error(f"Failed to dump constraints for product idx={dbg_ext}: {e}")
-    elif horizon_mode == "LONG_TWOLEVEL":
-        from .two_level_simple import build_twolevel_schedule
-
-        schedule = []
-        products_schedule = []
-        diff_all = 0
-
-        schedule, products_schedule, internal_obj, external_penalty = build_twolevel_schedule(
-            remains=remains,
-            products_new=products_new,
-            machines_new=machines_new,
-            cleans_new=cleans_new,
-            count_days=count_days,
-            products_df_orig=products_df,
-            machines_orig=machines,
-            data=data,
-        )
-
-        result = {
-            "status": int(cp_model.OPTIMAL),
-            "status_str": "FEASIBLE_TWOLEVEL",
-            "schedule": schedule,
-            "products": products_schedule,
-            "objective_value": int(internal_obj),
-            "proportion_diff": int(external_penalty),
-            "error_str": "",
-        }
-        return result
     else:
         (model, jobs, product_counts, proportion_objective_terms, total_products_count, prev_lday, start_batch,
          batch_end_complite, days_in_batch, completed_transition, pred_start_batch, same_as_prev,
@@ -3572,8 +3459,6 @@ def create_model(remains: list, products: list, machines: list, cleans: list,
     num_machines = len(machines)
     num_products = len(products)
 
-    long_mode = getattr(settings, "HORIZON_MODE", "FULL").upper() == "LONG"
-
     dedicated_set = set(dedicated_machines or [])
 
     all_machines = range(num_machines)
@@ -3595,7 +3480,7 @@ def create_model(remains: list, products: list, machines: list, cleans: list,
     ldays: list[int] = []
     remains_batches: list[list[int]] = []
 
-    if not long_mode and remains:
+    if remains:
         first = remains[0]
         # Формат 1: прямой список списков длительностей партий.
         if isinstance(first, list) and (not first or isinstance(first[0], (int, float))):
@@ -3613,12 +3498,11 @@ def create_model(remains: list, products: list, machines: list, cleans: list,
         base_lday = p[5]
         qty_val = p[1]
         # Временное правило: если lday=0 для "живого" продукта, используем 10.
-        if not long_mode and qty_val > 0 and base_lday <= 0:
+        if qty_val > 0 and base_lday <= 0:
             base_lday = 10
         lday_eff = base_lday
         src_root = p[6] if len(p) > 6 else -1
-        if (not long_mode
-            and isinstance(src_root, int)
+        if (isinstance(src_root, int)
             and src_root >= 0
             and src_root < len(remains_batches)):
             batches = remains_batches[src_root]
@@ -3631,19 +3515,11 @@ def create_model(remains: list, products: list, machines: list, cleans: list,
                         lday_eff = avg_lday
         ldays.append(lday_eff)
 
-    # В LONG-режиме lday не используем для ограничений: ставим всем продуктам одинаковую длину партии 1 (кроме нулевого).
-    if long_mode:
-        ldays = [0] + [1] * (num_products - 1)
-
     initial_products = []
     days_to_constrain = []
     for idx, (_, product_idx, m_id, t, remain_day) in enumerate(machines):
         initial_products.append(product_idx)
         days_to_constrain.append(remain_day)
-
-    # В LONG-режиме остатки партий (remain_day) игнорируем
-    if long_mode:
-        days_to_constrain = [0 for _ in range(num_machines)]
 
     model = cp_model.CpModel()
 
@@ -4163,7 +4039,6 @@ def solver_result(
     strategy_penalty_terms,
 ):
 
-    long_mode = getattr(settings, "HORIZON_MODE", "FULL").upper() == "LONG"
     simple_mode = getattr(settings, "HORIZON_MODE", "FULL").upper() == "LONG_SIMPLE"
 
     # Для SIMPLE-модели (LONG_SIMPLE) очищаем влияние чисток при восстановлении
@@ -4193,21 +4068,14 @@ def solver_result(
     if status != cp_model.OPTIMAL and status != cp_model.FEASIBLE:
         return
 
-    # В LONG-режиме jobs[m,d] определены по агрегированным дням (1 модельная смена = 2 фактическим).
-    # Для восстановления посменного расписания отображаем фактический день d_real в
-    # модельный день d_model = d_real // 2.
     for m in range(num_machines):
         m_old = find_machine_id_old(m)
         logger.debug(f"Loom {m_old}")
         for d in range(count_days):
             if not is_clean_day(m, d):
-                if long_mode:
-                    d_model = d // 2
-                    p = solver.value(jobs[m, d_model])
-                else:
-                    p = solver.value(jobs[m, d])
+                p = solver.value(jobs[m, d])
                 p_old, p_id = find_product_id_old(p)
-                if not long_mode and (m, d) in days_in_batch and (m, d) in prev_lday:
+                if (m, d) in days_in_batch and (m, d) in prev_lday:
                     db_v = solver.value(days_in_batch[m, d])
                     plday = solver.value(prev_lday[m, d])
                 else:
@@ -4237,32 +4105,19 @@ def solver_result(
         if p > 0:
             # Подсчитаем количество машин с продуктом p в первый и последний день.
             for m in range(num_machines):
-                if long_mode:
-                    # LONG: jobs заданы по агрегированным дням (1 модельная смена = 2 фактическим).
-                    # Для первого дня используем jobs[m, 0], для последнего — jobs[m, last_model].
-                    first_model = 0
-                    last_model = (count_days - 1) // 2
-                    if not is_clean_day(m, 0) and solver.Value(jobs[m, first_model]) == p:
-                        machines_start += 1
-                    if not is_clean_day(m, count_days - 1) and solver.Value(jobs[m, last_model]) == p:
-                        machines_end += 1
-                else:
-                    if not is_clean_day(m, 0) and solver.Value(jobs[m, 0]) == p:
-                        machines_start += 1
-                    if not is_clean_day(m, count_days - 1) and solver.Value(jobs[m, count_days - 1]) == p:
-                        machines_end += 1
+                if not is_clean_day(m, 0) and solver.Value(jobs[m, 0]) == p:
+                    machines_start += 1
+                if not is_clean_day(m, count_days - 1) and solver.Value(jobs[m, count_days - 1]) == p:
+                    machines_end += 1
             if strategy_penalty_terms is not None and p < len(strategy_penalty_terms):
                 penalty_strategy = solver.Value(strategy_penalty_terms[p])
 
         diff_all += penalty_prop
         qty_model = solver.Value(product_counts[p])
         # Для статистики qty интерпретируем в СМЕНАХ:
-        # - в LONG: 1 модельный день = 2 фактическим сменам;
         # - в LONG_SIMPLE: 1 модельный день = 3 фактическим сменам;
         # - в FULL/SHORT: qty_model уже считается в фактических сменах.
-        if long_mode:
-            qty = qty_model * 2
-        elif simple_mode:
+        if simple_mode:
             qty = qty_model * 3
         else:
             qty = qty_model

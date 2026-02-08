@@ -148,8 +148,9 @@ def aggregated_schedule_to_html(
     long_schedule: Iterable[Any],
     dt_begin: date,
     title_text: str = "",
+    shifts_per_day: int = 3,
 ) -> str:
-    """HTML-отчёт для агрегированного плана (LONG_SIMPLE/LONG_TWOLEVEL).
+    """HTML-отчёт для агрегированного плана (LONG_SIMPLE/LONG_TWO_PHASE).
 
     Вертикаль: дни (реальные календарные даты от dt_begin).
     Горизонталь: по каждому цеху (div по машинам) свои колонки продуктов,
@@ -371,7 +372,10 @@ def aggregated_schedule_to_html(
 
     # Строки по дням
     for d in days:
-        date_str = (dt_begin + timedelta(days=d)).strftime("%d.%m.%Y")
+        # Преобразуем модельный день в реальные календарные дни
+        # (1 модельный день = shifts_per_day смен = shifts_per_day/3 календарных дней)
+        calendar_day = d * shifts_per_day // 3
+        date_str = (dt_begin + timedelta(days=calendar_day)).strftime("%d.%m.%Y")
         html_parts.append(f"<tr><td>{date_str}</td>")
         html_parts.append(f"<td>{transitions_per_day.get(d, 0)}</td>")
         for div in div_keys:
