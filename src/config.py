@@ -178,12 +178,21 @@ class Settings(BaseSettings):
     # поведение модели с/без этой эвристики.
     # Флаг для крупной эвристики big-no-start. Храним как строку/None, чтобы
     # избежать жёсткого bool-parsing от pydantic для разных значений env.
+    # Флаг эвристики big-no-start в LONG_SIMPLE. Если непустая строка,
+    # считается включённой (True); если None или пусто — выключена.
     SIMPLE_ENABLE_BIG_NOSTART_HEURISTIC: str | None = Field(
         default=None,
         description=(
             "Флаг эвристики big-no-start в LONG_SIMPLE. Если непустая строка, "
             "считается включённой (True); если None или пусто — выключена."
         ),
+    )
+    
+    # Путь для сохранения результата в JSON (для интеграции Two-Phase)
+    # Если None, не сохраняем.
+    SAVE_RESULT_JSON_PATH: str | None = Field(
+        default=None,
+        description="Путь к файлу для сохранения результата расчета (JSON). Используется в Two-Phase."
     )
 
 settings = Settings()

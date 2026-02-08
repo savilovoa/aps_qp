@@ -17,6 +17,8 @@ import pandas as pd
 from .loom_plan_html import schedule_to_html, aggregated_schedule_to_html
 from uuid import uuid4
 import time
+import json
+
 def MachinesModelToArray(machines: list[Machine]) -> list[(str, int, str, int, int)]:
     result = []
     idx = 0
@@ -84,8 +86,8 @@ def schedule_loom_calc_model(DataIn: DataLoomIn) -> LoomPlansOut:
                                     max_daily_prod_zero=max_daily_prod_zero, count_days=count_days, data=data)
 
         if result_calc["error_str"] == "" and result_calc["status"] != cp_model.INFEASIBLE:
-            machines_view = [name for (name, product_idx,  id, type, remain_day) in machines]
-            products_view = [name for (name, qty, id, machine_type, qm) in products]
+            machines_view = [item[0] for item in machines]
+            products_view = [item[0] for item in products]
             title_text = f"{result_calc['status_str']} оптимизационное значение {result_calc['objective_value']}"
 
             # Базовое расписание по машинам (для FULL; для LONG_ отдадим
@@ -122,8 +124,10 @@ def schedule_loom_calc_model(DataIn: DataLoomIn) -> LoomPlansOut:
                     for (d, p), c in sorted(counts.items())
                 ]
 
-            # Для LONG_SIMPLE_/LONG_TWOLEVEL schedule оставляем пустым, для остальных режимов — детальный план.
-            if horizon_mode in ("LONG_SIMPLE", "LONG_SIMPLE_HINT", "LONG_TWOLEVEL"):
+            # Для LONG_SIMPLE_/LONG_TWOLEVEL schedule оставляем пустым (для экономии памяти UI),
+            # ЕСЛИ не требуется сохранить результат в JSON (для Two-Phase integration).
+            save_json_path = getattr(settings, "SAVE_RESULT_JSON_PATH", None)
+            if horizon_mode in ("LONG_SIMPLE", "LONG_SIMPLE_HINT", "LONG_TWOLEVEL") and not save_json_path:
                 schedule_out: list[LoomPlan] = []
             else:
                 schedule_out = base_schedule
@@ -166,11 +170,43 @@ def schedule_loom_calc_model(DataIn: DataLoomIn) -> LoomPlansOut:
             if result_calc["status"] == cp_model.INFEASIBLE:
                 error_str = error_str + " МОДЕЛЬ НЕ МОЖЕТ БЫТЬ РАССЧИТАНА"
             result = LoomPlansOut(error_str=error_str)
+
+
     except Exception as e:
         error = tr.TracebackException(exc_type=type(e), exc_traceback=e.__traceback__, exc_value=e).stack[-1]
         error_str = '{} in file {} in {} row:{} '.format(e, error.filename, error.lineno, error.line)
         logger.error(error_str)
         result = LoomPlansOut(error_str=error_str)
+
+    # --- SAVE RESULT JSON (for Two-Phase integration) ---
+    save_json_path = getattr(settings, "SAVE_RESULT_JSON_PATH", None)
+    if save_json_path and result.schedule:
+        try:
+            # schedule is a list of dicts or LoomPlan objects.
+            # result.schedule is list[LoomPlan] if serialized? Or list[dict]?
+            # In schedule_loom_calc_model, result.schedule comes from create_model_simple return.
+            # Let's assume it's serializable or convert it.
+
+            # Helper to convert LoomPlan to dict
+            sched_list = []
+            for item in result.schedule:
+                if hasattr(item, "dict"):
+                    sched_list.append(item.dict())
+                elif isinstance(item, dict):
+                    sched_list.append(item)
+                else:
+                    # Try pydantic v2
+                    try:
+                        sched_list.append(item.model_dump())
+                    except:
+                        sched_list.append(str(item))
+
+            with open(save_json_path, "w", encoding="utf-8") as f:
+                json.dump(sched_list, f, indent=4)
+            logger.info(f"Saved result schedule to {save_json_path}")
+        except Exception as e:
+            logger.error(f"Failed to save result JSON to {save_json_path}: {e}")
+
     return result
 
 def loom_plans_view(plan_in: LoomPlansViewIn) -> LoomPlansViewOut:
@@ -1332,69 +1368,72 @@ def simple_qtyminus_precheck_long_simple(data: dict) -> set[int]:
     return strict_set
 
 
+def MachinesDFToArray(machines_in: pd.DataFrame) -> list[(str, int, str, int, int)]:
+    """Преобразуем DataFrame машин в кортежи для расчёта.
+
+    Сейчас в кортеже храним только поля, которые реально используются в
+    CP-моделях: (name, product_idx, id, type, remain_day). Цех (div)
+    передаётся отдельно в виде массива machine_divs, чтобы не ломать
+    существующие распаковки кортежей.
+    """
+    result = []
+    idx = 0
+    for index, item in machines_in.iterrows():
+        if item["idx"] != idx:
+            break
+        result.append((
+            item["name"],
+            int(item["product_idx"]),
+            item["id"],
+            int(item["type"]),
+            int(item["remain_day"]),
+        ))
+        idx += 1
+    return result
+
+def ProductsDFToArray(products_in: pd.DataFrame) -> list[tuple]:
+    """Преобразуем DataFrame продуктов в кортежи той же структуры, что и ProductsModelToArray.
+
+    Базовая структура кортежа (без div):
+    (name, qty, id, machine_type, qty_minus, lday, src_root,
+     qty_minus_min, sr, strategy)
+
+    Поле div (цех) передаём отдельно массивом product_divs, чтобы не
+    менять позиционную индексацию по существующему коду.
+    """
+    result = []
+    first = True
+    for index, item in products_in.iterrows():
+        if first:
+            first = False
+            if item["qty"] > 0:
+                raise "Первый элемент продукции должен быть сменой артикула, т.е. количество плана = 0"
+        src_root = item.get("src_root", -1)
+        qty_minus_min = item.get("qty_minus_min", 0)
+        sr = bool(item.get("sr", 0))
+        strategy = item.get("strategy", "--")
+        result.append((
+            item["name"],
+            int(item["qty"]),
+            item["id"],
+            int(item["machine_type"]),
+            int(item["qty_minus"]),
+            int(item["lday"]),
+            int(src_root) if pd.notna(src_root) else -1,
+            int(qty_minus_min) if pd.notna(qty_minus_min) else 0,
+            bool(sr),
+            str(strategy),
+        ))
+    return result
+
+def CleansDFToArray(cleans_in: pd.DataFrame) -> list[(int, int)]:
+    result = []
+    for _, item in cleans_in.iterrows():
+        result.append((item["machine_idx"], item["day_idx"]))
+    return result
+
 def schedule_loom_calc(remains: list, products: list, machines: list, cleans: list, max_daily_prod_zero: int,
                        count_days: int, data: dict) -> LoomPlansOut:
-
-    def MachinesDFToArray(machines_in: pd.DataFrame) -> list[(str, int, str, int, int)]:
-        """Преобразуем DataFrame машин в кортежи для расчёта.
-
-        Сейчас в кортеже храним только поля, которые реально используются в
-        CP-моделях: (name, product_idx, id, type, remain_day). Цех (div)
-        передаётся отдельно в виде массива machine_divs, чтобы не ломать
-        существующие распаковки кортежей.
-        """
-        result = []
-        idx = 0
-        for index, item in machines_in.iterrows():
-            if item["idx"] != idx:
-                break
-            result.append((item["name"], item["product_idx"], item["id"], item["type"], item["remain_day"]))
-            idx += 1
-        return result
-
-    def ProductsDFToArray(products_in: pd.DataFrame) -> list[tuple]:
-        """Преобразуем DataFrame продуктов в кортежи той же структуры, что и ProductsModelToArray.
-
-        Базовая структура кортежа (без div):
-        (name, qty, id, machine_type, qty_minus, lday, src_root,
-         qty_minus_min, sr, strategy)
-
-        Поле div (цех) передаём отдельно массивом product_divs, чтобы не
-        менять позиционную индексацию по существующему коду.
-        """
-        result = []
-        first = True
-        for index, item in products_in.iterrows():
-            if first:
-                first = False
-                if item["qty"] > 0:
-                    raise "Первый элемент продукции должен быть сменой артикула, т.е. количество плана = 0"
-            src_root = item.get("src_root", -1)
-            qty_minus_min = item.get("qty_minus_min", 0)
-            sr = bool(item.get("sr", 0))
-            strategy = item.get("strategy", "--")
-            result.append((
-                item["name"],
-                int(item["qty"]),
-                item["id"],
-                int(item["machine_type"]),
-                int(item["qty_minus"]),
-                int(item["lday"]),
-                int(src_root) if pd.notna(src_root) else -1,
-                int(qty_minus_min) if pd.notna(qty_minus_min) else 0,
-                bool(sr),
-                str(strategy),
-            ))
-        return result
-
-    def CleansDFToArray(cleans_in: pd.DataFrame) -> list[(int, int)]:
-        result = []
-        for _, item in cleans_in.iterrows():
-            result.append((item["machine_idx"], item["day_idx"]))
-        return result
-
-    #machines_full = update_data_for_schedule_init(machines_new, products_new, cleans, count_days, schedule_init)
-
 
     class NursesPartialSolutionPrinter(cp_model.CpSolverSolutionCallback):
         """Callback для печати промежуточных решений и замера времени до первого решения."""
@@ -1464,7 +1503,8 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
     # Жадный предварительный план для использования как hint (опционально)
     greedy_schedule = None
     dedicated_machines: list[int] = []  # будет заполнен для LONG на основе greedy-анализа
-    if settings.USE_GREEDY_HINT and getattr(settings, "HORIZON_MODE", "FULL").upper() != "LONG_SIMPLE":
+    # Разрешаем greedy hint и для LONG_SIMPLE, чтобы помочь солверу найти первое решение
+    if settings.USE_GREEDY_HINT: # and getattr(settings, "HORIZON_MODE", "FULL").upper() != "LONG_SIMPLE":
         try:
             greedy_schedule, _, _, _ = create_schedule_init(
                 machines=data["machines"],
@@ -1677,6 +1717,7 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
     # ссылаются на продукты по исходному индексу (SIMPLE_DEBUG_MAXIMIZE_PRODUCT_IDX,
     # SIMPLE_DEBUG_PRODUCT_UPPER_CAPS), выполним переотображение idx_orig -> idx_internal
     # через поле id продукта.
+    SIMPLE_DEBUG_PRODUCT_UPPER_CAPS={}
     horizon_mode_local = getattr(settings, "HORIZON_MODE", "FULL").upper()
     if horizon_mode_local in ("LONG_SIMPLE", "LONG_SIMPLE_HINT"):
         # Строим карту: исходный idx -> id
@@ -1806,7 +1847,7 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
             logger.error(f"Ошибка при вычислении SIMPLE greedy hint: {e}")
             greedy_schedule = None
 
-    if horizon_mode in ("LONG_SIMPLE", "LONG_SIMPLE_HINT"):
+    if horizon_mode in ("LONG_SIMPLE", "LONG_SIMPLE_HINT", "LONG_TWO_PHASE"):
         # Pre-check для строгих qty_minus=0 в LONG_SIMPLE: если APPLY_QTY_MINUS включён
         # и внешний код не задал SIMPLE_QTY_MINUS_SUBSET явно, попробуем заранее
         # ослабить часть строгих продуктов, чтобы агрегированные нижние границы
@@ -1824,6 +1865,20 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
                 # Используем strict_final как SIMPLE_QTY_MINUS_SUBSET, чтобы
                 # qty_minus-блок применялся только к этому подмножеству.
                 settings.SIMPLE_QTY_MINUS_SUBSET = set(strict_final)
+        
+        # --- TWO PHASE LOGIC ---
+        allowed_products = None
+        if horizon_mode == "LONG_TWO_PHASE":
+            from .two_phase import solve_phase1_allocation
+            try:
+                allowed_products = solve_phase1_allocation(
+                    data, machines_df, products_df_new, clean_df, count_days
+                )
+                logger.info(f"Phase 1 Allocation completed. Machines restricted: {len(allowed_products)}")
+            except Exception as e:
+                logger.error(f"Phase 1 Allocation failed: {e}. Falling back to full domain.")
+                allowed_products = None
+
         (model, jobs, product_counts, proportion_objective_terms, total_products_count, prev_lday, start_batch,
          batch_end_complite, days_in_batch, completed_transition, pred_start_batch, same_as_prev,
          strategy_penalty_terms) = create_model_simple(
@@ -1832,6 +1887,7 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
             dedicated_machines=dedicated_machines,
             product_divs=product_divs,
             machine_divs=machine_divs,
+            allowed_products=allowed_products
         )
 
         # Отладочный дамп ограничений для конкретного продукта (если включён).
@@ -1888,7 +1944,8 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
     # Если есть жадный план и включён USE_GREEDY_HINT/режим LONG_SIMPLE_HINT,
     # используем его как hint для jobs[m,d]. Для упрощённых режимов (LONG_SIMPLE_)
     # hints безопасны; для FULL/SHORT мы по-прежнему можем использовать shift-based greedy.
-    if greedy_schedule is not None and not long_mode:
+    # Убрали проверку "not long_mode", чтобы хиты применялись и в LONG_SIMPLE
+    if greedy_schedule is not None: # and not long_mode:
         try:
             simple_mode = horizon_mode in ("LONG_SIMPLE", "LONG_SIMPLE_HINT")
             if not simple_mode:
@@ -1906,6 +1963,14 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
 
                 if simple_mode:
                     # В SIMPLE hints уже заданы во внутреннем пространстве idx (1..num_products-1).
+                    # Однако greedy_schedule имеет длину count_days в СМЕНАХ (например 81),
+                    # а jobs[] в днях (27). Нужно масштабировать.
+                    # d в jobs соответствует shift = d * 3 + 1 (середина дня).
+                    shift_idx = d * 3 + 1
+                    if shift_idx >= len(greedy_schedule[m]):
+                        shift_idx = len(greedy_schedule[m]) - 1
+                    p_val = greedy_schedule[m][shift_idx]
+                    
                     hint_idx = int(p_val)
                     if hint_idx < 1 or hint_idx >= len(products_new):
                         continue
@@ -2067,7 +2132,8 @@ def create_model_simple(remains: list, products: list, machines: list, cleans: l
                        max_daily_prod_zero: int, count_days: int,
                        dedicated_machines: list[int] | None = None,
                        product_divs: list[int] | None = None,
-                       machine_divs: list[int] | None = None):
+                       machine_divs: list[int] | None = None,
+                       allowed_products: dict[int, set[int]] | None = None):
     """Упрощённая модель по станкам для длинного горизонта.
 
     Особенности:
@@ -2077,8 +2143,10 @@ def create_model_simple(remains: list, products: list, machines: list, cleans: l
       не более ``max_daily_prod_zero`` смен по всем машинам;
     - учитываем разделение по типам машин/продуктов (цех 1 / цех 2);
     - пропорции и стратегии берём в упрощённом виде, как в основной модели.
-
-    Остатки партий, lday и детальная логика двухдневного перехода не учитываются.
+    
+    Args:
+        allowed_products: Если задан, ограничивает домены jobs[m,d] только этим набором продуктов.
+                          Используется в Phase 2 режима LONG_TWO_PHASE.
     """
     num_days = count_days
     num_machines = len(machines)
@@ -2218,10 +2286,40 @@ def create_model_simple(remains: list, products: list, machines: list, cleans: l
     # В SIMPLE все дни считаются рабочими (чистки не исключают день из горизонта).
     # Чистки будем учитывать позже при перерасчёте смен/объёмов, но не в домене переменных.
     for m in all_machines:
+        # Определяем базовый домен продуктов для машины m
+        base_domain_list = []
+        if allowed_products is not None and m in allowed_products:
+            # Phase 2: используем только разрешенные продукты
+            # Добавляем начальный продукт, если он > 0, даже если его нет в allowed (на всякий случай)
+            init_p = initial_products[m]
+            cand_set = set(allowed_products[m])
+            if init_p > 0:
+                cand_set.add(init_p)
+            base_domain_list = sorted(list(cand_set))
+            # Если множество пустое (машина не использовалась в фазе 1), даем ей только init_p или ничего
+            if not base_domain_list:
+                if init_p > 0:
+                    base_domain_list = [init_p]
+                else:
+                    # Если и старта нет, то машина пустая. Но домен не может быть пустым.
+                    # Разрешим хотя бы продукт 1 (будет запрещен другими ограничениями если что)
+                    base_domain_list = [1] 
+        else:
+            # Стандартный режим: все продукты 1..num_products-1
+            base_domain_list = list(range(1, num_products))
+
+        # Преобразуем список в CP-SAT domain (список интервалов)
+        # cp_model.Domain.FromValues ожидает список.
+        # Но NewIntVarFromDomain принимает Domain объект.
+        # Для простоты, если список сплошной, используем min/max.
+        # Если разреженный - создаем переменную с доменом.
+        domain_obj = cp_model.Domain.FromValues(base_domain_list)
+
         for d in all_days:
             work_days.append((m, d))
-            # В SIMPLE не используем PRODUCT_ZERO: домен только 1..num_products-1.
-            jobs[m, d] = model.NewIntVar(1, num_products - 1, f"job_simple_{m}_{d}")
+            # jobs[m, d] = model.NewIntVar(1, num_products - 1, f"job_simple_{m}_{d}")
+            jobs[m, d] = model.NewIntVarFromDomain(domain_obj, f"job_simple_{m}_{d}")
+            
             # Для dedicated-машин фиксируем исходный продукт на всех днях,
             # но только если стартовый продукт не равен 0 (PRODUCT_ZERO в LONG).
             if m in dedicated_set:
@@ -2576,6 +2674,56 @@ def create_model_simple(remains: list, products: list, machines: list, cleans: l
                 for d in all_days:
                     model.Add(jobs[m, d] != p)
 
+        # 4) (H4) Крупные продукты на НЕСКОЛЬКИХ машинах:
+        # Если продукт p стоит на начало на нескольких машинах (len(machines_for_p) > 1),
+        # и его план (plan_days) достаточно велик, чтобы заполнить эти машины
+        # на весь горизонт (например, >= 80% от суммарной ёмкости),
+        # то фиксируем этот продукт на этих машинах и запрещаем на остальных.
+        if (
+            ENABLE_SIMPLE_BIG_START_HEURISTIC
+            and len(machines_for_p) > 1
+            and plan_days > 0
+        ):
+            # Суммарная ёмкость (в днях) машин, где продукт стоит изначально
+            total_capacity_days = num_days * len(machines_for_p)
+            
+            # Условие пользователя: объем меньше (или равен) совокупной емкости
+            if plan_days <= total_capacity_days:
+                 # H4 candidates logic
+                # НЕ добавляем в h3_products, чтобы применялись ограничения qty_minus (общий объем)
+                # h3_products.add(p)
+                try:
+                    logger.info(
+                        "SIMPLE H4: big-start-multi candidate p=%d (%s), plan_days=%d, "
+                        "machines_for_p=%s, total_capacity_days=%d",
+                        p,
+                        products[p][0],
+                        plan_days,
+                        list(machines_for_p),
+                        total_capacity_days,
+                    )
+                except Exception:
+                    pass
+
+                # Вычисляем гарантированный период фиксации ("сработать сразу")
+                # floor(plan / count).
+                safe_days = plan_days // len(machines_for_p)
+                # Ограничиваем горизонтом
+                safe_days = min(safe_days, num_days)
+
+                # Фиксируем p на стартовых машинах на safe_days
+                for m_idx in machines_for_p:
+                    for d in range(safe_days):
+                        model.Add(jobs[m_idx, d] == p)
+                
+                # Запрещаем p на всех остальных машинах (на весь горизонт)
+                machines_set = set(machines_for_p)
+                for m_idx in all_machines:
+                    if m_idx in machines_set:
+                        continue
+                    for d in all_days:
+                        model.Add(jobs[m_idx, d] != p)
+
         # --- Дополнительная крупная эвристика для больших продуктов без стартовых машин ---
         # Если включён ENABLE_SIMPLE_BIG_NOSTART_HEURISTIC, рассматриваем продукты,
         # которые не стоят ни на одной машине в день 0 (len(machines_for_p) == 0),
@@ -2686,18 +2834,26 @@ def create_model_simple(remains: list, products: list, machines: list, cleans: l
             if 0 < p < num_products:
                 model.Add(product_counts[p] <= int(cap_dbg))
 
-    # ------------ Монотонность по дням для каждого продукта ------------
-    # Для каждого продукта p считаем дневные мощности C[p,d] = кол-во машин,
-    # занятых продуктом p в день d, и вводим бинарную переменную направления
-    # is_up[p]: 1 — профиль неубывающий (выводим/наращиваем), 0 — невозрастающий
-    # (снимаем). Волнистые паттерны 3-1-0-1-2-3 запрещены.
-    C_pd: dict[tuple[int, int], cp_model.IntVar] = {}
-    is_up: dict[int, cp_model.BoolVar] = {}
+    # ------------ Монотонность (Унимодальность) ------------
+    # Вместо строгой монотонности (только рост или только спад) реализуем Унимодальность (Bitonic):
+    # Профиль может расти, достичь плато, а затем убывать.
+    # Запрещено: Рост -> Спад -> Рост.
+    # Реализация через переменные состояния waning[d] (0=рост/плато, 1=спад/плато).
+    # waning[d] <= waning[d+1].
+    
+    use_unimodality = getattr(settings, "SIMPLE_USE_MONOTONE_COUNTS", True)
+    
+    # Помашинная непрерывность (Contiguity).
+    use_machine_contiguity = getattr(settings, "SIMPLE_USE_MACHINE_SEGMENTS", True)
 
-    if getattr(settings, "SIMPLE_USE_MONOTONE_COUNTS", True):
-        # Для верхней границы берём максимум машин, на которых продукт в принципе
-        # может стоять по type/div. Это уменьшает Big-M в ограничениях.
-        print (f"{getattr(settings, "SIMPLE_USE_MONOTONE_COUNTS", True)}")
+    C_pd: dict[tuple[int, int], cp_model.IntVar] = {}
+    
+    # Словарь переменных убывания: waning[p, d]
+    # d=-1 соответствует переходу от начального состояния к дню 0.
+    waning: dict[tuple[int, int], cp_model.BoolVar] = {}
+
+    if use_unimodality:
+        # Для верхней границы берём максимум машин
         max_cap_per_product: dict[int, int] = {}
         for p in range(1, num_products):
             product_machine_type_req = products[p][3]
@@ -2719,26 +2875,110 @@ def create_model_simple(remains: list, products: list, machines: list, cleans: l
             max_cap_per_product[p] = cap
 
         for p in range(1, num_products):
-            is_up[p] = model.NewBoolVar(f"simple_is_up_{p}")
             M_p = max_cap_per_product[p]
+            
+            # Создаем переменные Counts
             for d in all_days:
                 C = model.NewIntVar(0, M_p, f"C_simple_{p}_{d}")
                 C_pd[p, d] = C
-                # C[p,d] = sum_m is_prod[p,m,d]
                 model.Add(C == sum(
                     product_produced_bools[p, m, d] for m in all_machines
                 ))
-            # Монотонность по дням: либо неубывающий, либо невозрастающий профиль.
+
+            # Начальное кол-во машин
+            c_prev = len(product_to_initial_machines.get(p, []))
+            
+            # Анализ стратегии для H5 (Strategy Hardening)
+            strategy_str = str(products[p][9]) if len(products[p]) > 9 else ""
+            qty_shifts = int(products[p][1])
+            plan_days_est = (qty_shifts + 2) // 3
+            
+            # Определяем режим монотонности:
+            # 0 = Unimodal (Bitonic): Рост -> Спад (Standard)
+            # 1 = Hard Increasing (waning=0): Только Рост
+            # 2 = Hard Decreasing (waning=1): Только Спад
+            mono_mode = 0
+            
+            # --- H5 Heuristic: Strategy Hardening with Safety Checks ---
+            
+            # Рассчитываем, сколько мы ОБЯЗАНЫ произвести, если запретим снижение (Hard Increasing).
+            # Если waning=0 всегда, то C[d] >= C[start] для всех d.
+            min_production_if_increasing = c_prev * num_days
+            
+            # Рассчитываем максимально допустимый объем по плану.
+            # Если продукт строгий (qty_minus=False), мы не можем превысить plan_days (плюс, возможно, 1 день на округление).
+            qty_minus_flag = products[p][4]
+            if qty_minus_flag == 0:
+                # Строгий план: max_allowed ~ plan_days.
+                # Но в модели есть коридор plan_days <= C <= plan_days + 1?
+                # Смотрим ограничения ниже: upper_bound = plan_days + 1
+                max_allowed_production = plan_days_est + 1 # Даем +1 запас
+            else:
+                # Гибкий план: верхней границы жесткой нет (только soft penalty или capacity).
+                max_allowed_production = 999999
+
+            if strategy_str in ("+", "++"):
+                # Для +/++ хотим Hard Increasing (1).
+                # Проверка безопасности: если удержание старта приведет к перепроизводству строгого продукта,
+                # то Hard Increasing невозможен (нужен спад).
+                if min_production_if_increasing > max_allowed_production:
+                    # Конфликт: стратегия просит роста, но план требует сокращения.
+                    # Откатываемся на Unimodal (позволяем спад).
+                    mono_mode = 0
+                else:
+                    mono_mode = 1
+            elif strategy_str in ("-", "--"):
+                # Для -/-- проверяем достаточность начального ресурса.
+                # Если c_prev * num_days >= plan_days, то можно только падать.
+                # Иначе (надо произвести больше, чем есть мощности) - придется сначала расти -> Unimodal.
+                if c_prev * num_days >= plan_days_est:
+                    mono_mode = 2
+                else:
+                    mono_mode = 0
+            
+            # Переменная убывания для начального перехода (день -1 -> 0)
+            w_init = model.NewBoolVar(f"waning_{p}_init")
+            waning[p, -1] = w_init
+            
+            # Применяем Hard Constraints
+            if mono_mode == 1:
+                model.Add(w_init == 0)
+            elif mono_mode == 2:
+                model.Add(w_init == 1)
+            
+            # Связь начального состояния и дня 0
+            # Если w_init=0 (рост): C[0] >= c_prev
+            model.Add(C_pd[p, 0] >= c_prev).OnlyEnforceIf(w_init.Not())
+            # Если w_init=1 (спад): C[0] <= c_prev
+            model.Add(C_pd[p, 0] <= c_prev).OnlyEnforceIf(w_init)
+
+            # Переходы между днями
             for d in range(num_days - 1):
-                diff = model.NewIntVar(-M_p, M_p, f"Cdiff_simple_{p}_{d}")
-                model.Add(diff == C_pd[p, d + 1] - C_pd[p, d])
-                # Если is_up[p] = 1 → diff >= 0; если 0 → ограничение ослабляем до diff >= -M_p.
-                model.Add(diff >= 0 - M_p * (1 - is_up[p]))
-                # Если is_up[p] = 0 → diff <= 0; если 1 → ограничение ослабляем до diff <= M_p.
-                model.Add(diff <= 0 + M_p * is_up[p])
+                w = model.NewBoolVar(f"waning_{p}_{d}")
+                waning[p, d] = w
+                
+                # Применяем Hard Constraints для каждого дня
+                if mono_mode == 1:
+                    model.Add(w == 0)
+                elif mono_mode == 2:
+                    model.Add(w == 1)
+                
+                # Связь C[d] и C[d+1]
+                # Если w=0 (рост): C[d+1] >= C[d]
+                model.Add(C_pd[p, d + 1] >= C_pd[p, d]).OnlyEnforceIf(w.Not())
+                # Если w=1 (спад): C[d+1] <= C[d]
+                model.Add(C_pd[p, d + 1] <= C_pd[p, d]).OnlyEnforceIf(w)
+                
+                # Цепочка состояний: если начали убывать, то продолжаем убывать
+                # waning[d-1] <= waning[d]
+                if d == 0:
+                    model.Add(w_init <= w)
+                else:
+                    w_prev = waning[p, d - 1]
+                    model.Add(w_prev <= w)
+
     else:
-        # Если монотонность отключена, всё равно инициализируем C_pd для совместимости,
-        # но без ограничений на разности. Верхняя граница берётся как num_machines.
+        # Если унимодальность отключена, просто считаем C_pd
         for p in range(1, num_products):
             for d in all_days:
                 C = model.NewIntVar(0, num_machines, f"C_simple_{p}_{d}")
@@ -2746,6 +2986,39 @@ def create_model_simple(remains: list, products: list, machines: list, cleans: l
                 model.Add(C == sum(
                     product_produced_bools[p, m, d] for m in all_machines
                 ))
+    
+    # --- Реализация локальной непрерывности (A->B->A запрещено) ---
+    if use_machine_contiguity:
+        # Для каждого продукта p на каждой машине m разрешаем не более 1 "старта"
+        # сессии. Старт - это когда (d-1)!=p и d==p.
+        for p in range(1, num_products):
+            for m in all_machines:
+                starts = []
+                # Проверяем переход от начального состояния к дню 0
+                init_p = initial_products[m]
+                # Если изначально был НЕ p, а в день 0 стал p -> это старт
+                # (используем product_produced_bools[p,m,0])
+                if init_p != p:
+                    starts.append(product_produced_bools[p, m, 0])
+                
+                # Проверяем переходы между днями d-1 -> d
+                for d in range(1, num_days):
+                    # start_bool = 1 <=> job[d]==p AND job[d-1]!=p
+                    # Реализуем через Min(job[d]==p, (job[d-1]!=p)) или product_produced_bools
+                    is_p_curr = product_produced_bools[p, m, d]
+                    is_p_prev = product_produced_bools[p, m, d - 1]
+                    
+                    # start_var == 1 только если curr=1 и prev=0
+                    start_var = model.NewBoolVar(f"start_seg_{p}_{m}_{d}")
+                    model.Add(start_var >= is_p_curr - is_p_prev) # 1 - 0 = 1
+                    model.AddImplication(start_var, is_p_curr)    # если start=1, то curr обязан быть 1
+                    model.AddImplication(start_var, is_p_prev.Not()) # если start=1, то prev обязан быть 0
+                    
+                    starts.append(start_var)
+                
+                # Сумма всех стартов на этой машине для продукта p <= 1
+                if starts:
+                    model.Add(sum(starts) <= 1)
         # Раньше здесь дополняли модель верхними капами по product_counts[p]
         # из эвристики H2/H3 (small_caps, strict_small_caps_days,
         # global_small_caps_days). В текущем варианте для увеличения
@@ -2775,10 +3048,10 @@ def create_model_simple(remains: list, products: list, machines: list, cleans: l
             # Те же фильтры, что и для основного блока qty_minus.
             if p in h1_products or p in h2_products or p in h3_products:
                 continue
-            if debug_subset is not None and p not in debug_subset:
-                continue
-            if debug_max_idx is not None and p == debug_max_idx:
-                continue
+            # (Убрали фильтр debug_subset/debug_max_idx отсюда:
+            #  даже если продукт скрыт фильтром отладки, он всё равно "существует"
+            #  в структуре цеха и вносит вклад в общую гибкость (threshold).
+            #  Поэтому учитываем его при подсчёте кандидатов.)
 
             qty_shifts = int(products[p][1])
             if qty_shifts <= 0:
@@ -2804,6 +3077,43 @@ def create_model_simple(remains: list, products: list, machines: list, cleans: l
         if max_balance_per_div < 1:
             max_balance_per_div = 1
         for prod_div, cand_list in per_div_candidates.items():
+            # ...
+            # 6) Если в цехе (prod_div) уже достаточно много гибких продуктов (например, >= 3),
+            # то специально выбирать "балансирующий" (с полностью снятым верхним ограничением)
+            # не обязательно — достаточно общей гибкости "коридорных" продуктов.
+            # Порог 3 выбран эвристически: если есть 3 гибких продукта, они суммарно могут
+            # отклониться на +/- 3*plan, что обычно достаточно.
+            # Значение порога можно вынести в настройки: settings.SIMPLE_QTY_MINUS_BALANCE_THRESHOLD.
+            
+            # --- OVERLOAD CHECK START ---
+            # Проверяем, не перегружен ли цех. Если план сильно превышает мощность,
+            # то жесткий коридор (plan +/- 1) приведет к невыполнимости.
+            # В этом случае нужно перевести ВСЕ гибкие продукты в режим BALANCE (только min_days).
+            
+            div_capacity_days = 0
+            # Считаем машины в этом цехе
+            # machine_divs array is available
+            for m_idx, m_d in enumerate(machine_divs):
+                if m_d == prod_div:
+                    div_capacity_days += num_days
+            
+            # Считаем суммарный план кандидатов
+            cand_plan_sum = sum(c[1] for c in cand_list)
+            
+            is_overloaded = False
+            if div_capacity_days > 0 and cand_plan_sum > div_capacity_days:
+                 is_overloaded = True
+                 logger.info(f"SIMPLE div={prod_div} OVERLOAD DETECTED: plan={cand_plan_sum} > cap={div_capacity_days}. Forcing BALANCE for all {len(cand_list)} candidates.")
+            
+            if not is_overloaded:
+                balance_threshold = getattr(settings, "SIMPLE_QTY_MINUS_BALANCE_THRESHOLD", 3)
+                if len(cand_list) >= balance_threshold:
+                     continue
+            else:
+                # При перегрузке разрешаем балансировать всем кандидатам
+                max_balance_per_div = len(cand_list)
+            # --- OVERLOAD CHECK END ---
+
             cand_list.sort(key=lambda t: t[1], reverse=True)
             for p, _plan_days in cand_list[:max_balance_per_div]:
                 balance_products.add(p)
@@ -2859,7 +3169,14 @@ def create_model_simple(remains: list, products: list, machines: list, cleans: l
             # Если задан отладочный поднабор продуктов, применяем qty_minus
             # только к нему.
             if debug_subset is not None and p not in debug_subset:
+                # Log warning if we skip a STRICT product that likely causes overload
+                if qty_minus_flag == 0 and int(products[p][1]) > 0:
+                     # Only log once per product
+                     pass
                 continue
+            # DEBUG TRACE - Removed
+            # if p == 17:
+            #    logger.info(f"DEBUG TRACE p=17: Entering constraints. plan_days={plan_days}, min_days={min_days}. Product: {products[p]}")
 
             # Если мы в режиме отладки максимально допустимого объёма для
             # конкретного продукта (SIMPLE_DEBUG_MAXIMIZE_PRODUCT_IDX), не
@@ -3086,6 +3403,9 @@ def create_model_simple(remains: list, products: list, machines: list, cleans: l
     # В SIMPLE держим штрафы по стратегиям малыми (1–2 на единицу),
     # чтобы они не доминировали над пропорциями и простоями.
     strategy_base_weight = 1
+    
+    # Штрафы за пики (peaks) убраны по требованию пользователя (откат).
+    # ...
 
     for p in range(1, len(products)):
         if len(products[p]) < 10:
@@ -4009,3 +4329,16 @@ def save_model_to_log(plan: BaseModel) -> None:
             f.write(plan_json)
     except Exception as e:
         logger.error("Ошибка записи файла плана", exc_info=True)
+
+
+def calc_test_data_from():
+    # Исходные данные
+    input_file = settings.TEST_INPUT_FILE or "example/test_in_new.json"
+    logger.info(f"Загрузка тестовых данных из файла: {input_file}")
+    with open(input_file, encoding="utf8") as f:
+        test_in = f.read()
+        data_in = DataLoomIn.model_validate_json(test_in)
+
+    if data_in:
+        schedule_loom_calc_model(data_in)
+

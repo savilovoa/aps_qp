@@ -11,6 +11,7 @@ class Machine(BaseModel):
     div: int = Field(default=1, description="цех/подразделение: 1 или 2")
     remain_day: int = Field(default=0)
     reserve: bool = Field(default=False, description="признак резервирования машины")
+
 class Remain(BaseModel):
     idx: int
     name: str
@@ -44,7 +45,7 @@ class Clean(BaseModel):
 
 class DataLoomIn(BaseModel):
     machines: list[Machine]
-    remains: list[Remain]
+    remains: list[list[list[int]]]
     products: list[Product]
     cleans: list[Clean]
     max_daily_prod_zero: int = Field(description="Максимальное количество перезаправок в день")

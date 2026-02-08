@@ -35,7 +35,7 @@
 "name": "ТС Тойота №116",
 "product_idx": 15,
 "id": "b2830550-abfa-11ec-80e0-005056aac628",
-"type": 0,
+"type": 1,
 "remain_day": 0,
 "reserve": 0,
 "div": 2
@@ -45,7 +45,7 @@
 "name": "ТС Тойота №119",
 "product_idx": 6,
 "id": "c11b8cb5-abfa-11ec-80e0-005056aac628",
-"type": 0,
+"type": 1,
 "remain_day": 0,
 "reserve": 0,
 "div": 2
@@ -65,7 +65,7 @@
 "name": "ТС Тойота №122",
 "product_idx": 7,
 "id": "c8696e5a-abfa-11ec-80e0-005056aac628",
-"type": 0,
+"type": 1,
 "remain_day": 0,
 "reserve": 0,
 "div": 2
@@ -75,7 +75,7 @@
 "name": "ТС Тойота №123",
 "product_idx": 1,
 "id": "cf58caa2-abfa-11ec-80e0-005056aac628",
-"type": 0,
+"type": 1,
 "remain_day": 0,
 "reserve": 0,
 "div": 2
@@ -85,7 +85,7 @@
 "name": "ТС Тойота №124",
 "product_idx": 1,
 "id": "cf58caa4-abfa-11ec-80e0-005056aac628",
-"type": 0,
+"type": 1,
 "remain_day": 0,
 "reserve": 0,
 "div": 2
@@ -95,7 +95,7 @@
 "name": "ТС Тойота №125",
 "product_idx": 2,
 "id": "e05486a2-abfa-11ec-80e0-005056aac628",
-"type": 0,
+"type": 1,
 "remain_day": 0,
 "reserve": 0,
 "div": 2
@@ -105,7 +105,7 @@
 "name": "ТС Тойота №126",
 "product_idx": 2,
 "id": "e05486a4-abfa-11ec-80e0-005056aac628",
-"type": 0,
+"type": 1,
 "remain_day": 0,
 "reserve": 0,
 "div": 2
@@ -115,7 +115,7 @@
 "name": "ТС Тойота №127",
 "product_idx": 9,
 "id": "e8b7876d-abfa-11ec-80e0-005056aac628",
-"type": 0,
+"type": 1,
 "remain_day": 0,
 "reserve": 0,
 "div": 2
@@ -125,7 +125,7 @@
 "name": "ТС Тойота №128",
 "product_idx": 9,
 "id": "e8b7876e-abfa-11ec-80e0-005056aac628",
-"type": 0,
+"type": 1,
 "remain_day": 0,
 "reserve": 0,
 "div": 2
@@ -135,7 +135,7 @@
 "name": "ТС Тойота №13",
 "product_idx": 17,
 "id": "fbc4c377-8087-11ea-80cc-005056aab926",
-"type": 0,
+"type": 1,
 "remain_day": 0,
 "reserve": 0,
 "div": 1
@@ -155,7 +155,7 @@
 "name": "ТС Тойота №134",
 "product_idx": 8,
 "id": "06dd754e-abfb-11ec-80e0-005056aac628",
-"type": 0,
+"type": 1,
 "remain_day": 0,
 "reserve": 0,
 "div": 2
@@ -165,7 +165,7 @@
 "name": "ТС Тойота №135",
 "product_idx": 8,
 "id": "945d9886-b16c-11ec-80e2-005056aa1736",
-"type": 0,
+"type": 1,
 "remain_day": 0,
 "reserve": 0,
 "div": 2
@@ -175,7 +175,7 @@
 "name": "ТС Тойота №137",
 "product_idx": 29,
 "id": "9d3ea9f9-b16c-11ec-80e2-005056aa1736",
-"type": 0,
+"type": 1,
 "remain_day": 0,
 "reserve": 0,
 "div": 2
@@ -185,7 +185,7 @@
 "name": "ТС Тойота №139",
 "product_idx": 3,
 "id": "a4477be2-b16c-11ec-80e2-005056aa1736",
-"type": 0,
+"type": 1,
 "remain_day": 0,
 "reserve": 0,
 "div": 2
@@ -345,7 +345,7 @@
 "name": "ТС Тойота №96",
 "product_idx": 0,
 "id": "53bec441-abfa-11ec-80e0-005056aac628",
-"type": 0,
+"type": 1,
 "remain_day": 0,
 "reserve": 0,
 "div": 2
@@ -355,7 +355,7 @@
 "name": "ТС Тойота №97",
 "product_idx": 0,
 "id": "5af9b5d8-abfa-11ec-80e0-005056aac628",
-"type": 0,
+"type": 1,
 "remain_day": 0,
 "reserve": 0,
 "div": 2
@@ -365,7 +365,7 @@
 "name": "ТС Тойота №98",
 "product_idx": 0,
 "id": "5af9b5d9-abfa-11ec-80e0-005056aac628",
-"type": 0,
+"type": 1,
 "remain_day": 0,
 "reserve": 1,
 "div": 2
@@ -538,7 +538,7 @@
 "qty_minus_min": 0,
 "sr": false,
 "strategy": "--",
-"div": 0
+"div": 1
 },
 {
 "idx": 12,
@@ -790,7 +790,7 @@
 "qty_minus_min": 73,
 "sr": false,
 "strategy": "-",
-"div": 0
+"div": 2
 },
 {
 "idx": 30,
