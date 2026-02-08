@@ -2838,44 +2838,59 @@ def create_model_simple(remains: list, products: list, machines: list, cleans: l
             # 0 = Unimodal (Bitonic): Рост -> Спад (Standard)
             # 1 = Hard Increasing (waning=0): Только Рост
             # 2 = Hard Decreasing (waning=1): Только Спад
-            mono_mode = 0
+            # 3 = Strict Monotonic (Unknown Direction): Либо только Рост, либо только Спад (waning=const)
+            mono_mode = 3 # По умолчанию строгая монотонность (без горок)
             
             # --- H5 Heuristic: Strategy Hardening with Safety Checks ---
             
             # Рассчитываем, сколько мы ОБЯЗАНЫ произвести, если запретим снижение (Hard Increasing).
-            # Если waning=0 всегда, то C[d] >= C[start] для всех d.
             min_production_if_increasing = c_prev * num_days
             
             # Рассчитываем максимально допустимый объем по плану.
-            # Если продукт строгий (qty_minus=False), мы не можем превысить plan_days (плюс, возможно, 1 день на округление).
             qty_minus_flag = products[p][4]
             if qty_minus_flag == 0:
-                # Строгий план: max_allowed ~ plan_days.
-                # Но в модели есть коридор plan_days <= C <= plan_days + 1?
-                # Смотрим ограничения ниже: upper_bound = plan_days + 1
-                max_allowed_production = plan_days_est + 1 # Даем +1 запас
+                max_allowed_production = plan_days_est + 1
             else:
-                # Гибкий план: верхней границы жесткой нет (только soft penalty или capacity).
                 max_allowed_production = 999999
 
             if strategy_str in ("+", "++"):
                 # Для +/++ хотим Hard Increasing (1).
-                # Проверка безопасности: если удержание старта приведет к перепроизводству строгого продукта,
-                # то Hard Increasing невозможен (нужен спад).
+                # Проверка безопасности: если удержание старта приведет к перепроизводству,
+                # то Hard Increasing невозможен (придется падать). Но "+" требует роста.
+                # Если конфликт неизбежен, Unimodal (0) лучше, чем Infeasible.
                 if min_production_if_increasing > max_allowed_production:
-                    # Конфликт: стратегия просит роста, но план требует сокращения.
-                    # Откатываемся на Unimodal (позволяем спад).
                     mono_mode = 0
                 else:
                     mono_mode = 1
+                    
+                # Ограничение раздувания для "+": не более +4 машин от старта
+                if strategy_str == "+" and mono_mode == 1:
+                    for d in all_days:
+                        model.Add(C_pd[p, d] <= c_prev + 4)
+
             elif strategy_str in ("-", "--"):
-                # Для -/-- проверяем достаточность начального ресурса.
-                # Если c_prev * num_days >= plan_days, то можно только падать.
-                # Иначе (надо произвести больше, чем есть мощности) - придется сначала расти -> Unimodal.
-                if c_prev * num_days >= plan_days_est:
-                    mono_mode = 2
-                else:
+                # Для -/--:
+                if c_prev == 0:
+                    # Если продукта нет на старте, но он нужен, разрешаем горку (появился -> исчез).
                     mono_mode = 0
+                else:
+                    # Если есть на старте -> Только Спад.
+                    # Проверка: если нам нужно произвести больше, чем текущие машины дадут при спаде?
+                    # (При спаде максимум = c_prev * num_days).
+                    # Если план > c_prev * num_days, то спадать нельзя, надо расти.
+                    # Тогда Unimodal.
+                    if plan_days_est > c_prev * num_days:
+                        mono_mode = 0
+                    else:
+                        mono_mode = 2
+            
+            else:
+                # Стратегия "=" или другая.
+                if c_prev == 0:
+                    mono_mode = 0 # Должен появиться
+                else:
+                    # Если есть, то Строгая Монотонность (либо всегда рост, либо всегда спад).
+                    mono_mode = 3
             
             # Переменная убывания для начального перехода (день -1 -> 0)
             w_init = model.NewBoolVar(f"waning_{p}_init")
@@ -2903,6 +2918,10 @@ def create_model_simple(remains: list, products: list, machines: list, cleans: l
                     model.Add(w == 0)
                 elif mono_mode == 2:
                     model.Add(w == 1)
+                elif mono_mode == 3:
+                    # Strict Monotonic: направление не меняется.
+                    # w[d] == w_init (все равны).
+                    model.Add(w == w_init)
                 
                 # Связь C[d] и C[d+1]
                 # Если w=0 (рост): C[d+1] >= C[d]

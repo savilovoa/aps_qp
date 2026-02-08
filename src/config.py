@@ -195,6 +195,13 @@ class Settings(BaseSettings):
         default=True,
         description="Включить эвристику H6 (фиксация полных машин для продуктов со старта)",
     )
+
+    # Минимальная длина партии (в модельных днях) при переходе на новый продукт.
+    # Работает только при SIMPLE_USE_MONOTONE_COUNTS=True (use_machine_contiguity).
+    SIMPLE_MIN_BATCH_DAYS: int = Field(
+        default=3,
+        description="Минимальная непрерывная длительность работы продукта на машине (в днях) после старта",
+    )
     
     # Путь для сохранения результата в JSON (для интеграции Two-Phase)
     # Если None, не сохраняем.
