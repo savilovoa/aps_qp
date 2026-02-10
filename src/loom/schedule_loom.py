@@ -4306,7 +4306,7 @@ def save_model_to_log(plan: BaseModel) -> None:
 
 def calc_test_data_from():
     # Исходные данные
-    input_file = settings.TEST_INPUT_FILE or "example/test_in_new.json"
+    input_file = settings.TEST_INPUT_FILE or "example/test_in.json"
     logger.info(f"Загрузка тестовых данных из файла: {input_file}")
     with open(input_file, encoding="utf8") as f:
         test_in = f.read()
