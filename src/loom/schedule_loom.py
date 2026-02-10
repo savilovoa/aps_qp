@@ -139,6 +139,10 @@ def schedule_loom_calc_model(DataIn: DataLoomIn) -> LoomPlansOut:
             # для LONG_SIMPLE – агрегированное представление long_schedule.
             if horizon_mode in ("LONG_SIMPLE", "LONG_SIMPLE_HINT", "LONG_TWO_PHASE"):
                 # Для агрегированных режимов: 1 модельный день = 3 смены
+                if horizon_mode == "LONG_TWO_PHASE":
+                    shifts_per_day = 1
+                else:
+                    shifts_per_day = 3
                 res_html = aggregated_schedule_to_html(
                     machines=data["machines"],
                     schedule=result_calc["schedule"],
@@ -146,7 +150,7 @@ def schedule_loom_calc_model(DataIn: DataLoomIn) -> LoomPlansOut:
                     long_schedule=long_schedule or [],
                     dt_begin=DataIn.dt_begin,
                     title_text=title_text,
-                    shifts_per_day=3,
+                    shifts_per_day=shifts_per_day,
                 )
             else:
                 res_html = schedule_to_html(
@@ -2996,7 +3000,20 @@ def create_model_simple(remains: list, products: list, machines: list, cleans: l
     if use_machine_contiguity:
         # Для каждого продукта p на каждой машине m разрешаем не более 1 "старта"
         # сессии. Старт - это когда (d-1)!=p и d==p.
+        # Также накладываем ограничение на минимальную длительность партии (batch).
+        shifts_per_day = 3
+        
         for p in range(1, num_products):
+            # Определяем минимальную длительность партии для продукта p
+            lday_shifts = products[p][5]
+            if lday_shifts <= 0:
+                lday_shifts = 10  # Дефолт как в create_model
+            
+            # Переводим в модельные дни (округление вверх)
+            min_batch_days = (lday_shifts + shifts_per_day - 1) // shifts_per_day
+            if min_batch_days < 1:
+                min_batch_days = 1
+                
             for m in all_machines:
                 starts = []
                 # Проверяем переход от начального состояния к дню 0
@@ -3004,7 +3021,14 @@ def create_model_simple(remains: list, products: list, machines: list, cleans: l
                 # Если изначально был НЕ p, а в день 0 стал p -> это старт
                 # (используем product_produced_bools[p,m,0])
                 if init_p != p:
-                    starts.append(product_produced_bools[p, m, 0])
+                    b0 = product_produced_bools[p, m, 0]
+                    starts.append(b0)
+                    # Если стартовали в день 0, должны работать минимум min_batch_days
+                    if min_batch_days > 1:
+                        for k in range(1, min_batch_days):
+                            if k < num_days:
+                                # Если b0=1 (старт), то в день k тоже должен быть продукт p
+                                model.Add(jobs[m, k] == p).OnlyEnforceIf(b0)
                 
                 # Проверяем переходы между днями d-1 -> d
                 for d in range(1, num_days):
@@ -3020,6 +3044,12 @@ def create_model_simple(remains: list, products: list, machines: list, cleans: l
                     model.AddImplication(start_var, is_p_prev.Not()) # если start=1, то prev обязан быть 0
                     
                     starts.append(start_var)
+                    
+                    # Если стартовали в день d, должны работать минимум min_batch_days
+                    if min_batch_days > 1:
+                        for k in range(1, min_batch_days):
+                            if d + k < num_days:
+                                model.Add(jobs[m, d + k] == p).OnlyEnforceIf(start_var)
                 
                 # Сумма всех стартов на этой машине для продукта p <= 1
                 if starts:
