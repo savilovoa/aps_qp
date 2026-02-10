@@ -60,6 +60,10 @@ class DataLoomIn(BaseModel):
             "Если None, используется значение из конфигурации."
         ),
     )
+    loom_max_time: Optional[float] = Field(
+        default=None,
+        description="Максимальное время работы солвера в секундах. Если None, используется из конфига."
+    )
 
 class LoomPlan(BaseModel):
     machine_idx: int

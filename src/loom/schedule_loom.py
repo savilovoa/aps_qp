@@ -82,6 +82,9 @@ def schedule_loom_calc_model(DataIn: DataLoomIn) -> LoomPlansOut:
         if getattr(DataIn, "horizon_mode", None):
             settings.HORIZON_MODE = DataIn.horizon_mode.upper()
 
+        if getattr(DataIn, "loom_max_time", None) is not None:
+            settings.LOOM_MAX_TIME = float(DataIn.loom_max_time)
+
         result_calc = schedule_loom_calc(remains=remains, products=products, machines=machines, cleans=cleans,
                                     max_daily_prod_zero=max_daily_prod_zero, count_days=count_days, data=data)
 
@@ -108,7 +111,7 @@ def schedule_loom_calc_model(DataIn: DataLoomIn) -> LoomPlansOut:
             # Для упрощённых режимов (LONG_SIMPLE, LONG_SIMPLE_HINT) строим
             # агрегированное расписание по дням и продуктам: сколько машин в день под продукт.
             long_schedule: list[LongDayCapacity] | None = None
-            if horizon_mode in ("LONG_SIMPLE", "LONG_SIMPLE_HINT"):
+            if horizon_mode in ("LONG_SIMPLE", "LONG_SIMPLE_HINT", "LONG_TWO_PHASE"):
                 counts: dict[tuple[int, int], int] = {}
                 for s in result_calc["schedule"]:
                     p = s["product_idx"]
@@ -2664,6 +2667,48 @@ def create_model_simple(remains: list, products: list, machines: list, cleans: l
                         continue
                     for d in all_days:
                         model.Add(jobs[m_idx, d] != p)
+
+        # 5) (H6) Эвристика H6: Заполнение полных машин (Full Machine Occupation).
+        # Если продукт есть на старте и его план заполняет N полных машин,
+        # фиксируем эти N машин за продуктом. Если план полностью умещается
+        # в стартовые машины, ограничиваем домен только ими.
+        if (
+            getattr(settings, "SIMPLE_ENABLE_HEURISTIC_H6", True)
+            and machines_for_p
+            and plan_days > 0
+        ):
+             full_machines_needed = plan_days // num_days
+             init_cnt = len(machines_for_p)
+             machines_to_fix_count = min(full_machines_needed, init_cnt)
+
+             if machines_to_fix_count > 0:
+                 # Берем первые machines_to_fix_count машин из списка initial
+                 machines_to_fix = list(machines_for_p)[:machines_to_fix_count]
+                 
+                 try:
+                     logger.info(
+                         "SIMPLE H6: fix full machines for p=%d (%s), plan_days=%d, num_days=%d, "
+                         "full_machines_needed=%d, fixing=%s",
+                         p, products[p][0], plan_days, num_days, full_machines_needed, machines_to_fix
+                     )
+                 except Exception:
+                     pass
+
+                 # Фиксация на весь горизонт
+                 for m_idx in machines_to_fix:
+                     for d in all_days:
+                         model.Add(jobs[m_idx, d] == p)
+
+                 # Ограничение домена (только если план влезает в стартовые машины)
+                 # Если plan_days <= init_cnt * num_days, то продукт не должен вылезать за пределы стартовых.
+                 # (Это условие может дублировать H4, но H6 работает и при выключенном H4/H3)
+                 if plan_days <= init_cnt * num_days:
+                     machines_set = set(machines_for_p)
+                     for m_idx in all_machines:
+                         if m_idx in machines_set:
+                             continue
+                         for d in all_days:
+                             model.Add(jobs[m_idx, d] != p)
 
         # --- Дополнительная крупная эвристика для больших продуктов без стартовых машин ---
         # Если включён ENABLE_SIMPLE_BIG_NOSTART_HEURISTIC, рассматриваем продукты,
