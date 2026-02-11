@@ -139,10 +139,6 @@ def schedule_loom_calc_model(DataIn: DataLoomIn) -> LoomPlansOut:
             # для LONG_SIMPLE – агрегированное представление long_schedule.
             if horizon_mode in ("LONG_SIMPLE", "LONG_SIMPLE_HINT", "LONG_TWO_PHASE"):
                 # Для агрегированных режимов: 1 модельный день = 3 смены
-                if horizon_mode == "LONG_TWO_PHASE":
-                    shifts_per_day = 1
-                else:
-                    shifts_per_day = 3
                 res_html = aggregated_schedule_to_html(
                     machines=data["machines"],
                     schedule=result_calc["schedule"],
@@ -150,7 +146,7 @@ def schedule_loom_calc_model(DataIn: DataLoomIn) -> LoomPlansOut:
                     long_schedule=long_schedule or [],
                     dt_begin=DataIn.dt_begin,
                     title_text=title_text,
-                    shifts_per_day=shifts_per_day,
+                    shifts_per_day=3,
                 )
             else:
                 res_html = schedule_to_html(
@@ -1589,7 +1585,7 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
     # дней, где каждые 3 смены исходного горизонта образуют один день.
     # Преобразуем day_idx в cleans из смен в дни и сокращаем горизонт.
     horizon_mode_local = getattr(settings, "HORIZON_MODE", "FULL").upper()
-    if horizon_mode_local == "LONG_SIMPLE":
+    if horizon_mode_local in ("LONG_SIMPLE", "LONG_SIMPLE_HINT", "LONG_TWO_PHASE"):
         shifts_per_day = 3  # 84 смены / 3 = 28 календарных дней
         count_days_days = (count_days + shifts_per_day - 1) // shifts_per_day
         if not clean_df.empty:
@@ -1641,7 +1637,7 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
     # через поле id продукта.
     SIMPLE_DEBUG_PRODUCT_UPPER_CAPS={}
     horizon_mode_local = getattr(settings, "HORIZON_MODE", "FULL").upper()
-    if horizon_mode_local in ("LONG_SIMPLE", "LONG_SIMPLE_HINT"):
+    if horizon_mode_local in ("LONG_SIMPLE", "LONG_SIMPLE_HINT", "LONG_TWO_PHASE"):
         # Строим карту: исходный idx -> id
         orig_idx_to_id: dict[int, str] = {}
         for _, row in products_df.iterrows():
@@ -1747,7 +1743,7 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
     horizon_mode = getattr(settings, "HORIZON_MODE", "FULL").upper()
     # long_mode используется только для отключения детальной отладки/переходов;
     # считаем "долгими" упрощённые режимы.
-    long_mode = horizon_mode in ("LONG_SIMPLE", "LONG_SIMPLE_HINT")
+    long_mode = horizon_mode in ("LONG_SIMPLE", "LONG_SIMPLE_HINT", "LONG_TWO_PHASE")
 
     # Для LONG_SIMPLE / LONG_SIMPLE_HINT при включённом USE_GREEDY_HINT или в режиме
     # LONG_SIMPLE_HINT строим жадный SIMPLE-план (без нулей и чисток).
@@ -1841,7 +1837,7 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
     # Убрали проверку "not long_mode", чтобы хиты применялись и в LONG_SIMPLE
     if greedy_schedule is not None: # and not long_mode:
         try:
-            simple_mode = horizon_mode in ("LONG_SIMPLE", "LONG_SIMPLE_HINT")
+            simple_mode = horizon_mode in ("LONG_SIMPLE", "LONG_SIMPLE_HINT", "LONG_TWO_PHASE")
             if not simple_mode:
                 # FULL/SHORT: используем greedy_schedule_init и переотображение id -> новый idx.
                 orig_idx_to_id = products_df.set_index("idx")["id"].to_dict()
