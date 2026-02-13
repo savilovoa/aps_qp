@@ -4,4 +4,6 @@
 log/
 data/
 **__pycache__/
-/example/res.html
+/example/*
+*.log
+

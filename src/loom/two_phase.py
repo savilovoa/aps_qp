@@ -94,6 +94,12 @@ def solve_phase1_allocation(data_full: dict, machines_full_df: pd.DataFrame, pro
         # Присваиваем новые индексы продуктам
         products_div["idx"] = range(len(products_div))
         
+        # Важно: гарантируем lday >= 1 для всех продуктов.
+        # Продукты с lday=0 вызывают Access Violation в OR-Tools.
+        # Для продуктов с qty=0 (технические стартовые коды) lday=0 допустим
+        # в исходных данных, но для модели нужен валидный lday.
+        products_div.loc[products_div["lday"] <= 0, "lday"] = 10  # default как в schedule_loom
+        
         # 3. Обновляем product_idx в машинах
         # machines_div["product_idx"] ссылается на старые индексы.
         # Нужно перевести их в новые. Если продукта нет в локальном списке (например, flex из другого цеха,

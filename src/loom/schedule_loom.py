@@ -1907,8 +1907,24 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
             logger.error(f"Ошибка при установке hints из жадного плана: {e}")
 
     # Создаём solver после построения модели.
+    # Диагностика: валидация модели перед запуском solver.
+    validation_str = model.Validate()
+    if validation_str:
+        logger.error(f"Model validation failed: {validation_str}")
+        # Сохраняем модель для анализа
+        try:
+            import os
+            debug_model_path = os.path.join(settings.BASE_DIR, "log", "debug_model_invalid.pb")
+            model.ExportToFile(debug_model_path)
+            logger.error(f"Invalid model exported to {debug_model_path}")
+        except Exception as e:
+            logger.error(f"Failed to export model: {e}")
+    else:
+        logger.info("Model validation passed")
+
     solver = cp_model.CpSolver()
-    solver.parameters.log_search_progress = True
+    # DEBUG: попробовать отключить для диагностики crash
+    solver.parameters.log_search_progress = False
 
     t_start = time.time()
     if settings.SOLVER_ENUMERATE:
@@ -1921,6 +1937,16 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
     else:
         solver.parameters.max_time_in_seconds = settings.LOOM_MAX_TIME
         solver.parameters.num_search_workers = settings.LOOM_NUM_WORKERS
+        
+        # DEBUG: экспорт модели перед solve для диагностики
+        try:
+            import os
+            debug_model_path = os.path.join(settings.BASE_DIR, "log", "debug_model_before_solve.pb")
+            model.ExportToFile(debug_model_path)
+            logger.info(f"Model exported to {debug_model_path} before solve")
+        except Exception as e:
+            logger.warning(f"Failed to export model: {e}")
+        
         status = solver.solve(model)
     t_end = time.time()
 
@@ -4203,7 +4229,10 @@ def solver_result(
     strategy_penalty_terms,
 ):
 
-    simple_mode = getattr(settings, "HORIZON_MODE", "FULL").upper() == "LONG_SIMPLE"
+    # Для SIMPLE-модели (LONG_SIMPLE, LONG_TWO_PHASE) очищаем влияние чисток:
+    # все дни считаются рабочими, т.к. create_model_simple не исключает cleans из домена.
+    horizon_mode_result = getattr(settings, "HORIZON_MODE", "FULL").upper()
+    simple_mode = horizon_mode_result in ("LONG_SIMPLE", "LONG_SIMPLE_HINT", "LONG_TWO_PHASE")
 
     # Для SIMPLE-модели (LONG_SIMPLE) очищаем влияние чисток при восстановлении
     # расписания: все дни считаются рабочими.
