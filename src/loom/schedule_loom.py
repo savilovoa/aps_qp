@@ -1581,18 +1581,30 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
             "error_str": error_msg,
         }
 
+    # Функция для пересчёта смен в календарные дни.
+    # Используется в режимах LONG_SIMPLE, LONG_SIMPLE_HINT, LONG_TWO_PHASE.
+    def convert_shifts_to_days(count_days_shifts: int, clean_df_shifts: pd.DataFrame, shifts_per_day: int = 3):
+        """
+        Преобразует count_days из смен в календарные дни и пересчитывает day_idx в clean_df.
+        Возвращает (count_days_days, clean_df_days).
+        """
+        count_days_days = (count_days_shifts + shifts_per_day - 1) // shifts_per_day
+        if not clean_df_shifts.empty:
+            clean_df_days = clean_df_shifts.copy()
+            clean_df_days["day_idx"] = (clean_df_days["day_idx"] // shifts_per_day).astype(int)
+            clean_df_days = clean_df_days.drop_duplicates(subset=["machine_idx", "day_idx"]).reset_index(drop=True)
+        else:
+            clean_df_days = clean_df_shifts
+        return count_days_days, clean_df_days
+
     # В режиме LONG_SIMPLE интерпретируем count_days как количество КАЛЕНДАРНЫХ
     # дней, где каждые 3 смены исходного горизонта образуют один день.
     # Преобразуем day_idx в cleans из смен в дни и сокращаем горизонт.
+    # Для LONG_TWO_PHASE пересчёт выполняется ПОСЛЕ Phase 1, чтобы подпроцесс
+    # получил исходные данные в сменах.
     horizon_mode_local = getattr(settings, "HORIZON_MODE", "FULL").upper()
-    if horizon_mode_local in ("LONG_SIMPLE", "LONG_SIMPLE_HINT", "LONG_TWO_PHASE"):
-        shifts_per_day = 3  # 84 смены / 3 = 28 календарных дней
-        count_days_days = (count_days + shifts_per_day - 1) // shifts_per_day
-        if not clean_df.empty:
-            clean_df = clean_df.copy()
-            clean_df["day_idx"] = (clean_df["day_idx"] // shifts_per_day).astype(int)
-            clean_df = clean_df.drop_duplicates(subset=["machine_idx", "day_idx"]).reset_index(drop=True)
-        count_days = count_days_days
+    if horizon_mode_local in ("LONG_SIMPLE", "LONG_SIMPLE_HINT"):
+        count_days, clean_df = convert_shifts_to_days(count_days, clean_df)
 
     product_id = products_df["id"]
     machines_df["product_id"] = machines_df["product_idx"].map(product_id)
@@ -1789,6 +1801,8 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
         if horizon_mode == "LONG_TWO_PHASE":
             from .two_phase import solve_phase1_allocation
             try:
+                # Phase 1: передаём ИСХОДНЫЕ данные в сменах.
+                # Подпроцесс с LONG_SIMPLE сам пересчитает смены в дни внутри себя.
                 allowed_products = solve_phase1_allocation(
                     data, machines_df, products_df_new, clean_df, count_days
                 )
@@ -1796,6 +1810,12 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
             except Exception as e:
                 logger.error(f"Phase 1 Allocation failed: {e}. Falling back to full domain.")
                 allowed_products = None
+
+            # Phase 2: пересчитываем смены в дни для итоговой модели.
+            count_days, clean_df = convert_shifts_to_days(count_days, clean_df)
+            # Перестраиваем cleans_new после пересчёта clean_df.
+            cleans_new = CleansDFToArray(clean_df)
+            logger.info(f"LONG_TWO_PHASE Phase 2: converted to {count_days} days")
 
         (model, jobs, product_counts, proportion_objective_terms, total_products_count, prev_lday, start_batch,
          batch_end_complite, days_in_batch, completed_transition, pred_start_batch, same_as_prev,
