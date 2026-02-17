@@ -36,7 +36,7 @@ async def calc_loom_plan_view_by_id(id: str = Query(None, max_length=50)):
     try:
         f_name = settings.BASE_DIR + f"/data/{id}.html"
 
-        with open(f_name, "r") as f:
+        with open(f_name, "r" , encoding="utf8") as f:
             result = f.read()
 
         logger.debug("end view plan by id")
