@@ -85,7 +85,8 @@ def _prepare_div_data(
         "count_days": count_days,
         "dt_begin": data_full.get("dt_begin", "2026-01-01T00:00:00"),
         "apply_qty_minus": data_full.get("apply_qty_minus"),
-        "apply_index_up": data_full.get("apply_index_up")
+        "apply_index_up": data_full.get("apply_index_up"),
+        "loom_max_time": data_full.get("loom_max_time"),  # Передаём время из DataIn
     }
     
     dump_filename = f"debug_phase1_div_{div}.json"
@@ -115,6 +116,7 @@ def _prepare_div_data(
         "result_path": result_path,
         "machines_div": machines_div,
         "products_div": products_div,
+        "loom_max_time": data_full.get("loom_max_time"),  # Передаём в subprocess
     }
 
 
@@ -131,6 +133,11 @@ def _run_subprocess(div_info: dict) -> dict:
     env["HORIZON_MODE"] = "LONG_SIMPLE"
     env["CALC_TEST_DATA"] = "true"
     env["SAVE_RESULT_JSON_PATH"] = result_path
+    
+    # Передаём LOOM_MAX_TIME из данных div (если указано в DataIn)
+    loom_max_time = div_info.get("loom_max_time")
+    if loom_max_time is not None:
+        env["LOOM_MAX_TIME"] = str(loom_max_time)
     
     logger.info(f"Phase 1 DIV {div}: Launching subprocess run.py...")
     

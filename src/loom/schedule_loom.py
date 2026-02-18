@@ -3197,10 +3197,11 @@ def create_model_simple(remains: list, products: list, machines: list, cleans: l
 
         # Диагностический вывод: классификация продуктов по режимам qty_minus.
         # mode:
-        #   STRICT_QM0 — строгий qty_minus=0, только нижняя граница >= плану;
-        #   BALANCE    — продукт из balance_products (только нижняя граница min_days);
-        #   CORRIDOR   — обычный продукт с коридором plan_days±1;
-        #   SKIP_DEBUG — продукт вырезан отладочными фильтрами (subset/max_idx).
+        #   STRICT_QM0        — строгий qty_minus=0 в subset, нижняя граница >= плану;
+        #   STRICT_RELAXED    — строгий qty_minus=0 НЕ в subset, ослабленная нижняя граница (50% плана);
+        #   BALANCE           — продукт из balance_products (только нижняя граница min_days);
+        #   CORRIDOR          — обычный продукт с коридором plan_days±1;
+        #   SKIP_DEBUG        — гибкий продукт (qm!=0) вырезан отладочными фильтрами.
         try:
             for p in range(1, num_products):
                 try:
@@ -3214,14 +3215,18 @@ def create_model_simple(remains: list, products: list, machines: list, cleans: l
                     qty_minus_min_shifts = 0
                 prod_div = product_divs[p] if 0 <= p < len(product_divs) else 0
 
-                if debug_subset is not None and p not in debug_subset:
-                    mode = "SKIP_DEBUG"
-                elif debug_max_idx is not None and p == debug_max_idx:
+                if debug_max_idx is not None and p == debug_max_idx:
                     mode = "SKIP_DEBUG"
                 elif qty_shifts <= 0:
                     mode = "ZERO_PLAN"
                 elif qty_minus_flag == 0:
-                    mode = "STRICT_QM0"
+                    # Строгие продукты: если в subset -> STRICT_QM0, иначе -> STRICT_RELAXED
+                    if debug_subset is not None and p not in debug_subset:
+                        mode = "STRICT_RELAXED"
+                    else:
+                        mode = "STRICT_QM0"
+                elif debug_subset is not None and p not in debug_subset:
+                    mode = "SKIP_DEBUG"
                 elif p in balance_products:
                     mode = "BALANCE"
                 else:
@@ -3243,18 +3248,6 @@ def create_model_simple(remains: list, products: list, machines: list, cleans: l
 
         for p in range(1, num_products):
 
-            # Если задан отладочный поднабор продуктов, применяем qty_minus
-            # только к нему.
-            if debug_subset is not None and p not in debug_subset:
-                # Log warning if we skip a STRICT product that likely causes overload
-                if qty_minus_flag == 0 and int(products[p][1]) > 0:
-                     # Only log once per product
-                     pass
-                continue
-            # DEBUG TRACE - Removed
-            # if p == 17:
-            #    logger.info(f"DEBUG TRACE p=17: Entering constraints. plan_days={plan_days}, min_days={min_days}. Product: {products[p]}")
-
             # Если мы в режиме отладки максимально допустимого объёма для
             # конкретного продукта (SIMPLE_DEBUG_MAXIMIZE_PRODUCT_IDX), не
             # накладываем на него нижнюю границу qty_minus, чтобы модель
@@ -3272,12 +3265,30 @@ def create_model_simple(remains: list, products: list, machines: list, cleans: l
             plan_days = (qty_shifts + shifts_per_day - 1) // shifts_per_day
             min_days = (qty_minus_min_shifts + shifts_per_day - 1) // shifts_per_day if qty_minus_min_shifts > 0 else 0
 
+            # Определяем, находится ли продукт в отладочном подмножестве
+            is_in_subset = debug_subset is None or p in debug_subset
+
             if qty_minus_flag == 0:
-                # "Строгий" продукт: требуем не меньше планового объёма в днях.
-                # Не навязываем верхнюю границу здесь, чтобы не получать невыполнимость
-                # из-за округлений и ограничений по мощностям.
-                model.Add(product_counts[p] >= plan_days)
+                # "Строгий" продукт (qm=0).
+                if is_in_subset:
+                    # Полное ограничение: не меньше планового объёма в днях.
+                    model.Add(product_counts[p] >= plan_days)
+                else:
+                    # Ослабленное ограничение для продуктов, "вырезанных" precheck.
+                    # Применяем 50% плана как нижнюю границу, чтобы не допустить
+                    # полного отсутствия продукта в расписании.
+                    relaxed_lower = max(1, plan_days // 2)
+                    if min_days > 0:
+                        relaxed_lower = max(relaxed_lower, min_days)
+                    model.Add(product_counts[p] >= relaxed_lower)
+                    logger.info(
+                        "SIMPLE qty_minus RELAXED: p=%d plan_days=%d relaxed_lower=%d",
+                        p, plan_days, relaxed_lower
+                    )
             else:
+                # Для гибких продуктов (qm!=0): если не в subset, пропускаем
+                if not is_in_subset:
+                    continue
                 # qty_minus != 0: продукты, которые могут отклоняться от плана.
                 # Для продуктов под эвристиками H1–H3 оставляем только нижнюю
                 # границу по объёму (min_days/plan_days), без жёсткого верха,
