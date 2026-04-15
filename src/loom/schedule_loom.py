@@ -1618,7 +1618,7 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
             need_relax = False
             relax_reason = ""
 
-            # Проверка A: суммарный remain_day > qty → произвести ровно qty
+            # Проверка A: суммарный remain_day > qty -> произвести ровно qty
             # невозможно, т.к. машины уже обязаны выработать больше.
             if total_forced > qty:
                 need_relax = True
@@ -1837,7 +1837,7 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
         # При use_div=False в модели все машины считаются в одном условном цехе.
         machine_divs = [1 for _ in range(len(machines_df))]
 
-    # Безштрафные смены артикулов: remap external idx → internal idx.
+    # Безштрафные смены артикулов: remap external idx -> internal idx.
     compatible_pairs_internal: list[tuple[int, int]] | None = None
     raw_switches = data.get("compatible_switches")
     if raw_switches:
@@ -2084,7 +2084,7 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
                 relaxed_any = True
                 logger.warning(
                     "INFEASIBLE retry: relax product new_idx=%d qty=%d "
-                    "→ qty_minus=1, qty_minus_min=%d",
+                    "-> qty_minus=1, qty_minus_min=%d",
                     i, qty_val, qty_val,
                 )
 
@@ -4085,6 +4085,15 @@ def create_model(remains: list, products: list, machines: list, cleans: list,
             model.Add(jobs[m, 0] == initial_product)
             # выставляем начальное значение остатка партии
             start_val = product_lday - days_to_constrain[m] + 1
+            # Защита: если remain_day > lday, start_val может стать <= 0.
+            # Считаем, что партия только начата (start_val=1).
+            if start_val < 1:
+                logger.warning(
+                    "Machine %d: remain_day=%d > lday=%d for product %d, "
+                    "capping start_val to 1",
+                    m, days_to_constrain[m], product_lday, initial_product,
+                )
+                start_val = 1
             model.Add(days_in_batch[m, 0] == start_val)
         else:
             model.Add(jobs[m, 0] == initial_product).OnlyEnforceIf(is_initial_product)
