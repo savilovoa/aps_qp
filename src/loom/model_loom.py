@@ -43,6 +43,11 @@ class Clean(BaseModel):
     day_idx: int
     machine_idx: int
 
+class CompatibleSwitch(BaseModel):
+    """Пара продуктов, между которыми смена артикула не требует перехода."""
+    from_product_idx: int = Field(description="индекс продукта, С которого переход без штрафа")
+    to_product_idx: int = Field(description="индекс продукта, НА который переход без штрафа")
+
 class DataLoomIn(BaseModel):
     machines: list[Machine]
     remains: list[list[list[int]]]
@@ -63,6 +68,10 @@ class DataLoomIn(BaseModel):
     loom_max_time: Optional[float] = Field(
         default=None,
         description="Максимальное время работы солвера в секундах. Если None, используется из конфига."
+    )
+    compatible_switches: list[CompatibleSwitch] | None = Field(
+        default=None,
+        description="Пары продуктов, для которых смена артикула без штрафа (без перехода через PRODUCT_ZERO)"
     )
 
 class LoomPlan(BaseModel):

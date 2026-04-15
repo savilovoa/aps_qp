@@ -1581,6 +1581,95 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
             "error_str": error_msg,
         }
 
+    # 4) Auto-relax: если для строгого продукта (qty_minus=0, qty>0) суммарное
+    # remain_day машин с этим продуктом превышает qty, ИЛИ из-за длины партии
+    # (lday) невозможно набрать ровно qty дней — автоматически ослабляем
+    # ограничение: qty_minus=1, qty_minus_min=qty ("не меньше qty" вместо
+    # "ровно qty"), чтобы модель не становилась INFEASIBLE.
+    if settings.APPLY_QTY_MINUS:
+        for df_idx, p_row in products_df.iterrows():
+            p_idx_orig = int(p_row["idx"])
+            if p_idx_orig == 0:
+                continue
+            qty = int(p_row.get("qty", 0) or 0)
+            if qty <= 0:
+                continue
+            try:
+                qty_minus_flag = int(p_row.get("qty_minus", 0) or 0)
+            except (TypeError, ValueError):
+                qty_minus_flag = 0
+            if qty_minus_flag != 0:
+                continue  # уже гибкий продукт
+
+            lday_val = int(p_row.get("lday", 0) or 0)
+            if lday_val <= 0:
+                lday_val = 10  # значение по умолчанию (как в create_model)
+
+            # Машины, стартующие с этим продуктом
+            machines_with_p = machines_df[machines_df["product_idx"] == p_idx_orig]
+            remain_days_list: list[int] = []
+            for _, m_row in machines_with_p.iterrows():
+                rd = int(m_row.get("remain_day", 0) or 0)
+                if rd > 0:
+                    remain_days_list.append(rd)
+
+            total_forced = sum(remain_days_list)
+
+            need_relax = False
+            relax_reason = ""
+
+            # Проверка A: суммарный remain_day > qty → произвести ровно qty
+            # невозможно, т.к. машины уже обязаны выработать больше.
+            if total_forced > qty:
+                need_relax = True
+                relax_reason = (
+                    f"total remain_day={total_forced} > qty={qty}"
+                )
+
+            # Проверка B: пробел между forced и qty не может быть заполнен
+            # из-за гранулярности партий (lday).
+            # После завершения начальной партии машина продолжает продукт
+            # до конца периода (если остаток < lday) или до конца следующей
+            # партии. Новая машина добавляет минимум min(lday, count_days-2)
+            # дней. Если даже минимальная добавка превышает пробел — ровно qty
+            # набрать нельзя.
+            elif 0 < total_forced < qty:
+                gap = qty - total_forced
+                # Минимальная добавка от продолжения на стартовой машине
+                min_continue = min(
+                    (count_days - rd for rd in remain_days_list),
+                    default=float("inf"),
+                )
+                # Минимальная добавка от новой машины (2 дня перехода + партия)
+                min_new_machine = min(lday_val, max(0, count_days - 2))
+                min_additional = min(min_continue, min_new_machine)
+
+                if min_additional > gap:
+                    need_relax = True
+                    relax_reason = (
+                        f"batch granularity: forced={total_forced}, qty={qty}, "
+                        f"gap={gap}, min_additional={min_additional}, "
+                        f"lday={lday_val}"
+                    )
+
+            if need_relax:
+                products_df.at[df_idx, "qty_minus"] = 1
+                products_df.at[df_idx, "qty_minus_min"] = qty
+                # Обновляем data dict (используется для greedy init и HTML)
+                for i, p_data in enumerate(data["products"]):
+                    if int(p_data.get("idx", -1)) == p_idx_orig:
+                        data["products"][i]["qty_minus"] = 1
+                        data["products"][i]["qty_minus_min"] = qty
+                        break
+                logger.warning(
+                    "Auto-relax: product idx=%d name='%s': %s. "
+                    "Setting qty_minus=1, qty_minus_min=%d",
+                    p_idx_orig,
+                    p_row.get("name", ""),
+                    relax_reason,
+                    qty,
+                )
+
     # Функция для пересчёта смен в календарные дни.
     # Используется в режимах LONG_SIMPLE, LONG_SIMPLE_HINT, LONG_TWO_PHASE.
     def convert_shifts_to_days(count_days_shifts: int, clean_df_shifts: pd.DataFrame, shifts_per_day: int = 3):
@@ -1748,6 +1837,28 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
         # При use_div=False в модели все машины считаются в одном условном цехе.
         machine_divs = [1 for _ in range(len(machines_df))]
 
+    # Безштрафные смены артикулов: remap external idx → internal idx.
+    compatible_pairs_internal: list[tuple[int, int]] | None = None
+    raw_switches = data.get("compatible_switches")
+    if raw_switches:
+        _orig_idx_to_id = products_df.set_index("idx")["id"].to_dict()
+        _pairs: list[tuple[int, int]] = []
+        for cs in raw_switches:
+            from_id = _orig_idx_to_id.get(cs["from_product_idx"])
+            to_id = _orig_idx_to_id.get(cs["to_product_idx"])
+            if from_id is None or to_id is None:
+                continue
+            from_int = id_to_new_idx_map.get(from_id)
+            to_int = id_to_new_idx_map.get(to_id)
+            if from_int is not None and to_int is not None:
+                fi, ti = int(from_int), int(to_int)
+                if fi > 0 and ti > 0 and fi != ti:
+                    _pairs.append((fi, ti))
+                    _pairs.append((ti, fi))  # двунаправленная совместимость
+        compatible_pairs_internal = list(set(_pairs)) if _pairs else None
+        if compatible_pairs_internal:
+            logger.info("Compatible switches (internal idx): %s", compatible_pairs_internal)
+
     products_new = ProductsDFToArray(products_df_new)
     machines_new = MachinesDFToArray(machines_df)
     cleans_new = CleansDFToArray(clean_df)
@@ -1849,6 +1960,7 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
             dedicated_machines=dedicated_machines,
             product_divs=product_divs,
             machine_divs=machine_divs,
+            compatible_pairs=compatible_pairs_internal,
         )
 
     # Если есть жадный план и включён USE_GREEDY_HINT/режим LONG_SIMPLE_HINT,
@@ -1952,6 +2064,83 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
 
     logger.info(f"Статус решения: {solver.StatusName(status)}")
     logger.info(f"Время решения CP-SAT: {t_end - t_start:.3f} сек")
+
+    # --- INFEASIBLE auto-relax retry ---
+    # Если модель неразрешима и есть строгие продукты (qty_minus=0, qty>0),
+    # ослабляем ВСЕ строгие продукты до qty_minus=1/qty_minus_min=qty
+    # и перестраиваем + перерешаем модель один раз.
+    if status == cp_model.INFEASIBLE and settings.APPLY_QTY_MINUS:
+        products_relaxed = list(products_new)
+        relaxed_any = False
+        for i, p in enumerate(products_relaxed):
+            qty_val = p[1]
+            qm_flag = p[4]
+            if qty_val > 0 and qm_flag == 0:
+                p_list = list(p)
+                p_list[4] = 1  # qty_minus = 1
+                if len(p_list) > 7:
+                    p_list[7] = qty_val  # qty_minus_min = qty
+                products_relaxed[i] = tuple(p_list)
+                relaxed_any = True
+                logger.warning(
+                    "INFEASIBLE retry: relax product new_idx=%d qty=%d "
+                    "→ qty_minus=1, qty_minus_min=%d",
+                    i, qty_val, qty_val,
+                )
+
+        if relaxed_any:
+            logger.warning(
+                "Перестраиваем модель с ослабленными строгими ограничениями..."
+            )
+            if horizon_mode in ("LONG_SIMPLE", "LONG_SIMPLE_HINT", "LONG_TWO_PHASE"):
+                _allowed = (
+                    allowed_products
+                    if horizon_mode == "LONG_TWO_PHASE"
+                    else None
+                )
+                (model, jobs, product_counts, proportion_objective_terms,
+                 total_products_count, prev_lday, start_batch,
+                 batch_end_complite, days_in_batch, completed_transition,
+                 pred_start_batch, same_as_prev,
+                 strategy_penalty_terms) = create_model_simple(
+                    remains=remains, products=products_relaxed,
+                    machines=machines_new, cleans=cleans_new,
+                    max_daily_prod_zero=max_daily_prod_zero,
+                    count_days=count_days,
+                    dedicated_machines=dedicated_machines,
+                    product_divs=product_divs,
+                    machine_divs=machine_divs,
+                    allowed_products=_allowed,
+                )
+            else:
+                (model, jobs, product_counts, proportion_objective_terms,
+                 total_products_count, prev_lday, start_batch,
+                 batch_end_complite, days_in_batch, completed_transition,
+                 pred_start_batch, same_as_prev,
+                 strategy_penalty_terms) = create_model(
+                    remains=remains, products=products_relaxed,
+                    machines=machines_new, cleans=cleans_new,
+                    max_daily_prod_zero=max_daily_prod_zero,
+                    count_days=count_days,
+                    dedicated_machines=dedicated_machines,
+                    product_divs=product_divs,
+                    machine_divs=machine_divs,
+                    compatible_pairs=compatible_pairs_internal,
+                )
+
+            products_new = products_relaxed
+
+            solver = cp_model.CpSolver()
+            solver.parameters.log_search_progress = False
+            solver.parameters.max_time_in_seconds = settings.LOOM_MAX_TIME
+            solver.parameters.num_search_workers = settings.LOOM_NUM_WORKERS
+            t_start = time.time()
+            status = solver.solve(model)
+            t_end = time.time()
+            logger.info(
+                "Retry после ослабления: %s, время: %.3f сек",
+                solver.StatusName(status), t_end - t_start,
+            )
 
     logger.info(f"Статус решения: {solver.StatusName(status)}")
     if status == cp_model.OPTIMAL or status == cp_model.FEASIBLE:
@@ -3640,7 +3829,8 @@ def create_model(remains: list, products: list, machines: list, cleans: list,
                  max_daily_prod_zero: int, count_days: int,
                  dedicated_machines: list[int] | None = None,
                  product_divs: list[int] | None = None,
-                 machine_divs: list[int] | None = None):
+                 machine_divs: list[int] | None = None,
+                 compatible_pairs: list[tuple[int, int]] | None = None):
     # products: [ # ("idx, "name", "qty", "id", "machine_type", "qty_minus", "lday")
     #     ("", 0, "", 0, 0),
     #     ("ст87017t3", 42, "7ec17dc8-f3bd-4384-9738-7538ab3dc315", 0, 1, 13),
@@ -3863,6 +4053,7 @@ def create_model(remains: list, products: list, machines: list, cleans: list,
     prev_is_not_zero = {}
 
     start_batch = {}
+    allowed_compat_switch = {}
     for m in range(num_machines):
         for d in range(num_days):
             completed_transition[m, d] = model.NewBoolVar(f"completed_transition_{m}_{d}")
@@ -3964,11 +4155,44 @@ def create_model(remains: list, products: list, machines: list, cleans: list,
             model.AddBoolOr([same_as_prev[m, d].Not(), batch_end_complite[m, pred_idx].Not()]).OnlyEnforceIf(
                 pred_start_batch[m, d].Not())
 
+            # --- Безштрафная смена артикула (compatible switch) ---
+            if compatible_pairs:
+                pair_match_vars = []
+                for (from_p, to_p) in compatible_pairs:
+                    if ((from_p, m, pred_idx) in product_produced_bools
+                            and (to_p, m, d) in product_produced_bools):
+                        pm = model.NewBoolVar(f"cpair_{from_p}_{to_p}_{m}_{d}")
+                        model.AddBoolAnd([
+                            product_produced_bools[from_p, m, pred_idx],
+                            product_produced_bools[to_p, m, d],
+                        ]).OnlyEnforceIf(pm)
+                        model.AddBoolOr([
+                            product_produced_bools[from_p, m, pred_idx].Not(),
+                            product_produced_bools[to_p, m, d].Not(),
+                        ]).OnlyEnforceIf(pm.Not())
+                        pair_match_vars.append(pm)
+                if pair_match_vars:
+                    any_compat = model.NewBoolVar(f"any_compat_{m}_{d}")
+                    if len(pair_match_vars) == 1:
+                        model.Add(any_compat == pair_match_vars[0])
+                    else:
+                        model.AddBoolOr(pair_match_vars).OnlyEnforceIf(any_compat)
+                        model.AddBoolAnd([v.Not() for v in pair_match_vars]).OnlyEnforceIf(
+                            any_compat.Not())
+                    allowed_compat_switch[m, d] = model.NewBoolVar(f"compat_sw_{m}_{d}")
+                    model.AddBoolAnd([
+                        batch_end_complite[m, pred_idx], any_compat,
+                    ]).OnlyEnforceIf(allowed_compat_switch[m, d])
+                    model.AddBoolOr([
+                        batch_end_complite[m, pred_idx].Not(), any_compat.Not(),
+                    ]).OnlyEnforceIf(allowed_compat_switch[m, d].Not())
+
             start_batch[m, d] = model.NewBoolVar(f"start_batch_m{m}_d{d}")
-            model.AddBoolOr([pred_start_batch[m, d], completed_transition[m, d]]).OnlyEnforceIf(
-                start_batch[m, d])
-            model.AddBoolAnd([pred_start_batch[m, d].Not(), completed_transition[m, d].Not()]).OnlyEnforceIf(
-                start_batch[m, d].Not())
+            _sb_opts = [pred_start_batch[m, d], completed_transition[m, d]]
+            if (m, d) in allowed_compat_switch:
+                _sb_opts.append(allowed_compat_switch[m, d])
+            model.AddBoolOr(_sb_opts).OnlyEnforceIf(start_batch[m, d])
+            model.AddBoolAnd([o.Not() for o in _sb_opts]).OnlyEnforceIf(start_batch[m, d].Not())
 
             model.Add(jobs[m, d] == jobs[m, pred_idx]).OnlyEnforceIf([batch_end_complite[m, pred_idx].Not(), prev_is_not_zero[m, d]])
 
@@ -4004,11 +4228,14 @@ def create_model(remains: list, products: list, machines: list, cleans: list,
             # 1) тот же продукт, что и вчера (если вчера не ноль)
             # 2) завершен двухдневный переход
 
-            model.AddBoolOr([
+            _trans_opts = [
                 is_not_zero[m, d].Not(),  # Текущий день - PRODUCT_ZERO
                 same_as_prev[m, d],  # Тот же продукт, что вчера
-                completed_transition[m, pred_idx]  # Завершен двухдневный переход
-            ])
+                completed_transition[m, pred_idx],  # Завершен двухдневный переход
+            ]
+            if (m, d) in allowed_compat_switch:
+                _trans_opts.append(allowed_compat_switch[m, d])  # Безштрафная смена
+            model.AddBoolOr(_trans_opts)
             # Запрет на 3-й ZERO: после двух дней PRODUCT_ZERO (переход)
             # третий день на той же машине уже не может быть нулевым продуктом.
             if settings.APPLY_TRANSITION_BUSINESS_LOGIC:
