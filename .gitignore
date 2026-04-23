@@ -2,7 +2,7 @@
 .env
 .env.save
 log/
-data/
+data/*
 **__pycache__/
 example/*
 *.log
