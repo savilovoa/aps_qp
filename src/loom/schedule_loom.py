@@ -4037,6 +4037,23 @@ def create_model(remains: list, products: list, machines: list, cleans: list,
                     for d in all_days:
                         if (m, d) in work_days:
                             model.Add(jobs[m, d] != p)
+
+    # Ограничение по цехам (div) ###
+    # Продукт с div=1 или div=2 можно производить только на машинах того же цеха.
+    # div=0 (или отсутствует) - продукт допускается на любых машинах.
+    # PRODUCT_ZERO (idx=0) не ограничивается по div.
+    if product_divs is not None and machine_divs is not None and settings.APPLY_DIV_CONSTRAINTS:
+        for p in range(1, num_products):  # пропускаем PRODUCT_ZERO
+            prod_div = product_divs[p] if p < len(product_divs) else 0
+            if prod_div not in (1, 2):
+                continue  # div=0 или не задан - можно на любых машинах
+            for m in all_machines:
+                m_div = machine_divs[m] if m < len(machine_divs) else 1
+                if m_div != prod_div:
+                    for d in all_days:
+                        if (m, d) in work_days:
+                            model.Add(jobs[m, d] != p)
+
     # Основная переменная состояния: отслеживает день внутри текущей партии
     days_in_batch = {}
     for m in all_machines:
