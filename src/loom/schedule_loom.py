@@ -1652,14 +1652,29 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
                         f"lday={lday_val}"
                     )
 
+            # Проверка C: крупные строгие продукты (qty > QTY_STRICT_FLEX_THRESHOLD)
+            # получают допуск на недопроизводство до 15%, чтобы солвер имел
+            # пространство для маневра при распределении по машинам.
+            QTY_STRICT_FLEX_THRESHOLD = 18
+            QTY_STRICT_FLEX_FACTOR = 0.85  # минимум = qty * 0.85
+            if not need_relax and qty > QTY_STRICT_FLEX_THRESHOLD:
+                need_relax = True
+                qty_minus_min_val = max(1, round(qty * QTY_STRICT_FLEX_FACTOR))
+                relax_reason = (
+                    f"large strict product: qty={qty} > {QTY_STRICT_FLEX_THRESHOLD}, "
+                    f"allowing flex down to {qty_minus_min_val} ({QTY_STRICT_FLEX_FACTOR:.0%})"
+                )
+            else:
+                qty_minus_min_val = qty  # для проверок A/B минимум = полный qty
+
             if need_relax:
                 products_df.at[df_idx, "qty_minus"] = 1
-                products_df.at[df_idx, "qty_minus_min"] = qty
+                products_df.at[df_idx, "qty_minus_min"] = qty_minus_min_val
                 # Обновляем data dict (используется для greedy init и HTML)
                 for i, p_data in enumerate(data["products"]):
                     if int(p_data.get("idx", -1)) == p_idx_orig:
                         data["products"][i]["qty_minus"] = 1
-                        data["products"][i]["qty_minus_min"] = qty
+                        data["products"][i]["qty_minus_min"] = qty_minus_min_val
                         break
                 logger.warning(
                     "Auto-relax: product idx=%d name='%s': %s. "
@@ -1667,7 +1682,7 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
                     p_idx_orig,
                     p_row.get("name", ""),
                     relax_reason,
-                    qty,
+                    qty_minus_min_val,
                 )
 
     # Функция для пересчёта смен в календарные дни.
