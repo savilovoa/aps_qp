@@ -10,6 +10,8 @@ from .model_loom import (
     LoomPlansViewIn,
     LoomPlansViewOut,
     LongDayCapacity,
+    InfeasibleDiagnostics,
+    DivCapacity,
 )
 import traceback as tr
 from ..config import logger, settings
@@ -18,6 +20,197 @@ from .loom_plan_html import schedule_to_html, aggregated_schedule_to_html
 from uuid import uuid4
 import time
 import json
+
+def build_infeasible_diagnostics(data: dict) -> InfeasibleDiagnostics:
+    """Analyse input data and return structured diagnostics for INFEASIBLE."""
+    messages: list[str] = []
+    remain_day_issues: list[dict] = []
+    qty_conflicts: list[dict] = []
+    div_caps: list[DivCapacity] = []
+    auto_relaxed: list[dict] = []
+
+    machines_json = data["machines"]
+    products_json = data["products"]
+    cleans_json = data.get("cleans", [])
+    count_days = int(data["count_days"])
+    max_daily_prod_zero = int(data["max_daily_prod_zero"])
+
+    prod_map = {int(p["idx"]): p for p in products_json}
+    cleans_set = {(c["machine_idx"], c["day_idx"]) for c in cleans_json}
+
+    # --- 1. remain_day vs lday ---
+    for m in machines_json:
+        p_idx = m["product_idx"]
+        pi = prod_map.get(p_idx)
+        if not pi:
+            continue
+        remain = int(m.get("remain_day", 0) or 0)
+        lday = int(pi.get("lday", 0) or 0)
+        if lday <= 0:
+            lday = 10
+        if remain > 0 and lday - remain + 1 < 1:
+            entry = {
+                "machine_idx": m["idx"],
+                "machine_name": m["name"],
+                "product_idx": p_idx,
+                "product_name": pi.get("name", ""),
+                "remain_day": remain,
+                "lday": lday,
+            }
+            remain_day_issues.append(entry)
+            messages.append(
+                f"Machine {m['idx']} ({m['name'].strip()}): remain_day={remain} > lday={lday} "
+                f"for product {p_idx} ({pi['name'].strip()})"
+            )
+
+    # --- 2. QTY_MINUS forced overproduction ---
+    if settings.APPLY_QTY_MINUS:
+        for p in products_json:
+            p_idx = int(p["idx"])
+            if p_idx == 0:
+                continue
+            qty = int(p.get("qty", 0) or 0)
+            if qty <= 0:
+                continue
+            qm = int(p.get("qty_minus", 0) or 0)
+            if qm != 0:
+                continue
+            ms = [m for m in machines_json if m["product_idx"] == p_idx]
+            total_forced = sum(
+                min(max(0, int(m.get("remain_day", 0) or 0)),
+                    sum(1 for d in range(count_days) if (m["idx"], d) not in cleans_set))
+                for m in ms
+            )
+            if total_forced > qty:
+                entry = {
+                    "product_idx": p_idx,
+                    "product_name": p.get("name", "").strip(),
+                    "qty": qty,
+                    "forced_days": total_forced,
+                    "machines": [m["idx"] for m in ms],
+                }
+                qty_conflicts.append(entry)
+                messages.append(
+                    f"Product {p_idx} ({p['name'].strip()}): qty={qty} strict, "
+                    f"but forced production={total_forced} (machines: {entry['machines']})"
+                )
+
+    # --- 3. Capacity per div ---
+    cap_per_div: dict[int, int] = {}
+    forced_per_div: dict[int, int] = {}
+    for m in machines_json:
+        d = int(m.get("div", 1))
+        wd = sum(1 for day in range(count_days) if (m["idx"], day) not in cleans_set)
+        cap_per_div[d] = cap_per_div.get(d, 0) + wd
+        remain = max(0, int(m.get("remain_day", 0) or 0))
+        forced_per_div[d] = forced_per_div.get(d, 0) + min(remain, wd)
+
+    # Strict qty per div (after simulated auto-relax)
+    relaxed_sim: set[int] = set()
+    for p in products_json:
+        pi = int(p["idx"])
+        if pi == 0:
+            continue
+        qty = int(p.get("qty", 0) or 0)
+        if qty <= 0 or int(p.get("qty_minus", 0) or 0) != 0:
+            continue
+        ms = [m for m in machines_json if m["product_idx"] == pi]
+        tf = sum(max(0, int(m.get("remain_day", 0) or 0)) for m in ms)
+        if tf > qty:
+            relaxed_sim.add(pi)
+        elif 0 < tf < qty:
+            gap = qty - tf
+            lday = int(p.get("lday", 0) or 0) or 10
+            if min(lday, max(0, count_days - 2)) > gap:
+                relaxed_sim.add(pi)
+        if qty > 18 and pi not in relaxed_sim:
+            relaxed_sim.add(pi)  # Check C
+
+    strict_per_div: dict[int, int] = {}
+    for p in products_json:
+        pi = int(p["idx"])
+        if pi == 0:
+            continue
+        qty = int(p.get("qty", 0) or 0)
+        if qty <= 0 or int(p.get("qty_minus", 0) or 0) != 0:
+            continue
+        if pi in relaxed_sim:
+            continue
+        d = int(p.get("div", 0) or 0)
+        strict_per_div[d] = strict_per_div.get(d, 0) + qty
+
+    for d in sorted(cap_per_div.keys()):
+        machines_in_div = [m for m in machines_json if int(m.get("div", 1)) == d]
+        trans_est = sum(
+            2 for m in machines_in_div
+            if max(0, int(m.get("remain_day", 0) or 0)) <
+               sum(1 for day in range(count_days) if (m["idx"], day) not in cleans_set)
+        )
+        avail = cap_per_div[d] - forced_per_div[d] - trans_est
+        strict = strict_per_div.get(d, 0)
+        deficit = strict > avail
+        dc = DivCapacity(
+            div=d,
+            capacity=cap_per_div[d],
+            forced=forced_per_div[d],
+            transitions_est=trans_est,
+            available=avail,
+            strict_needed=strict,
+            deficit=deficit,
+        )
+        div_caps.append(dc)
+        if deficit:
+            messages.append(
+                f"div={d}: DEFICIT available={avail} < strict_needed={strict} "
+                f"(capacity={cap_per_div[d]}, forced={forced_per_div[d]}, transitions~{trans_est})"
+            )
+
+    # --- 4. Transition bottleneck ---
+    need_transition_count = sum(
+        1 for m in machines_json
+        if max(0, int(m.get("remain_day", 0) or 0)) <
+           sum(1 for day in range(count_days) if (m["idx"], day) not in cleans_set)
+    )
+    total_trans_days = need_transition_count * 2
+    available_slots = count_days * max_daily_prod_zero
+    if total_trans_days > available_slots:
+        messages.append(
+            f"Transition bottleneck: {need_transition_count} machines need transitions "
+            f"({total_trans_days} zero-days), but max_daily_prod_zero={max_daily_prod_zero} "
+            f"allows only {available_slots} zero-days total"
+        )
+
+    # --- 5. Active settings ---
+    active = {
+        "APPLY_QTY_MINUS": settings.APPLY_QTY_MINUS,
+        "APPLY_INDEX_UP": settings.APPLY_INDEX_UP,
+        "APPLY_DIV_CONSTRAINTS": settings.APPLY_DIV_CONSTRAINTS,
+        "APPLY_DOWNTIME_LIMITS": settings.APPLY_DOWNTIME_LIMITS,
+        "APPLY_ZERO_PER_DAY_LIMIT": settings.APPLY_ZERO_PER_DAY_LIMIT,
+        "APPLY_ZERO_PER_MACHINE_LIMIT": settings.APPLY_ZERO_PER_MACHINE_LIMIT,
+        "APPLY_TRANSITION_BUSINESS_LOGIC": settings.APPLY_TRANSITION_BUSINESS_LOGIC,
+        "HORIZON_MODE": getattr(settings, "HORIZON_MODE", "FULL"),
+        "max_daily_prod_zero": max_daily_prod_zero,
+        "count_days": count_days,
+    }
+
+    if not messages:
+        messages.append(
+            "No obvious structural issues detected. "
+            "The infeasibility may be caused by a complex interaction of lday, "
+            "batch boundaries, and exact qty constraints. "
+            "Try: APPLY_QTY_MINUS=false or APPLY_ZERO_PER_MACHINE_LIMIT=false."
+        )
+
+    return InfeasibleDiagnostics(
+        messages=messages,
+        remain_day_issues=remain_day_issues,
+        qty_conflicts=qty_conflicts,
+        div_capacity=div_caps,
+        auto_relaxed=auto_relaxed,
+        active_settings=active,
+    )
+
 
 def MachinesModelToArray(machines: list[Machine]) -> list[(str, int, str, int, int)]:
     result = []
@@ -172,9 +365,10 @@ def schedule_loom_calc_model(DataIn: DataLoomIn) -> LoomPlansOut:
             save_model_to_log(result)
         else:
             error_str = result_calc["error_str"]
+            diag = result_calc.get("diagnostics")
             if result_calc["status"] == cp_model.INFEASIBLE:
                 error_str = error_str + " МОДЕЛЬ НЕ МОЖЕТ БЫТЬ РАССЧИТАНА"
-            result = LoomPlansOut(error_str=error_str)
+            result = LoomPlansOut(error_str=error_str, diagnostics=diag)
 
 
     except Exception as e:
@@ -2255,6 +2449,16 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
         )
         logger.info(solver.ResponseStats())  # Основные статистические данные
 
+    # --- INFEASIBLE diagnostics ---
+    diag = None
+    if status == cp_model.INFEASIBLE:
+        try:
+            diag = build_infeasible_diagnostics(data)
+            for msg in diag.messages:
+                logger.warning("INFEASIBLE diag: %s", msg)
+        except Exception as e:
+            logger.error("Failed to build INFEASIBLE diagnostics: %s", e)
+
     result = {
         "status": int(status),
         "status_str": solver.StatusName(status),
@@ -2263,6 +2467,7 @@ def schedule_loom_calc(remains: list, products: list, machines: list, cleans: li
         "objective_value": int(solver.ObjectiveValue()),
         "proportion_diff": int(diff_all),
         "error_str": "",
+        "diagnostics": diag,
     }
 
     return result

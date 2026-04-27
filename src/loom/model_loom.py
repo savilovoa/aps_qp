@@ -95,6 +95,42 @@ class LongDayCapacity(BaseModel):
     machine_count: int
 
 
+class DivCapacity(BaseModel):
+    """Emkost' ceha (div)."""
+    div: int
+    capacity: int = Field(description="total working machine-days in div")
+    forced: int = Field(description="machine-days locked by remain_day")
+    transitions_est: int = Field(description="estimated transition days (2 per machine)")
+    available: int = Field(description="capacity - forced - transitions")
+    strict_needed: int = Field(description="sum of strict qty for products in this div")
+    deficit: bool = Field(default=False)
+
+
+class InfeasibleDiagnostics(BaseModel):
+    """Diagnostics returned when solver reports INFEASIBLE."""
+    messages: list[str] = Field(default=[], description="Human-readable diagnostic messages")
+    remain_day_issues: list[dict] = Field(
+        default=[],
+        description="Machines where remain_day > lday (causes negative start_val)",
+    )
+    qty_conflicts: list[dict] = Field(
+        default=[],
+        description="Strict products where forced production > qty",
+    )
+    div_capacity: list[DivCapacity] = Field(
+        default=[],
+        description="Capacity analysis per div (workshop)",
+    )
+    auto_relaxed: list[dict] = Field(
+        default=[],
+        description="Products auto-relaxed before solve",
+    )
+    active_settings: dict = Field(
+        default={},
+        description="Key solver settings that affect feasibility",
+    )
+
+
 class LoomPlansOut(BaseModel):
     status: int = Field(default=0)
     status_str: str = Field(default="")
@@ -105,6 +141,8 @@ class LoomPlansOut(BaseModel):
     res_html: str = Field(default="")
     # Для LONG-режима дополнительно возвращаем агрегированные мощности по дням.
     long_schedule: list[LongDayCapacity] | None = Field(default=None)
+    # Диагностика при INFEASIBLE.
+    diagnostics: InfeasibleDiagnostics | None = Field(default=None)
 
 class LoomPlansViewIn(BaseModel):
     machines: list[Machine]
